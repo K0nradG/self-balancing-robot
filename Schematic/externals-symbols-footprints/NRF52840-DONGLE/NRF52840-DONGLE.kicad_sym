@@ -1,0 +1,219 @@
+
+(kicad_symbol_lib (version 20211014) (generator kicad_symbol_editor)
+  (symbol "NRF52840-DONGLE" (pin_names (offset 1.016)) (in_bom yes) (on_board yes)
+    (property "Reference" "U" (id 0) (at -10.16 21.082 0)
+      (effects (font (size 1.27 1.27)) (justify bottom left))
+    )
+    (property "Value" "NRF52840-DONGLE" (id 1) (at -10.16 -22.86 0)
+      (effects (font (size 1.27 1.27)) (justify bottom left))
+    )
+    (property "Footprint" "NRF52840-DONGLE:MODULE_NRF52840-DONGLE" (id 2) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "SnapEDA_Link" "https://www.snapeda.com/parts/NRF52840DONGLE/Nordic+Power/view-part/?ref=snap" (id 4) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "Description" "\n                        \n                            BLUETOOTH MODULE, V5, 2MBPS; Bluetooth Version:Bluetooth 5.0; Supply Voltage Min:1.7V; Supply Voltage Max:5.5V; Signal Range Max:-; Data Rate:2Mbps; Bluetooth Class:-; Receive Sensitivity:-92dBm; Operating Temperature Min:-; Operating Temperature Max:-; Product Range:NRF52 Series; SVHC:No SVHC (15-Jan-2018)\n                        \n" (id 5) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "Package" "None" (id 6) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "Price" "None" (id 7) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "MF" "Nordic Semiconductor" (id 8) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "MP" "NRF52840DONGLE" (id 9) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "Availability" "In Stock" (id 10) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (property "Check_prices" "https://www.snapeda.com/parts/NRF52840DONGLE/Nordic+Power/view-part/?ref=eda" (id 11) (at 0 0 0)
+      (effects (font (size 1.27 1.27)) (justify bottom) hide)
+    )
+    (symbol "NRF52840-DONGLE_0_0"
+      (rectangle (start -10.16 -20.32) (end 10.16 20.32)
+        (stroke (width 0.1524)) (fill (type background))
+      )
+      (pin power_in line (at 15.24 17.78 180.0) (length 5.08)
+        (name "VBUS"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "VBUS"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin power_in line (at 15.24 -17.78 180.0) (length 5.08)
+        (name "GND"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "G1"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin power_in line (at 15.24 -17.78 180.0) (length 5.08)
+        (name "GND"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "G2"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin power_in line (at 15.24 -17.78 180.0) (length 5.08)
+        (name "GND"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "G3"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 -2.54 180.0) (length 5.08)
+        (name "0.31"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.31"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin output line (at 15.24 12.7 180.0) (length 5.08)
+        (name "OUT"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "OUT"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 0.0 180.0) (length 5.08)
+        (name "0.29"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.29"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 5.08 0) (length 5.08)
+        (name "0.02"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.02"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 -12.7 180.0) (length 5.08)
+        (name "1.15"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "1.15"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 -7.62 180.0) (length 5.08)
+        (name "1.10"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "1.10"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 -10.16 180.0) (length 5.08)
+        (name "1.13"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "1.13"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 -2.54 0) (length 5.08)
+        (name "0.13"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.13"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 -5.08 0) (length 5.08)
+        (name "0.15"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.15"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 -7.62 0) (length 5.08)
+        (name "0.17"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.17"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 -10.16 0) (length 5.08)
+        (name "0.20"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.20"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 5.08 180.0) (length 5.08)
+        (name "0.22"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.22"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 2.54 180.0) (length 5.08)
+        (name "0.24"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.24"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at 15.24 -5.08 180.0) (length 5.08)
+        (name "1.00"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "1.00"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 2.54 0) (length 5.08)
+        (name "0.09"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.09"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 0.0 0) (length 5.08)
+        (name "0.10"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "0.10"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin bidirectional line (at -15.24 10.16 0) (length 5.08)
+        (name "SWDIO"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "SWDIO"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+      (pin input clock (at -15.24 12.7 0) (length 5.08)
+        (name "SWDCLK"
+          (effects (font (size 1.016 1.016)))
+        )
+        (number "SWDCLK"
+          (effects (font (size 1.016 1.016)))
+        )
+      )
+    )
+  )
+)

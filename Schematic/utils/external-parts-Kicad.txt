@@ -1,0 +1,17 @@
+nrf52840dongle:
+
+symbol, footprint
+https://www.snapeda.com/parts/NRF52840DONGLE/Nordic%20Semiconductor/view-part/?ref=search&t=nrf52840%20dongle
+
+3d model
+https://grabcad.com/library/nrf52840-dongle-1
+
+
+MPU 6050 DFrobot
+
+3d model
+https://grabcad.com/library/mpu-6050-imu-sensor-1
+
+symbol,footprint
+https://www.snapeda.com/parts/GY-521/GODREAM%20FORDREAM%20CO.,%20LIMITED/view-part/
+

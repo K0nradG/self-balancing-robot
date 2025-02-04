@@ -15,3 +15,6 @@ https://grabcad.com/library/mpu-6050-imu-sensor-1
 symbol,footprint
 https://www.snapeda.com/parts/GY-521/GODREAM%20FORDREAM%20CO.,%20LIMITED/view-part/
 
+
+282837-2 (zlacze srubowe) (symbol,footprint,3d model)
+https://www.snapeda.com/parts/282837-2/TE%20Connectivity%20AMP%20Connectors/view-part/?welcome=home

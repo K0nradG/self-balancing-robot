@@ -18,3 +18,18 @@ https://www.snapeda.com/parts/GY-521/GODREAM%20FORDREAM%20CO.,%20LIMITED/view-pa
 
 282837-2 (zlacze srubowe) (symbol,footprint,3d model)
 https://www.snapeda.com/parts/282837-2/TE%20Connectivity%20AMP%20Connectors/view-part/?welcome=home
+
+
+battery connectors
+
+
+
+power supplier for dc motors
+
+https://grabcad.com/library/lm2596-module-for-kicad-1
+
+
+switch
+https://www.digikey.it/en/models/67042
+
+

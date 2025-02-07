@@ -1,0 +1,1 @@
+https://jlcpcb.com/help/article/how-to-generate-gerber-and-drill-files-in-kicad-7

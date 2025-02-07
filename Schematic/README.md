@@ -32,7 +32,7 @@ For drill files **.drl**, follow these steps:
 You can find various custom symbols, footprints, and 3D models online. Recommended sources:
 
 - [GrabCAD](https://grabcad.com/library/lm2596-module-for-kicad-1)
-- [SnapEDA](https://www.snapeda.com/parts/GY-521/GODREAM FORDREAM CO., LIMITED/view-part/)
+- [SnapEDA](https://www.snapeda.com/parts/GY-521/GODREAM FORDREAM CO., LIMITED/view-part)
 
 
 
@@ -42,7 +42,7 @@ All external symbols, footprints, and 3D models used in this project are located
 
 #### **1. Download the Files**
 
-Example files from [SnapEDA](https://www.snapeda.com/parts/GY-521/GODREAM FORDREAM CO., LIMITED/view-part/):
+Example files from [SnapEDA](https://www.snapeda.com/parts/GY-521/GODREAM FORDREAM CO., LIMITED/view-part):
 
 - **Symbol:** `.kicad_sym`
 - **Footprint:** `.kicad_mod`

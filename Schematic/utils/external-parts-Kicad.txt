@@ -33,3 +33,9 @@ switch
 https://www.digikey.it/en/models/67042
 
 
+H bridge (foootprtint, symbol)
+
+https://www.snapeda.com/parts/POLOLU-713/Pololu/view-part/
+
+3D model
+https://grabcad.com/library/doble-puente-h-tb6612fng-1

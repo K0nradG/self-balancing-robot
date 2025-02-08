@@ -1,2 +1,1 @@
 rsource "battery_level/Kconfig"
-#source "battery_level/Kconfig"

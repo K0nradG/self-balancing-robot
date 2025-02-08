@@ -60,7 +60,7 @@ Copy this file and place it in the **nRF Programmer App**.
 
 
 
-**note: **
+**note**
 
 you can switch nrf52840dongle to Open Bootloader Mode by pressing appropriate button - it is a button set at an angle of 90 degrees so as not to press it by accident.
 

@@ -4,6 +4,8 @@
 #include "battery_level.h"
 #endif
 
-int main(){
+int
+main()
+{
     printk("dummy app");
 }

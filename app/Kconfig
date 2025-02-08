@@ -1,0 +1,4 @@
+#It must be present to get all zephyr Kconfigs using in nrf-sdk
+menu "Zephyr"
+source "Kconfig.zephyr"
+endmenu

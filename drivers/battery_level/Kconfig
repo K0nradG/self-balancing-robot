@@ -1,0 +1,13 @@
+
+config BATTERY_LEVEL_DRV
+    bool "battery measurement module"
+    default y
+    select ADC
+
+if BATTERY_LEVEL_DRV
+
+module = BAT_LVL
+module-str = battery measurement
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif #BATTERY_LEVEL_DRV

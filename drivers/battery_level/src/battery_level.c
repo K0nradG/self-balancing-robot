@@ -36,7 +36,7 @@ static bool     periodic_measurement_started;
 static int
 init(void)
 {
-    int ret;
+    int ret = 0;
 
     const bool is_adc_ready = adc_is_ready_dt(&adc_dev);
 
@@ -60,9 +60,9 @@ static uint8_t
 battery_charge_level(int16_t voltage_mv)
 {
     static uint8_t previous_charge_level = 100;
-    uint8_t        charge_level;
-    int16_t        slope;
-    int32_t        intercept;
+    uint8_t        charge_level          = 0;
+    int16_t        slope                 = 0;
+    int32_t        intercept             = 0;
 
     if(voltage_mv > CONFIG_MAX_BATTERY_LEVEL)  // 100%
     {
@@ -70,8 +70,8 @@ battery_charge_level(int16_t voltage_mv)
     }
     else if(voltage_mv > 7900)  // 100% - 80%
     {
-        slope        = (100 - 80) / (8400 - 7900);
-        intercept    = 100 - slope * 8400;
+        slope        = (100 - 80) / (CONFIG_MAX_BATTERY_LEVEL - 7900);
+        intercept    = 100 - slope * CONFIG_MAX_BATTERY_LEVEL;
         charge_level = slope * voltage_mv + intercept;
     }
     else if(voltage_mv > 7400)  // 80% - 60%
@@ -94,7 +94,7 @@ battery_charge_level(int16_t voltage_mv)
     }
     else if(voltage_mv > CONFIG_MIN_BATTERY_LEVEL)  // 10% - 0%
     {
-        slope        = (10 - 0) / (6600 - 6000);
+        slope        = (10 - 0) / (6600 - CONFIG_MIN_BATTERY_LEVEL);
         intercept    = 10 - slope * 6600;
         charge_level = slope * voltage_mv + intercept;
     }
@@ -138,7 +138,7 @@ get_sample(void)
         return ret;
     }
 
-    int32_t battery_level_mv;
+    int32_t battery_level_mv = 0;
 
     ret = adc_raw_to_millivolts_dt(&adc_dev, &battery_level_mv);
     if(ret < 0)

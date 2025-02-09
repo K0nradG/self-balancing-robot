@@ -4,10 +4,10 @@
 #include "battery_level.h"
 #include <zephyr/drivers/adc.h>
 #include <zephyr/init.h>
-#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include "utils.h"
 
-/* battery level driver init priority - lower values means earlier in itialization
+/* battery level driver init priority - lower values means earlier in initialization
 main initialization has 100, so our driver is initialize right before main*/
 #define APPLICATION_INIT_PRIORITY 99
 
@@ -31,7 +31,7 @@ static struct adc_sequence sequence = {
 static struct k_work_delayable battery_measurement_work;
 
 static uint16_t measurement_interval;
-static bool periodic_measurement_started;
+static bool     periodic_measurement_started;
 
 static int
 init(void)
@@ -53,27 +53,16 @@ init(void)
 
     return ret;
 }
+
 SYS_INIT(init, APPLICATION, APPLICATION_INIT_PRIORITY);
-
-static void
-reschedule_work(struct k_work_delayable* dwork, k_timeout_t delay, char* desc)
-{
-    const int ret = k_work_reschedule(dwork, delay);
-    if(ret < 0)
-    {
-        LOG_ERR("Can't reschedule %s work: %d", desc, ret);
-    }
-}
-
-#include <stdint.h>
 
 static uint8_t
 battery_charge_level(int16_t voltage_mv)
 {
     static uint8_t previous_charge_level = 100;
-    uint8_t charge_level;
-    int16_t slope;
-    int32_t intercept;
+    uint8_t        charge_level;
+    int16_t        slope;
+    int32_t        intercept;
 
     if(voltage_mv > 8400)  // 100%
     {
@@ -187,6 +176,7 @@ battery_measurement_work_handler(struct k_work* work)
     /* Batter measurement work is calls itself every measurement_interval ms*/
     reschedule_work(&battery_measurement_work, K_MSEC(measurement_interval), "Battery level measurement");
 }
+
 static K_WORK_DELAYABLE_DEFINE(battery_measurement_work, battery_measurement_work_handler);
 
 void

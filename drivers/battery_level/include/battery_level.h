@@ -9,7 +9,7 @@ extern "C" {
 
 struct battery_level_data
 {
-    uint8_t battery_level_percent;
+    uint8_t  battery_level_percent;
     uint16_t battery_level_mv;
 };
 
@@ -22,6 +22,7 @@ new_battery_level_cb_register(battery_level_updated_cb_t _new_battery_level_cb);
 
 void
 battery_start_periodic_measurement(uint16_t interval_ms);
+
 void
 battery_stop_periodic_measurement(void);
 

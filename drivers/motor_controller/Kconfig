@@ -1,0 +1,7 @@
+config MOTOR_CONTROLLER_DRV
+    bool "motor controller module"
+    default y
+
+module = MOTOR_CONTROLLER
+module-str = MOTOR_CONTROLLER_DRV
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"

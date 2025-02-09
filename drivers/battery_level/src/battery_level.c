@@ -64,7 +64,7 @@ battery_charge_level(int16_t voltage_mv)
     int16_t        slope;
     int32_t        intercept;
 
-    if(voltage_mv > 8400)  // 100%
+    if(voltage_mv > CONFIG_MAX_BATTERY_LEVEL)  // 100%
     {
         charge_level = 100;
     }
@@ -92,7 +92,7 @@ battery_charge_level(int16_t voltage_mv)
         intercept    = 30 - slope * 7000;
         charge_level = slope * voltage_mv + intercept;
     }
-    else if(voltage_mv > 6000)  // 10% - 0%
+    else if(voltage_mv > CONFIG_MIN_BATTERY_LEVEL)  // 10% - 0%
     {
         slope        = (10 - 0) / (6600 - 6000);
         intercept    = 10 - slope * 6600;
@@ -158,7 +158,10 @@ get_sample(void)
     battery_level.battery_level_mv      = corrected_battery_level_mv;
 
     /* give the battery level to the user by registered callback*/
-    new_battery_level_cb(battery_level);
+    if(new_battery_level_cb)
+    {
+        new_battery_level_cb(battery_level);
+    }
 
     return 0;
 }
@@ -208,5 +211,8 @@ battery_stop_periodic_measurement(void)
 void
 new_battery_level_cb_register(battery_level_updated_cb_t _new_battery_level_cb)
 {
-    new_battery_level_cb = _new_battery_level_cb;
+    if(_new_battery_level_cb)
+    {
+        new_battery_level_cb = _new_battery_level_cb;
+    }
 }

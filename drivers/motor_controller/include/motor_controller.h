@@ -10,8 +10,8 @@ extern "C" {
 
 typedef enum DIRECTION
 {
-    PLUS = 0,
-    MINUS
+    POSITIVE = 0,
+    NEGATIVE
 } DIRECTION;
 
 typedef struct MOTORS_DATA
@@ -22,16 +22,22 @@ typedef struct MOTORS_DATA
 } MOTORS_DATA;
 
 static void
-enable_controller(bool enable);
+set_enable_controller(bool enable);
 
 static void
-start_stop_motor(bool start);
+set_start_motor(bool start);
 
 static void
 set_direction(DIRECTION direction);
 
 static void
 set_pwm_value(int pwm_value);
+
+void
+motor_controller_start(uint16_t interval_ms);
+
+void
+motor_controller_stop(void);
 
 #ifdef __cplusplus
 }

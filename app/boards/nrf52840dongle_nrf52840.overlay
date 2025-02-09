@@ -3,6 +3,8 @@
     #address-cells = <1>;
     #size-cells = <0>;
 
+    io-channels = <&adc 0>; /* Add this line */
+
     channel@0 {
         reg = <0>;
         zephyr,gain = "ADC_GAIN_1_6";
@@ -13,3 +15,4 @@
         zephyr,oversampling = <8>;
     };
 };
+

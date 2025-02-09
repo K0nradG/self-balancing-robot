@@ -4,10 +4,10 @@
 #include "battery_level.h"
 #include <zephyr/drivers/adc.h>
 #include <zephyr/init.h>
-#include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include "utils.h"
 
-/* battery level driver init priority - lower values means earlier in itialization
+/* battery level driver init priority - lower values means earlier in initialization
 main initialization has 100, so our driver is initialize right before main*/
 #define APPLICATION_INIT_PRIORITY 99
 
@@ -31,12 +31,12 @@ static struct adc_sequence sequence = {
 static struct k_work_delayable battery_measurement_work;
 
 static uint16_t measurement_interval;
-static bool periodic_measurement_started;
+static bool     periodic_measurement_started;
 
 static int
 init(void)
 {
-    int ret;
+    int ret = 0;
 
     const bool is_adc_ready = adc_is_ready_dt(&adc_dev);
 
@@ -53,27 +53,16 @@ init(void)
 
     return ret;
 }
+
 SYS_INIT(init, APPLICATION, APPLICATION_INIT_PRIORITY);
-
-static void
-reschedule_work(struct k_work_delayable* dwork, k_timeout_t delay, char* desc)
-{
-    const int ret = k_work_reschedule(dwork, delay);
-    if(ret < 0)
-    {
-        LOG_ERR("Can't reschedule %s work: %d", desc, ret);
-    }
-}
-
-#include <stdint.h>
 
 static uint8_t
 battery_charge_level(int16_t voltage_mv)
 {
     static uint8_t previous_charge_level = 100;
-    uint8_t charge_level;
-    int16_t slope;
-    int32_t intercept;
+    uint8_t        charge_level          = 0;
+    int16_t        slope                 = 0;
+    int32_t        intercept             = 0;
 
     if(voltage_mv > CONFIG_MAX_BATTERY_LEVEL)  // 100%
     {
@@ -81,8 +70,8 @@ battery_charge_level(int16_t voltage_mv)
     }
     else if(voltage_mv > 7900)  // 100% - 80%
     {
-        slope        = (100 - 80) / (8400 - 7900);
-        intercept    = 100 - slope * 8400;
+        slope        = (100 - 80) / (CONFIG_MAX_BATTERY_LEVEL - 7900);
+        intercept    = 100 - slope * CONFIG_MAX_BATTERY_LEVEL;
         charge_level = slope * voltage_mv + intercept;
     }
     else if(voltage_mv > 7400)  // 80% - 60%
@@ -105,7 +94,7 @@ battery_charge_level(int16_t voltage_mv)
     }
     else if(voltage_mv > CONFIG_MIN_BATTERY_LEVEL)  // 10% - 0%
     {
-        slope        = (10 - 0) / (6600 - 6000);
+        slope        = (10 - 0) / (6600 - CONFIG_MIN_BATTERY_LEVEL);
         intercept    = 10 - slope * 6600;
         charge_level = slope * voltage_mv + intercept;
     }
@@ -149,7 +138,7 @@ get_sample(void)
         return ret;
     }
 
-    int32_t battery_level_mv;
+    int32_t battery_level_mv = 0;
 
     ret = adc_raw_to_millivolts_dt(&adc_dev, &battery_level_mv);
     if(ret < 0)
@@ -190,6 +179,7 @@ battery_measurement_work_handler(struct k_work* work)
     /* Batter measurement work is calls itself every measurement_interval ms*/
     reschedule_work(&battery_measurement_work, K_MSEC(measurement_interval), "Battery level measurement");
 }
+
 static K_WORK_DELAYABLE_DEFINE(battery_measurement_work, battery_measurement_work_handler);
 
 void

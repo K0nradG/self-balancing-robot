@@ -2,7 +2,7 @@ BasedOnStyle: Google
 AccessModifierOffset: -4
 AlignAfterOpenBracket: AlwaysBreak
 AlignConsecutiveAssignments: true
-AlignConsecutiveDeclarations: false
+AlignConsecutiveDeclarations: true
 AlignOperands: true
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
@@ -29,6 +29,7 @@ IndentCaseLabels: true
 IndentWidth: 4
 Language: Cpp
 PointerAlignment: Left
+SeparateDefinitionBlocks: Always
 SortIncludes: true
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false

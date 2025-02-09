@@ -10,7 +10,7 @@ The graph illustrates the relationship between the battery charge level (%) and 
 
 ## Testing the Charge Level Function
 
-![unit-test](/home/konrad/ncs/v2.8.0/self-balancing-robot/drivers/battery_level/doc/img/unit-test-result.png)
+![unit-test](img/unit-test-result.png)
 
 The test of the `battery_charge_level()` function shows how the charge level changes based on the input voltage.
 

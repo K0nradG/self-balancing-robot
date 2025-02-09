@@ -6,8 +6,16 @@ config BATTERY_LEVEL_DRV
 
 if BATTERY_LEVEL_DRV
 
+config MAX_BATTERY_LEVEL
+    int "battery max level [mV]"
+    default 8400
+
+config MIN_BATTERY_LEVEL
+    int "battery max level [mV]"
+    default 6000
+
 module = BAT_LVL
-module-str = battery measurement
+module-str = BAT_LVL_DRV
 source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
 
 endif #BATTERY_LEVEL_DRV

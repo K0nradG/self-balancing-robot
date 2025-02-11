@@ -61,7 +61,7 @@ configure_gpio_pin(struct gpio_dt_spec* gpio_pin)
     }
     else
     {
-        __ASSERT(false, "No %s port!", gpio_pin->port->name);
+        _ASSERT(false, "Invalid GPIO: port is NULL!");
     }
 
     return ret;

@@ -16,3 +16,26 @@
     };
 };
 
+/ { 
+        H_drive_en_pin: H-drive-en-pin {
+                compatible = "nordic,gpio-pins";
+                gpios = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+                status = "okay";
+        };
+
+        A_in_pins: A-in-pins {
+                compatible = "nordic,gpio-pins";
+                gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, <&gpio0 24 GPIO_ACTIVE_HIGH>;
+                status = "okay";
+        };
+
+        B_in_pins: B-in-pins {
+                compatible = "nordic,gpio-pins";
+                gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>, <&gpio0 02 GPIO_ACTIVE_HIGH>;
+                status = "okay";
+        };
+};
+
+&gpio0 {
+        status = "okay";
+};

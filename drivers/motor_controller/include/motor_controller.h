@@ -17,24 +17,24 @@ typedef enum DIRECTION
 typedef struct MOTORS_DATA
 {
     DIRECTION direction;
-    int pwm_value;
+    float duty_cycle_f;
     bool start;
 } MOTORS_DATA;
 
-static void
+void
 set_enable_controller(bool enable);
 
-static void
-set_start_motor(bool start);
-
-static void
-set_direction(DIRECTION direction);
-
-static void
-set_pwm_value(int pwm_value);
+void
+set_start_motors(bool start);
 
 void
-motor_controller_start(uint16_t interval_ms);
+set_direction(DIRECTION direction);
+
+void
+set_duty_cycle_value(float duty_cycle_f);
+
+void
+motor_controller_start(void);
 
 void
 motor_controller_stop(void);

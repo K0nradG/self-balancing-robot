@@ -1,1 +1,10 @@
+config IMU_DRV
+    bool "IMU driver module"
+    default y
 
+if IMU_DRV
+    module = IMU
+    module-str = IMU_DRV
+    source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif #IMU_DRV

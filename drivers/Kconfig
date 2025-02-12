@@ -1,2 +1,3 @@
 rsource "utils/Kconfig"
 rsource "battery_level/Kconfig"
+rsource "imu/Kconfig"

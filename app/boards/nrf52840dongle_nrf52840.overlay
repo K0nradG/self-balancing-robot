@@ -19,7 +19,7 @@
 / { 
         H_drive_en_pin: H-drive-en-pin {
                 compatible = "nordic,gpio-pins";
-                gpios = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+                gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
                 status = "okay";
         };
 
@@ -31,12 +31,16 @@
 
         B_in_pins: B-in-pins {
                 compatible = "nordic,gpio-pins";
-                gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>, <&gpio0 02 GPIO_ACTIVE_HIGH>;
+                gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>, <&gpio0 02 GPIO_ACTIVE_HIGH>;
                 status = "okay";
         };
 };
 
 &gpio0 {
+        status = "okay";
+};
+
+&gpio1 {
         status = "okay";
 };
 
@@ -54,4 +58,11 @@
             low-power-enable;
         };
     };
+};
+
+&pwm0 {
+    status = "okay";             
+    pinctrl-0 = <&pwm0_default>;
+    pinctrl-1 = <&pwm0_sleep>;
+    pinctrl-names = "default", "sleep";
 };

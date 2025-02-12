@@ -14,9 +14,9 @@ static struct sensor_value temperature           = {0};
 static struct sensor_value accelerometer_data[3] = {0};
 static struct sensor_value gyro_data[3]          = {0};
 
-struct device const*         imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
-static struct sensor_trigger trigger;
-imu_updated_cb_t             new_imu_cb;
+struct device const* imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
+
+imu_updated_cb_t new_imu_cb;
 
 struct sensor_value const* const
 get_gyro_data(void)
@@ -36,12 +36,27 @@ get_temperature(void)
     return temperature;
 }
 
-// Interrupt handler:
-static void
-handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig);
-
 static int
 process_imu(struct device const* dev);
+
+#ifdef CONFIG_MPU6050_TRIGGER
+
+static struct sensor_trigger trigger;
+
+// Interrupt handler:
+static void
+handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
+{
+    int ret = process_imu(dev);  // Read and process IMU data
+
+    if(ret != 0)
+    {
+        LOG_ERR("IMU triggering cancelled due to error!");
+        (void)sensor_trigger_set(dev, trig, NULL);  // Disable trigger if error
+    }
+}
+
+#endif  // CONFIG_MPU6050_TRIGGER
 
 void
 new_imu_cb_register(imu_updated_cb_t _new_imu_cb);
@@ -69,24 +84,11 @@ init(void)
     {
         LOG_DBG("IMU configured for triggered sampling");
     }
-#endif
+#endif  // CONFIG_MPU6050_TRIGGER
     return ret;
 }
 
 SYS_INIT(init, APPLICATION, APPLICATION_INIT_PRIORITY);
-
-// Interrupt handler:
-static void
-handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
-{
-    int ret = process_imu(dev);  // Read and process IMU data
-
-    if(ret != 0)
-    {
-        LOG_ERR("IMU triggering cancelled due to error!");
-        (void)sensor_trigger_set(dev, trig, NULL);  // Disable trigger if error
-    }
-}
 
 static int
 process_imu(struct device const* dev)

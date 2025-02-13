@@ -4,7 +4,7 @@ LOG_MODULE_REGISTER(app, CONFIG_APP_LOG_LEVEL);
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #include "battery_level.h"
 
-#define MEASUREMENT_INTERVAL 10000
+#define MEASUREMENT_INTERVAL 500
 
 static void
 new_battery_level_callback(battery_level_data data)

@@ -1,7 +1,6 @@
 
 config BATTERY_LEVEL_DRV
     bool "battery measurement module"
-    default y
     select ADC
 
 if BATTERY_LEVEL_DRV

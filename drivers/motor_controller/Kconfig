@@ -1,6 +1,6 @@
 config MOTOR_CONTROLLER_DRV
     bool "motor controller module"
-    default y
+    select PWM
 
 if MOTOR_CONTROLLER_DRV
 

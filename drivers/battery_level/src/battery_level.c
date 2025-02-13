@@ -31,7 +31,7 @@ static struct adc_sequence sequence = {
 static struct k_work_delayable battery_measurement_work;
 
 static uint16_t measurement_interval;
-static bool     periodic_measurement_started;
+static bool periodic_measurement_started;
 
 static int
 init(void)
@@ -60,9 +60,9 @@ static uint8_t
 battery_charge_level(int16_t voltage_mv)
 {
     static uint8_t previous_charge_level = 100;
-    uint8_t        charge_level          = 0;
-    int16_t        slope                 = 0;
-    int32_t        intercept             = 0;
+    uint8_t charge_level                 = 0;
+    int16_t slope                        = 0;
+    int32_t intercept                    = 0;
 
     if(voltage_mv > CONFIG_MAX_BATTERY_LEVEL)  // 100%
     {
@@ -195,7 +195,7 @@ battery_start_periodic_measurement(uint16_t interval_ms)
 void
 battery_stop_periodic_measurement(void)
 {
-    __ASSERT(periodic_measurement_started, "Periodic measurement is not started");
+    __ASSERT(!periodic_measurement_started, "Periodic measurement is not started");
     periodic_measurement_started = false;
 
     const int ret = k_work_cancel_delayable(&battery_measurement_work);

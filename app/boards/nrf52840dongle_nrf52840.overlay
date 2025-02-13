@@ -1,9 +1,14 @@
+/ {
+    zephyr,user {
+        io-channels = <&adc 0>;
+    };
+};
+
+
 &adc {
     status = "okay";
     #address-cells = <1>;
     #size-cells = <0>;
-
-    io-channels = <&adc 0>; /* Add this line */
 
     channel@0 {
         reg = <0>;

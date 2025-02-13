@@ -17,7 +17,7 @@ main initialization has 100, so our driver is initialize right before main*/
 
 LOG_MODULE_REGISTER(battery_level, CONFIG_BAT_LVL_LOG_LEVEL);
 
-static const struct adc_dt_spec adc_dev = ADC_DT_SPEC_GET(DT_NODELABEL(adc));
+static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
 battery_level_updated_cb_t new_battery_level_cb;
 
@@ -38,14 +38,14 @@ init(void)
 {
     int ret = 0;
 
-    const bool is_adc_ready = adc_is_ready_dt(&adc_dev);
+    const bool is_adc_ready = adc_is_ready_dt(&adc_channel);
 
-    __ASSERT(is_adc_ready, "ADC controller device %s not ready", adc_dev.dev->name);
+    __ASSERT(is_adc_ready, "ADC controller device %s not ready", adc_channel.dev->name);
 
-    ret = adc_channel_setup_dt(&adc_dev);
-    __ASSERT(!ret, "Channel=%d setup failed with error: %d", adc_dev.channel_id, ret);
+    ret = adc_channel_setup_dt(&adc_channel);
+    __ASSERT(!ret, "Channel=%d setup failed with error: %d", adc_channel.channel_id, ret);
 
-    ret = adc_sequence_init_dt(&adc_dev, &sequence);
+    ret = adc_sequence_init_dt(&adc_channel, &sequence);
     __ASSERT(!ret, "Sequence initialization failed with error: %d", ret);
 
     __ASSERT(sequence.buffer, "Uninitialized buffer");
@@ -112,35 +112,29 @@ battery_charge_level(int16_t voltage_mv)
         charge_level = 0;
     }
 
-    if(previous_charge_level < charge_level)
-    {
-        charge_level = previous_charge_level;
-    }
-    previous_charge_level = charge_level;
-
     return charge_level;
 }
 
 static int
 get_sample(void)
 {
-    int ret = adc_sequence_init_dt(&adc_dev, &sequence);
+    int ret = adc_sequence_init_dt(&adc_channel, &sequence);
     if(ret < 0)
     {
         LOG_ERR("Can't init sequence");
         return ret;
     }
 
-    ret = adc_read(adc_dev.dev, &sequence);
+    ret = adc_read(adc_channel.dev, &sequence);
     if(ret < 0)
     {
         LOG_ERR("Can't read ADC sample for battery level");
         return ret;
     }
 
-    int32_t battery_level_mv = 0;
+    int32_t battery_level_mv = adc_battery_buffer;
 
-    ret = adc_raw_to_millivolts_dt(&adc_dev, &battery_level_mv);
+    ret = adc_raw_to_millivolts_dt(&adc_channel, &battery_level_mv);
     if(ret < 0)
     {
         LOG_ERR("Can't convert battery level to mv - conversion non supported");
@@ -150,7 +144,7 @@ get_sample(void)
 
     const int64_t corrected_battery_level_mv = (int64_t)battery_level_mv *
                                                (VOLTAGE_DIVIDER_RESISTOR_UP + VOLTAGE_DIVIDER_RESISTOR_DOWN) /
-                                               VOLTAGE_DIVIDER_RESISTOR_DOWN;
+                                               VOLTAGE_DIVIDER_RESISTOR_UP;
 
     struct battery_level_data battery_level;
 

@@ -1,5 +1,4 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 
 #include "battery_level.h"
 #include <zephyr/drivers/adc.h>

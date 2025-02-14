@@ -1,0 +1,10 @@
+description: PWM-driven DC motor.
+
+compatible: "pwm-dc"
+
+properties:
+  pwms:
+    required: true
+    type: phandle-array
+    description: PWM specifier driving the dc motor.
+  

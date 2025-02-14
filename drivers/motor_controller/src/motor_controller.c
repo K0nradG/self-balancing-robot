@@ -16,18 +16,21 @@ LOG_MODULE_REGISTER(motor_controller, CONFIG_BAT_LVL_LOG_LEVEL);
 
 static bool controller_enabled              = false;
 static bool periodic_motors_control_started = false;
-static MOTORS_DATA motors_data              = {.direction = POSITIVE, .duty_cycle_f = 0, .start = false};
+static MOTORS_DATA motors_data              = {.direction = POSITIVE, .duty_cycle_percent = 0, .start = false};
 static struct k_work_delayable motor_controller_work;
 
-static const struct gpio_dt_spec H_drive_en = GPIO_DT_SPEC_GET_OR(DT_NODELABEL(H_drive_en_pin), gpios, {0});
-static const struct gpio_dt_spec A1_in      = GPIO_DT_SPEC_GET_BY_IDX_OR(DT_NODELABEL(A_in_pins), gpios, 0, {0});
-static const struct gpio_dt_spec A2_in      = GPIO_DT_SPEC_GET_BY_IDX_OR(DT_NODELABEL(A_in_pins), gpios, 1, {0});
-static const struct gpio_dt_spec B1_in      = GPIO_DT_SPEC_GET_BY_IDX_OR(DT_NODELABEL(B_in_pins), gpios, 0, {0});
-static const struct gpio_dt_spec B2_in      = GPIO_DT_SPEC_GET_BY_IDX_OR(DT_NODELABEL(B_in_pins), gpios, 1, {0});
+static struct gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
+static struct gpio_dt_spec a_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in2), gpios);
+static struct gpio_dt_spec b_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in1), gpios);
+static struct gpio_dt_spec b_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in2), gpios);
+static struct gpio_dt_spec h_b_en = GPIO_DT_SPEC_GET(DT_NODELABEL(h_b_en), gpios);
 
-static const struct gpio_dt_spec* gpio_pins[] = {&H_drive_en, &A1_in, &A2_in, &B1_in, &B2_in};
+static const struct gpio_dt_spec* gpio_pins[] = {&h_b_en, &a_in1, &a_in2, &b_in1, &b_in2};
 
-static const struct device* pwm_dev = DEVICE_DT_GET(DT_NODELABEL(pwm0));
+// static const struct device* pwm_dev = DEVICE_DT_GET(DT_NODELABEL(pwm0));
+
+static const struct pwm_dt_spec pwm_dc_1 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_1));
+static const struct pwm_dt_spec pwm_dc_2 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_2));
 
 void
 set_enable_controller(bool enable)
@@ -48,57 +51,58 @@ set_direction(DIRECTION direction)
 }
 
 void
-set_duty_cycle_value(float duty_cycle_f)
+set_duty_cycle_value(uint32_t duty_cycle_percent)
 {
-    if(duty_cycle_f > 1.0f)
+    if(duty_cycle_percent > 100)
     {
-        duty_cycle_f = 1.0f;
+        duty_cycle_percent = 100;
     }
 
-    if(duty_cycle_f < 0.0f)
+    if(duty_cycle_percent < 0)
     {
-        duty_cycle_f = 0.0f;
+        duty_cycle_percent = 0;
     }
 
-    motors_data.duty_cycle_f = duty_cycle_f;
-}
-
-static int
-configure_gpio_pin(const struct gpio_dt_spec* gpio_pin)
-{
-    int ret = 0;
-
-    if(gpio_pin->port)
-    {
-        ret = gpio_pin_configure_dt(gpio_pin, GPIO_OUTPUT_INACTIVE);
-    }
-    else
-    {
-        __ASSERT(false, "Invalid GPIO: port is NULL!");
-    }
-
-    return ret;
+    motors_data.duty_cycle_percent = duty_cycle_percent;
 }
 
 static int
 init(void)
 {
-    int ret = 0;
+    const bool is_a_in1_ready = device_is_ready(a_in1.port);
+    __ASSERT(is_a_in1_ready, "A_IN_1 device not ready");
 
-    for(uint8_t i = 0; i < N_GPIO_PINS; i++)
-    {
-        ret = configure_gpio_pin(gpio_pins[i]);
+    const bool is_a_in2_ready = device_is_ready(a_in2.port);
+    __ASSERT(is_a_in2_ready, "A_IN_2 device not ready");
 
-        bool const gpio_ready = gpio_is_ready_dt(gpio_pins[i]);
-        __ASSERT(gpio_ready, "GPIO at index %d not ready!", i);
-    }
+    const bool is_b_in1_ready = device_is_ready(b_in1.port);
+    __ASSERT(is_b_in1_ready, "B_IN_1 device not ready");
 
-    bool const is_pwm_device_ready = device_is_ready(pwm_dev);
-    __ASSERT(is_pwm_device_ready, "PWM device not ready!");
+    const bool is_b_in2_ready = device_is_ready(b_in2.port);
+    __ASSERT(is_b_in2_ready, "B_IN_2 device not ready");
 
-    // Configuring PWM for all used channel:
-    ret = pwm_set(pwm_dev, 17, CONFIG_PWM_PERIOD_NS, 0, PWM_POLARITY_NORMAL);  // Initial duty cycle set to 0.
-    ret = pwm_set(pwm_dev, 20, CONFIG_PWM_PERIOD_NS, 0, PWM_POLARITY_NORMAL);
+    const bool is_h_b_en_ready = device_is_ready(h_b_en.port);
+    __ASSERT(is_h_b_en_ready, "H_BRIDGE_EN device not ready");
+
+    int ret = gpio_pin_configure_dt(&a_in1, GPIO_OUTPUT_ACTIVE);
+    __ASSERT(!ret, "A_IN_1 device configuration failed");
+
+    ret = gpio_pin_configure_dt(&a_in2, GPIO_OUTPUT_ACTIVE);
+    __ASSERT(!ret, "A_IN_2 device configuration failed");
+
+    ret = gpio_pin_configure_dt(&b_in1, GPIO_OUTPUT_ACTIVE);
+    __ASSERT(!ret, "B_IN_1 device configuration failed");
+
+    ret = gpio_pin_configure_dt(&b_in2, GPIO_OUTPUT_ACTIVE);
+    __ASSERT(!ret, "B_IN_2 device configuration failed");
+
+    ret = gpio_pin_configure_dt(&h_b_en, GPIO_OUTPUT_ACTIVE);
+    __ASSERT(!ret, "H_BRIDGE_EN device configuration failed");
+
+    const bool is_pwm_dc_1_ready = pwm_is_ready_dt(&pwm_dc_1);
+    __ASSERT(is_pwm_dc_1_ready, "PWM DC 1 device not ready");
+    const bool is_pwm_dc_2_ready = pwm_is_ready_dt(&pwm_dc_2);
+    __ASSERT(is_pwm_dc_2_ready, "PWM DC 2 device not ready");
 
     return ret;
 }
@@ -122,7 +126,7 @@ disable_controller(void)
 {
     int ret = 0;
 
-    ret = gpio_pin_set_dt(&H_drive_en, 0);
+    ret = gpio_pin_set_dt(&h_b_en, 0);
     __ASSERT(!ret, "H_drive_en not cleared!");
 
     stop_motors();
@@ -131,13 +135,11 @@ disable_controller(void)
 static void
 enable_controller(void)
 {
-    int ret = 0;
-
-    ret = gpio_pin_set_dt(&H_drive_en, 1);
+    int ret = gpio_pin_set_dt(&h_b_en, 1);
     __ASSERT(!ret, "H_drive_en not set!");
 }
 
-static void
+void
 run_motors_in_direction(DIRECTION direction)
 {
     /*
@@ -145,40 +147,35 @@ run_motors_in_direction(DIRECTION direction)
     Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
     */
 
-    uint8_t first_direction_pin_set_value = 0;
-
-    if(direction == POSITIVE)
+    switch(direction)
     {
-        first_direction_pin_set_value = 1;
-    }
+        case POSITIVE:
+            gpio_pin_set_dt(&a_in1, 1);
+            gpio_pin_set_dt(&a_in2, 0);
+            gpio_pin_set_dt(&b_in1, 1);
+            gpio_pin_set_dt(&b_in2, 0);
+            break;
 
-    int ret = 0;
+        case NEGATIVE:
+            gpio_pin_set_dt(&a_in1, 0);
+            gpio_pin_set_dt(&a_in2, 1);
+            gpio_pin_set_dt(&b_in1, 0);
+            gpio_pin_set_dt(&b_in2, 1);
+            break;
 
-    for(uint8_t i = DIRECTION_CONTROL_PINS_BEGIN_IDX; i < N_GPIO_PINS; i++)
-    {
-        if(i % 2 != 0)
-        {
-            ret = gpio_pin_set_dt(gpio_pins[i], first_direction_pin_set_value);
-        }
-        else
-        {
-            ret = gpio_pin_set_dt(gpio_pins[i], !first_direction_pin_set_value);
-        }
-
-        __ASSERT(!ret, "GPIO at index %d not set during spin direction change!", i);
+        default:
+            stop_motors();
+            break;
     }
 }
 
 static void
-set_new_duty_cycle_value(float duty_cycle_f)
+set_new_duty_cycle_value(uint8_t duty_cycle_percent)
 {
-    int ret                = 0;
-    uint32_t duty_cycle_ns = 0u;
-
-    duty_cycle_ns = (uint32_t)((float)CONFIG_PWM_PERIOD_NS * duty_cycle_f);
-    ret           = pwm_set(pwm_dev, 17, CONFIG_PWM_PERIOD_NS, duty_cycle_ns, PWM_POLARITY_NORMAL);
-    ret           = pwm_set(pwm_dev, 20, CONFIG_PWM_PERIOD_NS, duty_cycle_ns, PWM_POLARITY_NORMAL);
-    __ASSERT(!ret, "New duty cycle value not set!");
+    uint32_t duty_cycle_ns = (CONFIG_PWM_PERIOD_NS * duty_cycle_percent) / 100;
+    int err                = pwm_set_dt(&pwm_dc_1, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
+    err                    = pwm_set_dt(&pwm_dc_2, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
+    __ASSERT(!err, "New duty cycle value not set!");
 }
 
 // First check start flag - stop the motors if false.
@@ -189,11 +186,12 @@ update_motors_control(void)
     if(!motors_data.start)
     {
         stop_motors();
-        return;
     }
-
-    run_motors_in_direction(motors_data.direction);
-    set_new_duty_cycle_value(motors_data.duty_cycle_f);
+    else
+    {
+        run_motors_in_direction(motors_data.direction);
+        set_new_duty_cycle_value(motors_data.duty_cycle_percent);
+    }
 }
 
 static void
@@ -210,7 +208,6 @@ motor_controller_work_handler(struct k_work* work)
         enable_controller();
         update_motors_control();
     }
-
     reschedule_work(&motor_controller_work, K_MSEC(INTERRUPT_INTERVAL), "Motor control");
 }
 

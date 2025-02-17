@@ -10,14 +10,14 @@ extern "C" {
 
 typedef enum DIRECTION
 {
-    POSITIVE = 0,
-    NEGATIVE
+    POSITIVE = 1,
+    NEGATIVE = 0,
 } DIRECTION;
 
 typedef struct MOTORS_DATA
 {
     DIRECTION direction;
-    float duty_cycle_f;
+    uint32_t duty_cycle_percent;
     bool start;
 } MOTORS_DATA;
 
@@ -31,7 +31,7 @@ void
 set_direction(DIRECTION direction);
 
 void
-set_duty_cycle_value(float duty_cycle_f);
+set_duty_cycle_value(uint32_t duty_cycle_percent);
 
 void
 motor_controller_start(void);

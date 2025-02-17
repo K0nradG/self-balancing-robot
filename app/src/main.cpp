@@ -1,4 +1,10 @@
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
+
+#ifdef CONFIG_LOGGER_DRV
+#include "logger.h"
+#endif
 
 #ifdef CONFIG_MOTOR_CONTROLLER_DRV
 #include "motor_controller.h"
@@ -8,8 +14,12 @@
 #include "battery_level.h"
 #endif
 
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(app, CONFIG_APP_LOG_LEVEL);
+#ifdef CONFIG_INTERFACE_DRV
+
+#include "interface.h"
+#define BLINKING_INTERVAL 500
+
+#endif
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #define MEASUREMENT_INTERVAL 500
@@ -17,32 +27,90 @@ LOG_MODULE_REGISTER(app, CONFIG_APP_LOG_LEVEL);
 static void
 new_battery_level_callback(battery_level_data data)
 {
-    LOG_INF("Battery level at %u", data.battery_level_percent);
-    LOG_INF("Battery level voltage %u", data.battery_level_mv);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "bat lvl %u", data.battery_level_percent);
+    platform_log("APP", LOG_LEVEL_INF, "bat lvl mv %u", data.battery_level_mv);
+#endif
+#endif
 }
 #endif
 
 int
 main(void)
 {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Application started.");
+#endif
+#endif
+
+#ifdef CONFIG_INTERFACE_DRV
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "interface driver is enabled.");
+#endif
+#endif
+    led_start_periodic_blinking(BLINKING_INTERVAL);
+#endif
+
 #ifdef CONFIG_BATTERY_LEVEL_DRV
-    LOG_INF("Battery level driver is enabled.");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Battery level driver is enabled.");
+#endif
+#endif
     new_battery_level_cb_register(new_battery_level_callback);
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
 #else
-    LOG_INF("Battery level driver is not enabled.");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Battery level driver is not enabled.");
+#endif
+#endif
 #endif
 
 #ifdef CONFIG_MOTOR_CONTROLLER_DRV
-    LOG_INF("Motor controller driver is enabled.");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Motor controller  driver is enabled.");
+#endif
+#endif
+
     set_enable_controller(true);
     set_start_motors(true);
     set_direction(POSITIVE);
-    set_duty_cycle_value(50);
     motor_controller_start();
+
+    for(int pwm = 0; pwm <= 100; pwm++)
+    {
+        set_duty_cycle_value(pwm);
+        k_usleep(50000);
+    }
+
+    for(int pwm = 100; pwm >= 0; pwm--)
+    {
+        set_duty_cycle_value(pwm);
+        k_usleep(50000);
+    }
+    set_direction(NEGATIVE);
+
+    for(int pwm = 0; pwm <= 100; pwm++)
+    {
+        set_duty_cycle_value(pwm);
+        k_usleep(50000);
+    }
+
+    for(int pwm = 100; pwm >= 0; pwm--)
+    {
+        set_duty_cycle_value(pwm);
+        k_usleep(50000);
+    }
 #else
-    LOG_INF("Motor controller driver is not enabled.");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Motor controller driver is not enabled.");
 #endif
-    LOG_INF("Application started.");
-    return 0;
+#endif
+#endif
 }

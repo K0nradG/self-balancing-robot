@@ -4,15 +4,18 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/init.h>
-#include <zephyr/logging/log.h>
+
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+#include "logger.h"
+#endif
+#endif
+
 #include "utils.h"
 
-#define APPLICATION_INIT_PRIORITY 99
 #define INTERRUPT_INTERVAL 20  // [ms]
 #define N_GPIO_PINS 5
 #define DIRECTION_CONTROL_PINS_BEGIN_IDX 1
-
-LOG_MODULE_REGISTER(motor_controller, CONFIG_BAT_LVL_LOG_LEVEL);
 
 static bool controller_enabled              = false;
 static bool periodic_motors_control_started = false;
@@ -26,8 +29,6 @@ static struct gpio_dt_spec b_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in2), gpios)
 static struct gpio_dt_spec h_b_en = GPIO_DT_SPEC_GET(DT_NODELABEL(h_b_en), gpios);
 
 static const struct gpio_dt_spec* gpio_pins[] = {&h_b_en, &a_in1, &a_in2, &b_in1, &b_in2};
-
-// static const struct device* pwm_dev = DEVICE_DT_GET(DT_NODELABEL(pwm0));
 
 static const struct pwm_dt_spec pwm_dc_1 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_1));
 static const struct pwm_dt_spec pwm_dc_2 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_2));
@@ -69,45 +70,38 @@ set_duty_cycle_value(uint32_t duty_cycle_percent)
 static int
 init(void)
 {
-    const bool is_a_in1_ready = device_is_ready(a_in1.port);
-    __ASSERT(is_a_in1_ready, "A_IN_1 device not ready");
+    if(!device_is_ready(a_in1.port) || !device_is_ready(a_in2.port) || !device_is_ready(b_in1.port) ||
+       !device_is_ready(b_in2.port) || !device_is_ready(h_b_en.port) || !pwm_is_ready_dt(&pwm_dc_2))
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motors pwm not ready");
+#endif
+#endif
+        return -ENODEV;
+    }
 
-    const bool is_a_in2_ready = device_is_ready(a_in2.port);
-    __ASSERT(is_a_in2_ready, "A_IN_2 device not ready");
+    int ret = 0;
+    ret |= gpio_pin_configure_dt(&a_in1, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&a_in2, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&b_in1, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&b_in2, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&h_b_en, GPIO_OUTPUT_ACTIVE);
 
-    const bool is_b_in1_ready = device_is_ready(b_in1.port);
-    __ASSERT(is_b_in1_ready, "B_IN_1 device not ready");
-
-    const bool is_b_in2_ready = device_is_ready(b_in2.port);
-    __ASSERT(is_b_in2_ready, "B_IN_2 device not ready");
-
-    const bool is_h_b_en_ready = device_is_ready(h_b_en.port);
-    __ASSERT(is_h_b_en_ready, "H_BRIDGE_EN device not ready");
-
-    int ret = gpio_pin_configure_dt(&a_in1, GPIO_OUTPUT_ACTIVE);
-    __ASSERT(!ret, "A_IN_1 device configuration failed");
-
-    ret = gpio_pin_configure_dt(&a_in2, GPIO_OUTPUT_ACTIVE);
-    __ASSERT(!ret, "A_IN_2 device configuration failed");
-
-    ret = gpio_pin_configure_dt(&b_in1, GPIO_OUTPUT_ACTIVE);
-    __ASSERT(!ret, "B_IN_1 device configuration failed");
-
-    ret = gpio_pin_configure_dt(&b_in2, GPIO_OUTPUT_ACTIVE);
-    __ASSERT(!ret, "B_IN_2 device configuration failed");
-
-    ret = gpio_pin_configure_dt(&h_b_en, GPIO_OUTPUT_ACTIVE);
-    __ASSERT(!ret, "H_BRIDGE_EN device configuration failed");
-
-    const bool is_pwm_dc_1_ready = pwm_is_ready_dt(&pwm_dc_1);
-    __ASSERT(is_pwm_dc_1_ready, "PWM DC 1 device not ready");
-    const bool is_pwm_dc_2_ready = pwm_is_ready_dt(&pwm_dc_2);
-    __ASSERT(is_pwm_dc_2_ready, "PWM DC 2 device not ready");
-
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(ret)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motors pins not ready");
+        return ret;
+    }
+    platform_log("MOTOR_CONTROLLER", LOG_LEVEL_INF, "motors init finished");
+#endif
+#endif
     return ret;
 }
 
-SYS_INIT(init, APPLICATION, APPLICATION_INIT_PRIORITY);
+SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static void
 stop_motors(void)
@@ -117,7 +111,14 @@ stop_motors(void)
     for(uint8_t i = DIRECTION_CONTROL_PINS_BEGIN_IDX; i < N_GPIO_PINS; i++)
     {
         ret = gpio_pin_set_dt(gpio_pins[i], 0);
-        __ASSERT(!ret, "GPIO at index %d not cleared during stopping the motors!", i);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        if(ret)
+        {
+            platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "stop motors failed");
+        }
+#endif
+#endif
     }
 }
 
@@ -127,8 +128,14 @@ disable_controller(void)
     int ret = 0;
 
     ret = gpio_pin_set_dt(&h_b_en, 0);
-    __ASSERT(!ret, "H_drive_en not cleared!");
-
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(ret)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "stop controller failed");
+    }
+#endif
+#endif
     stop_motors();
 }
 
@@ -136,7 +143,14 @@ static void
 enable_controller(void)
 {
     int ret = gpio_pin_set_dt(&h_b_en, 1);
-    __ASSERT(!ret, "H_drive_en not set!");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(ret)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "enable controller failed");
+    }
+#endif
+#endif
 }
 
 void
@@ -146,21 +160,38 @@ run_motors_in_direction(DIRECTION direction)
     Positive direction -> A1 and B1 - set, A2 and B2 - cleared.
     Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
     */
+    int ret = 0;
 
     switch(direction)
     {
         case POSITIVE:
-            gpio_pin_set_dt(&a_in1, 1);
-            gpio_pin_set_dt(&a_in2, 0);
-            gpio_pin_set_dt(&b_in1, 1);
-            gpio_pin_set_dt(&b_in2, 0);
+            ret |= gpio_pin_set_dt(&a_in1, 1);
+            ret |= gpio_pin_set_dt(&a_in2, 0);
+            ret |= gpio_pin_set_dt(&b_in1, 1);
+            ret |= gpio_pin_set_dt(&b_in2, 0);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+            if(ret)
+            {
+                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set POSITIVE failed");
+            }
+#endif
+#endif
             break;
 
         case NEGATIVE:
-            gpio_pin_set_dt(&a_in1, 0);
-            gpio_pin_set_dt(&a_in2, 1);
-            gpio_pin_set_dt(&b_in1, 0);
-            gpio_pin_set_dt(&b_in2, 1);
+            ret |= gpio_pin_set_dt(&a_in1, 0);
+            ret |= gpio_pin_set_dt(&a_in2, 1);
+            ret |= gpio_pin_set_dt(&b_in1, 0);
+            ret |= gpio_pin_set_dt(&b_in2, 1);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+            if(ret)
+            {
+                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set NEGATIVE failed");
+            }
+#endif
+#endif
             break;
 
         default:
@@ -175,7 +206,14 @@ set_new_duty_cycle_value(uint8_t duty_cycle_percent)
     uint32_t duty_cycle_ns = (CONFIG_PWM_PERIOD_NS * duty_cycle_percent) / 100;
     int err                = pwm_set_dt(&pwm_dc_1, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
     err                    = pwm_set_dt(&pwm_dc_2, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
-    __ASSERT(!err, "New duty cycle value not set!");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(err)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set pwm failed");
+    }
+#endif
+#endif
 }
 
 // First check start flag - stop the motors if false.
@@ -216,7 +254,15 @@ static K_WORK_DELAYABLE_DEFINE(motor_controller_work, motor_controller_work_hand
 void
 motor_controller_start(void)
 {
-    __ASSERT(periodic_motors_control_started, "Periodic motor control already started");
+    if(periodic_motors_control_started)
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motor worker already started");
+#endif
+#endif
+        return;
+    }
     periodic_motors_control_started = true;
 
     reschedule_work(&motor_controller_work, K_NO_WAIT, "motor_control");
@@ -225,15 +271,31 @@ motor_controller_start(void)
 void
 motor_controller_stop(void)
 {
-    __ASSERT(!periodic_motors_control_started, "Periodic measurement is not started");
+    if(!periodic_motors_control_started)
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motor worker not started");
+#endif
+#endif
+        return;
+    }
     periodic_motors_control_started = false;
 
     int const ret = k_work_cancel_delayable(&motor_controller_work);
+
     if(ret)
     {
-        LOG_ERR("Can't cancel delayable work: %d", ret);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "cancel motor worker failed");
+#endif
+#endif
         return;
     }
-
-    LOG_DBG("Motors control work cancelled");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    platform_log("MOTOR_CONTROLLER", LOG_LEVEL_DBG, "canceled motor worker");
+#endif
+#endif
 }

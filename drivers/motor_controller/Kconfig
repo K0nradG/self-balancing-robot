@@ -8,8 +8,7 @@ config PWM_PERIOD_NS
     int "PWM PERIOD [ns]"
     default  20000000
 
-module = MOTOR_CONTROLLER
-module-str = MOTOR_CONTROLLER_DRV
-source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+config MOTOR_CONTROLLER_LOG
+    bool "Enable logging from motors driver"
 
 endif #MOTOR_CONTROLLER_DRV

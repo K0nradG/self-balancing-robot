@@ -4,6 +4,9 @@ menu "Zephyr"
 source "Kconfig.zephyr"
 endmenu
 
+config APP_LOG
+    bool "Enable logging from app"
+
 module = APP
 module-str = MAIN_APP
 source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"

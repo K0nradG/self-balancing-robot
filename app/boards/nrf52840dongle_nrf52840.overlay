@@ -22,6 +22,7 @@
 };
 
 &gpio0 {
+    status = "okay";
     a_in_pins {
         compatible = "gpio-keys";
         a_in1: a_in1 {
@@ -40,6 +41,7 @@
 };
 
 &gpio1 {
+    status = "okay";
     b_in_pins{
         compatible = "gpio-keys";
         b_in1: b_in1 {
@@ -108,4 +110,13 @@
             low-power-enable;
         };
     };
+};
+
+&uart0 {
+    compatible = "nordic,nrf-uarte";
+    status = "disabled";
+    current-speed = <115200>;
+    pinctrl-0 = <&uart0_default>;
+    pinctrl-1 = <&uart0_sleep>;
+    pinctrl-names = "default", "sleep";
 };

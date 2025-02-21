@@ -14,4 +14,7 @@
         "${workspaceFolder}/compile_commands.json",
     ],
     "C_Cpp.intelliSenseEngine": "disabled",
+    "files.associations": {
+        "cstdlib": "c"
+    },
 }

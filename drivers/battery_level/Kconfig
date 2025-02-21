@@ -13,8 +13,7 @@ config MIN_BATTERY_LEVEL
     int "battery max level [mV]"
     default 6000
 
-module = BAT_LVL
-module-str = BAT_LVL_DRV
-source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+config BATTERY_LEVEL_LOG
+    bool "Enable logging from battery level driver"
 
 endif #BATTERY_LEVEL_DRV

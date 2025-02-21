@@ -3,12 +3,12 @@
 #include "imu.h"
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/init.h>
-#include <zephyr/logging/log.h>
-#include "utils.h"
 
-#define APPLICATION_INIT_PRIORITY 99
-
-LOG_MODULE_REGISTER(imu, CONFIG_BAT_LVL_LOG_LEVEL);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_IMU_LOG
+#include "logger.h"
+#endif
+#endif
 
 static struct sensor_value temperature           = {0};
 static struct sensor_value accelerometer_data[3] = {0};
@@ -51,7 +51,11 @@ handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 
     if(ret != 0)
     {
-        LOG_ERR("IMU triggering cancelled due to error!");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_IMU_LOG
+        platform_log("IMU", LOG_LEVEL_ERR, "imu not reading/processing data");
+#endif
+#endif
         (void)sensor_trigger_set(dev, trig, NULL);  // Disable trigger if error
     }
 }
@@ -64,11 +68,18 @@ new_imu_cb_register(imu_updated_cb_t _new_imu_cb);
 static int
 init(void)
 {
-    int ret = 0;
-
     bool const is_imu_device_ready = device_is_ready(imu_dev);
 
-    __ASSERT(is_imu_device_ready, "IMU device not ready!");
+    if(!is_imu_device_ready)
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_IMU_LOG
+        platform_log("IMU", LOG_LEVEL_ERR, "imu not ready");
+#endif
+#endif
+
+        return -ENODEV;
+    }
 
 #ifdef CONFIG_MPU6050_TRIGGER
     trigger = (struct sensor_trigger) {
@@ -78,48 +89,42 @@ init(void)
 
     if(sensor_trigger_set(imu_dev, &trigger, handle_imu_drdy) < 0)
     {
-        LOG_DBG("Cannot configure trigger...");
-    }
-    else
-    {
-        LOG_DBG("IMU configured for triggered sampling");
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_IMU_LOG
+        platform_log("IMU", LOG_LEVEL_ERR, "imu cannot configure trigger");
+#endif
+#endif
+        return -ENODEV;
     }
 #endif  // CONFIG_MPU6050_TRIGGER
-    return ret;
+
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_IMU_LOG
+    platform_log("IMU", LOG_LEVEL_INF, "imu init finished");
+#endif
+#endif
+    return 0;
 }
 
-SYS_INIT(init, APPLICATION, APPLICATION_INIT_PRIORITY);
+SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static int
 process_imu(struct device const* dev)
 {
     int ret = sensor_sample_fetch(dev);  // Fetch new data
 
-    if(ret != 0)
-    {
-        LOG_ERR("Failed to fetch sensor sample! Error code: %d", ret);
-        return ret;
-    }
+    ret |= sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ, accelerometer_data);
+    ret |= sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
+    ret |= sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
 
-    ret = sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ, accelerometer_data);
-    if(ret != 0)
+    if(ret)
     {
-        LOG_ERR("Failed to get accelerometer data! Error code: %d", ret);
-        return ret;
-    }
-
-    ret = sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
-    if(ret != 0)
-    {
-        LOG_ERR("Failed to get gyroscope data! Error code: %d", ret);
-        return ret;
-    }
-
-    ret = sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
-    if(ret != 0)
-    {
-        LOG_ERR("Failed to get temperature data! Error code: %d", ret);
-        return ret;
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_IMU_LOG
+        platform_log("IMU", LOG_LEVEL_ERR, "imu processing failed");
+#endif
+#endif
+        return -ENODEV;
     }
 
     new_imu_cb();

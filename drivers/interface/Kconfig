@@ -1,0 +1,9 @@
+config INTERFACE_DRV
+    bool "led blinking module"
+
+if INTERFACE_DRV
+
+config INTERFACE_LOG
+    bool "Enable logging from interface driver"
+
+endif # INTERFACE_DRV

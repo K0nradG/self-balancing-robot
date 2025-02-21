@@ -1,0 +1,301 @@
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
+#include "motor_controller.h"
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/pwm.h>
+#include <zephyr/init.h>
+
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+#include "logger.h"
+#endif
+#endif
+
+#include "utils.h"
+
+#define INTERRUPT_INTERVAL 20  // [ms]
+#define N_GPIO_PINS 5
+#define DIRECTION_CONTROL_PINS_BEGIN_IDX 1
+
+static bool controller_enabled              = false;
+static bool periodic_motors_control_started = false;
+static MOTORS_DATA motors_data              = {.direction = POSITIVE, .duty_cycle_percent = 0, .start = false};
+static struct k_work_delayable motor_controller_work;
+
+static struct gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
+static struct gpio_dt_spec a_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in2), gpios);
+static struct gpio_dt_spec b_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in1), gpios);
+static struct gpio_dt_spec b_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in2), gpios);
+static struct gpio_dt_spec h_b_en = GPIO_DT_SPEC_GET(DT_NODELABEL(h_b_en), gpios);
+
+static const struct gpio_dt_spec* gpio_pins[] = {&h_b_en, &a_in1, &a_in2, &b_in1, &b_in2};
+
+static const struct pwm_dt_spec pwm_dc_1 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_1));
+static const struct pwm_dt_spec pwm_dc_2 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_2));
+
+void
+set_enable_controller(bool enable)
+{
+    controller_enabled = enable;
+}
+
+void
+set_start_motors(bool start)
+{
+    motors_data.start = start;
+}
+
+void
+set_direction(DIRECTION direction)
+{
+    motors_data.direction = direction;
+}
+
+void
+set_duty_cycle_value(uint32_t duty_cycle_percent)
+{
+    if(duty_cycle_percent > 100)
+    {
+        duty_cycle_percent = 100;
+    }
+
+    if(duty_cycle_percent < 0)
+    {
+        duty_cycle_percent = 0;
+    }
+
+    motors_data.duty_cycle_percent = duty_cycle_percent;
+}
+
+static int
+init(void)
+{
+    if(!device_is_ready(a_in1.port) || !device_is_ready(a_in2.port) || !device_is_ready(b_in1.port) ||
+       !device_is_ready(b_in2.port) || !device_is_ready(h_b_en.port) || !pwm_is_ready_dt(&pwm_dc_2))
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motors pwm not ready");
+#endif
+#endif
+        return -ENODEV;
+    }
+
+    int ret = 0;
+    ret |= gpio_pin_configure_dt(&a_in1, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&a_in2, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&b_in1, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&b_in2, GPIO_OUTPUT_ACTIVE);
+    ret |= gpio_pin_configure_dt(&h_b_en, GPIO_OUTPUT_ACTIVE);
+
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(ret)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motors pins not ready");
+        return ret;
+    }
+    platform_log("MOTOR_CONTROLLER", LOG_LEVEL_INF, "motors init finished");
+#endif
+#endif
+    return ret;
+}
+
+SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+
+static void
+stop_motors(void)
+{
+    int ret = 0;
+
+    for(uint8_t i = DIRECTION_CONTROL_PINS_BEGIN_IDX; i < N_GPIO_PINS; i++)
+    {
+        ret = gpio_pin_set_dt(gpio_pins[i], 0);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        if(ret)
+        {
+            platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "stop motors failed");
+        }
+#endif
+#endif
+    }
+}
+
+static void
+disable_controller(void)
+{
+    int ret = 0;
+
+    ret = gpio_pin_set_dt(&h_b_en, 0);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(ret)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "stop controller failed");
+    }
+#endif
+#endif
+    stop_motors();
+}
+
+static void
+enable_controller(void)
+{
+    int ret = gpio_pin_set_dt(&h_b_en, 1);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(ret)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "enable controller failed");
+    }
+#endif
+#endif
+}
+
+void
+run_motors_in_direction(DIRECTION direction)
+{
+    /*
+    Positive direction -> A1 and B1 - set, A2 and B2 - cleared.
+    Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
+    */
+    int ret = 0;
+
+    switch(direction)
+    {
+        case POSITIVE:
+            ret |= gpio_pin_set_dt(&a_in1, 1);
+            ret |= gpio_pin_set_dt(&a_in2, 0);
+            ret |= gpio_pin_set_dt(&b_in1, 1);
+            ret |= gpio_pin_set_dt(&b_in2, 0);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+            if(ret)
+            {
+                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set POSITIVE failed");
+            }
+#endif
+#endif
+            break;
+
+        case NEGATIVE:
+            ret |= gpio_pin_set_dt(&a_in1, 0);
+            ret |= gpio_pin_set_dt(&a_in2, 1);
+            ret |= gpio_pin_set_dt(&b_in1, 0);
+            ret |= gpio_pin_set_dt(&b_in2, 1);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+            if(ret)
+            {
+                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set NEGATIVE failed");
+            }
+#endif
+#endif
+            break;
+
+        default:
+            stop_motors();
+            break;
+    }
+}
+
+static void
+set_new_duty_cycle_value(uint8_t duty_cycle_percent)
+{
+    uint32_t duty_cycle_ns = (CONFIG_PWM_PERIOD_NS * duty_cycle_percent) / 100;
+    int err                = pwm_set_dt(&pwm_dc_1, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
+    err                    = pwm_set_dt(&pwm_dc_2, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(err)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set pwm failed");
+    }
+#endif
+#endif
+}
+
+// First check start flag - stop the motors if false.
+// Update motors direction and speed.
+static void
+update_motors_control(void)
+{
+    if(!motors_data.start)
+    {
+        stop_motors();
+    }
+    else
+    {
+        run_motors_in_direction(motors_data.direction);
+        set_new_duty_cycle_value(motors_data.duty_cycle_percent);
+    }
+}
+
+static void
+motor_controller_work_handler(struct k_work* work)
+{
+    ARG_UNUSED(work);
+
+    if(!controller_enabled)
+    {
+        disable_controller();
+    }
+    else
+    {
+        enable_controller();
+        update_motors_control();
+    }
+    reschedule_work(&motor_controller_work, K_MSEC(INTERRUPT_INTERVAL), "Motor control");
+}
+
+static K_WORK_DELAYABLE_DEFINE(motor_controller_work, motor_controller_work_handler);
+
+void
+motor_controller_start(void)
+{
+    if(periodic_motors_control_started)
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motor worker already started");
+#endif
+#endif
+        return;
+    }
+    periodic_motors_control_started = true;
+
+    reschedule_work(&motor_controller_work, K_NO_WAIT, "motor_control");
+}
+
+void
+motor_controller_stop(void)
+{
+    if(!periodic_motors_control_started)
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motor worker not started");
+#endif
+#endif
+        return;
+    }
+    periodic_motors_control_started = false;
+
+    int const ret = k_work_cancel_delayable(&motor_controller_work);
+
+    if(ret)
+    {
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "cancel motor worker failed");
+#endif
+#endif
+        return;
+    }
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    platform_log("MOTOR_CONTROLLER", LOG_LEVEL_DBG, "canceled motor worker");
+#endif
+#endif
+}

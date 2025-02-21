@@ -66,6 +66,11 @@ you can switch nrf52840dongle to Open Bootloader Mode by pressing appropriate bu
 
 after this nrf52840dongle bootloader is ready for an DFU, so it means it is ready to receive the new image over USB (which we are sending using nrf programmer app) and then swap the new image with the old one.
 
+# Excessive compile errors
+In order for `clangd` to work properly a `compile_commands.json` file must be specified as a compilation database. WEST build already creates this file which is inside `app/build/app` directory. 
+
+In order to obtain the `compile_commands.json` run the `get_compile_commands.py` script. Do so when the compilation errors appear again - to update the compilation database after build that caused the problems again.
+
 # The purpose of the project is to build a self balancing robot.
 
 ## DONE

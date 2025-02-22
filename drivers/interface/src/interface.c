@@ -21,7 +21,7 @@ static void
 led_toggle_work_handler(struct k_work* work)
 {
     gpio_pin_toggle_dt(&led_dev);
-    k_work_schedule(&led_toggle_work, K_MSEC(500));
+    reschedule_work(&led_toggle_work, K_MSEC(blinking_interval), "led blink");
 }
 
 static K_WORK_DELAYABLE_DEFINE(led_toggle_work, led_toggle_work_handler);
@@ -72,7 +72,7 @@ led_start_periodic_blinking(uint16_t interval_ms)
     periodic_blinking_started = true;
 
     blinking_interval = interval_ms;
-    reschedule_work(&led_toggle_work, K_NO_WAIT, "battery_level_measurement");
+    reschedule_work(&led_toggle_work, K_NO_WAIT, "led blink");
 }
 
 void

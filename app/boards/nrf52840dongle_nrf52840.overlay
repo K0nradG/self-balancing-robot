@@ -126,6 +126,7 @@
     };
 };
 
+/* Disabling uart to make pwm work - default uart pins and out pwm configuration overlaps which was causing pwm not to work properly */
 &uart0 {
     compatible = "nordic,nrf-uarte";
     status = "disabled";

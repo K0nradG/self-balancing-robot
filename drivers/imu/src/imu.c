@@ -127,7 +127,10 @@ process_imu(struct device const* dev)
         return -ENODEV;
     }
 
-    new_imu_cb();
+    if(new_imu_cb)
+    {
+        new_imu_cb();
+    }
 
     return ret;
 }

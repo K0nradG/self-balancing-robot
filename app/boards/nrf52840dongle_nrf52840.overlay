@@ -110,8 +110,23 @@
             low-power-enable;
         };
     };
+
+    i2c0_default: i2c0_default {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 0, 13)>,
+                    <NRF_PSEL(TWIM_SCL, 0, 15)>;
+        };
+    };
+
+    i2c0_sleep: i2c0_sleep {
+        group1 {
+            psels = <NRF_PSEL(TWIM_SDA, 0, 13)>,  
+                    <NRF_PSEL(TWIM_SCL, 0, 15)>;
+        };
+    };
 };
 
+/* Disabling uart to make pwm work - default uart pins and out pwm configuration overlaps which was causing pwm not to work properly */
 &uart0 {
     compatible = "nordic,nrf-uarte";
     status = "disabled";
@@ -119,4 +134,18 @@
     pinctrl-0 = <&uart0_default>;
     pinctrl-1 = <&uart0_sleep>;
     pinctrl-names = "default", "sleep";
+};
+
+&i2c0 {
+    status = "okay";
+    pinctrl-0 = <&i2c0_default>;
+    pinctrl-1 = <&i2c0_sleep>;
+    pinctrl-names = "default", "sleep";
+
+    mpu6050@68 {
+        compatible = "invensense,mpu6050";
+        reg = <0x68>;
+        status = "okay";
+        int-gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+    };
 };

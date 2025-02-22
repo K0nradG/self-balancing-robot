@@ -1,2 +1,2 @@
-config  UTLIS_LOG
+config  UTILS_LOG
     bool "Enable logs from utils module"

@@ -36,6 +36,45 @@ new_battery_level_callback(battery_level_data data)
 }
 #endif
 
+#ifdef CONFIG_IMU_DRV
+#include "imu.h"
+
+static void
+new_imu_callback(void)
+{
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    struct sensor_value const* const gyro_data          = get_gyro_data();
+    struct sensor_value const* const accelerometer_data = get_accelerometer_data();
+    struct sensor_value const temperature               = get_temperature();
+
+    if(gyro_data)
+    {
+        platform_log("APP", LOG_LEVEL_INF, "Gyro X: %d.%06d", gyro_data[0].val1, gyro_data[0].val2);
+    }
+    else
+    {
+        platform_log("APP", LOG_LEVEL_ERR, "Gyro data not valid!");
+        return;
+    }
+
+    if(accelerometer_data)
+    {
+        platform_log(
+            "APP", LOG_LEVEL_INF, "Accelerometer X: %d.%06d", accelerometer_data[0].val1, accelerometer_data[0].val2);
+    }
+    else
+    {
+        platform_log("APP", LOG_LEVEL_ERR, "Accelerometer data not valid!");
+        return;
+    }
+
+    platform_log("APP", LOG_LEVEL_INF, "Temperature: %d.%06d", temperature.val1, temperature.val2);
+#endif
+#endif
+}
+#endif
+
 int
 main(void)
 {
@@ -110,6 +149,15 @@ main(void)
 #ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Motor controller driver is not enabled.");
+#endif
+#endif
+#endif
+
+#ifdef CONFIG_IMU_DRV
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "IMU driver is enabled.");
+    new_imu_cb_register(new_imu_callback);
 #endif
 #endif
 #endif

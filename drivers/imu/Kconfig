@@ -1,1 +1,13 @@
+config IMU_DRV
+    bool "IMU driver module"
+    select MPU6050
+    select SENSOR
+    select I2C
+    select GPIO # To be checked if it's needed
 
+if IMU_DRV
+
+config IMU_LOG
+    bool "Enable logging from IMU driver"
+
+endif #IMU_DRV

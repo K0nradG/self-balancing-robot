@@ -1,8 +1,9 @@
-if(DEFINED CONFIG_BATTERY_LEVEL_DRV OR DEFINED CONFIG_MOTOR_CONTROLLER_DRV OR DEFINED CONFIG_INTERFACE_DRV)
+if(DEFINED CONFIG_BATTERY_LEVEL_DRV OR DEFINED CONFIG_MOTOR_CONTROLLER_DRV OR DEFINED CONFIG_IMU OR DEFINED CONFIG_INTERFACE_DRV)
     add_subdirectory(utils)
 endif()
 
 add_subdirectory_ifdef(CONFIG_BATTERY_LEVEL_DRV battery_level)
 add_subdirectory_ifdef(CONFIG_MOTOR_CONTROLLER_DRV motor_controller)
+add_subdirectory_ifdef(CONFIG_IMU_DRV imu)
 add_subdirectory_ifdef(CONFIG_LOGGER_DRV logger)
 add_subdirectory_ifdef(CONFIG_INTERFACE_DRV interface)

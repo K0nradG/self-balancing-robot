@@ -4,3 +4,4 @@ build_*
 *.cache
 
 compile_commands.json
+.vscode

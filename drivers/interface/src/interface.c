@@ -4,11 +4,9 @@
 #include <zephyr/kernel.h>
 #include "utils.h"
 
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_INTERFACE_LOG
 #include "logger.h"
-#endif
-#endif
+#endif  // CONFIG_INTERFACE_LOG
 
 static const struct gpio_dt_spec led_dev = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 
@@ -31,11 +29,9 @@ init(void)
 {
     if(!device_is_ready(led_dev.port))
     {
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_INTERFACE_LOG
         platform_log("INTERFACE", LOG_LEVEL_ERR, "led not ready");
-#endif
-#endif
+#endif  // CONFIG_INTERFACE_LOG
         return -ENODEV;
     }
 
@@ -43,7 +39,6 @@ init(void)
 
     ret = gpio_pin_configure_dt(&led_dev, GPIO_OUTPUT_ACTIVE);
 
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_INTERFACE_LOG
     if(ret)
     {
@@ -51,8 +46,7 @@ init(void)
         return ret;
     }
     platform_log("INTERFACE", LOG_LEVEL_INF, "led init finished");
-#endif
-#endif
+#endif  // CONFIG_INTERFACE_LOG
     return ret;
 }
 
@@ -61,14 +55,13 @@ SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 void
 led_start_periodic_blinking(uint16_t interval_ms)
 {
+#ifdef CONFIG_INTERFACE_LOG
     if(periodic_blinking_started)
     {
-#ifdef CONFIG_LOGGER_DRV
-#ifdef CONFIG_INTERFACE_LOG
         platform_log("INTERFACE", LOG_LEVEL_ERR, "led worker already started");
-#endif
-#endif
     }
+#endif  // CONFIG_INTERFACE_LOG
+
     periodic_blinking_started = true;
 
     blinking_interval = interval_ms;
@@ -78,30 +71,23 @@ led_start_periodic_blinking(uint16_t interval_ms)
 void
 led_stop_periodic_blinking(void)
 {
+#ifdef CONFIG_INTERFACE_LOG
     if(!periodic_blinking_started)
     {
-#ifdef CONFIG_LOGGER_DRV
-#ifdef CONFIG_INTERFACE_LOG
         platform_log("INTERFACE", LOG_LEVEL_ERR, "led worker not started");
-#endif
-#endif
     }
+#endif  // CONFIG_INTERFACE_LOG
+
     periodic_blinking_started = false;
 
     const int ret = k_work_cancel_delayable(&led_toggle_work);
+
+#ifdef CONFIG_INTERFACE_LOG
     if(ret)
     {
-#ifdef CONFIG_LOGGER_DRV
-#ifdef CONFIG_INTERFACE_LOG
         platform_log("INTERFACE", LOG_LEVEL_ERR, "cancel led work err:%d", ret);
-#endif
-#endif
         return;
     }
-
-#ifdef CONFIG_LOGGER_DRV
-#ifdef CONFIG_INTERFACE_LOG
     platform_log("INTERFACE", LOG_LEVEL_DBG, "led blink work cancelled");
-#endif
-#endif
+#endif  // CONFIG_INTERFACE_LOG
 }

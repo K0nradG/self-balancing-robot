@@ -6,9 +6,11 @@ endmenu
 
 config APP_LOG
     bool "Enable logging from app"
+    depends on LOGGER_DRV
 
 config APP_DEBUG
     bool "Enable application debug version"
+    depends on LOGGER_DRV
 
 module = APP
 module-str = MAIN_APP

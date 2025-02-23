@@ -7,12 +7,12 @@
 #include "ble_connection.h"
 LOG_MODULE_REGISTER(ble_logger_nus, CONFIG_LOGGER_LOG_LEVEL);
 
-static bool nus_notyfication_enabled;
+static bool nus_notification_enabled;
 
 static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
 {
-    LOG_INF("NUS reviced data: %.*s", len, data);
+    LOG_INF("NUS received data: %.*s", len, data);
 }
 
 void
@@ -20,13 +20,13 @@ nus_notif_enabled(enum bt_nus_send_status status)
 {
     if(status == BT_NUS_SEND_STATUS_ENABLED)
     {
-        nus_notyfication_enabled = true;
-        LOG_INF("notyfication enabled");
+        nus_notification_enabled = true;
+        LOG_INF("notification enabled");
     }
     else if(status == BT_NUS_SEND_STATUS_DISABLED)
     {
-        nus_notyfication_enabled = false;
-        LOG_INF("notyfication disabled");
+        nus_notification_enabled = false;
+        LOG_INF("notification disabled");
     }
 }
 
@@ -51,7 +51,7 @@ SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 void
 ble_logger_send(char* data)
 {
-    if(get_con_status() && nus_notyfication_enabled)
+    if(get_con_status() && nus_notification_enabled)
     {
         int err = bt_nus_send(NULL, data, strlen(data));
         if(err)

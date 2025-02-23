@@ -3,5 +3,5 @@ build-*
 build_*
 *.cache
 
+*.vscode
 compile_commands.json
-.vscode

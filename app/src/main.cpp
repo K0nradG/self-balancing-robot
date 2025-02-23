@@ -22,7 +22,7 @@
 #endif
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
-#define MEASUREMENT_INTERVAL 500
+#define MEASUREMENT_INTERVAL 9000
 
 static void
 new_battery_level_callback(battery_level_data data)
@@ -51,6 +51,9 @@ new_imu_callback(void)
     if(gyro_data)
     {
         platform_log("APP", LOG_LEVEL_INF, "Gyro X: %d.%06d", gyro_data[0].val1, gyro_data[0].val2);
+#ifdef CONFIG_APP_DEBUG
+        k_msleep(500);
+#endif
     }
     else
     {
@@ -62,6 +65,9 @@ new_imu_callback(void)
     {
         platform_log(
             "APP", LOG_LEVEL_INF, "Accelerometer X: %d.%06d", accelerometer_data[0].val1, accelerometer_data[0].val2);
+#ifdef CONFIG_APP_DEBUG
+        k_msleep(500);
+#endif
     }
     else
     {
@@ -70,6 +76,9 @@ new_imu_callback(void)
     }
 
     platform_log("APP", LOG_LEVEL_INF, "Temperature: %d.%06d", temperature.val1, temperature.val2);
+#ifdef CONFIG_APP_DEBUG
+    k_msleep(500);
+#endif
 #endif
 #endif
 }
@@ -81,6 +90,15 @@ main(void)
 #ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Application started.");
+#endif
+#endif
+
+#ifdef CONFIG_IMU_DRV
+#ifdef CONFIG_LOGGER_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "IMU driver is enabled.");
+    new_imu_cb_register(new_imu_callback);
+#endif
 #endif
 #endif
 
@@ -149,15 +167,6 @@ main(void)
 #ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Motor controller driver is not enabled.");
-#endif
-#endif
-#endif
-
-#ifdef CONFIG_IMU_DRV
-#ifdef CONFIG_LOGGER_DRV
-#ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "IMU driver is enabled.");
-    new_imu_cb_register(new_imu_callback);
 #endif
 #endif
 #endif

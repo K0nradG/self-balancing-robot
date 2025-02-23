@@ -7,6 +7,9 @@ endmenu
 config APP_LOG
     bool "Enable logging from app"
 
+config APP_DEBUG
+    bool "Enable application debug version"
+
 module = APP
 module-str = MAIN_APP
 source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"

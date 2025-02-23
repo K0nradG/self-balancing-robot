@@ -4,11 +4,9 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/init.h>
 
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_IMU_LOG
 #include "logger.h"
-#endif
-#endif
+#endif  // CONFIG_IMU_LOG
 
 static struct sensor_value temperature           = {0};
 static struct sensor_value accelerometer_data[3] = {0};
@@ -51,12 +49,10 @@ handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 
     if(ret != 0)
     {
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "imu not reading/processing data");
-#endif
-#endif
-        (void)sensor_trigger_set(dev, trig, NULL);  // Disable trigger if error
+#endif  // CONFIG_IMU_LOG
+        (void)sensor_trigger_set(dev, trig, NULL);
     }
 }
 
@@ -72,11 +68,9 @@ init(void)
 
     if(!is_imu_device_ready)
     {
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "imu not ready");
-#endif
-#endif
+#endif  // CONFIG_IMU_LOG
 
         return -ENODEV;
     }
@@ -89,20 +83,16 @@ init(void)
 
     if(sensor_trigger_set(imu_dev, &trigger, handle_imu_drdy) < 0)
     {
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "imu cannot configure trigger");
-#endif
-#endif
+#endif  // CONFIG_IMU_LOG
         return -ENODEV;
     }
 #endif  // CONFIG_MPU6050_TRIGGER
 
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu init finished");
-#endif
-#endif
+#endif  // CONFIG_IMU_LOG
     return 0;
 }
 
@@ -119,11 +109,9 @@ process_imu(struct device const* dev)
 
     if(ret)
     {
-#ifdef CONFIG_LOGGER_DRV
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "imu processing failed");
-#endif
-#endif
+#endif  // CONFIG_IMU_LOG
         return -ENODEV;
     }
 

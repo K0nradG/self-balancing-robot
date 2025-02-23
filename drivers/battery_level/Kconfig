@@ -15,5 +15,6 @@ config MIN_BATTERY_LEVEL
 
 config BATTERY_LEVEL_LOG
     bool "Enable logging from battery level driver"
+    depends on LOGGER_DRV
 
 endif #BATTERY_LEVEL_DRV

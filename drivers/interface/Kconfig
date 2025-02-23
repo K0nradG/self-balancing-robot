@@ -5,5 +5,6 @@ if INTERFACE_DRV
 
 config INTERFACE_LOG
     bool "Enable logging from interface driver"
+    depends on LOGGER_DRV
 
 endif # INTERFACE_DRV

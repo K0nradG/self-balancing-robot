@@ -10,5 +10,6 @@ config PWM_PERIOD_NS
 
 config MOTOR_CONTROLLER_LOG
     bool "Enable logging from motors driver"
+    depends on LOGGER_DRV
 
 endif #MOTOR_CONTROLLER_DRV

@@ -9,5 +9,6 @@ if IMU_DRV
 
 config IMU_LOG
     bool "Enable logging from IMU driver"
+    depends on LOGGER_DRV
 
 endif #IMU_DRV

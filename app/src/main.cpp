@@ -4,10 +4,6 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 
-#ifdef CONFIG_LOGGER_DRV
-#include "logger.h"
-#endif  // CONFIG_LOGGER_DRV
-
 #ifdef CONFIG_INTERFACE_DRV
 #include "interface.h"
 #define BLINKING_INTERVAL 500
@@ -71,6 +67,4 @@ main(void)
     regulator_start_automatic_control();
     new_pid_regulator_parameters_cb_register(new_pid_regulator_parameters);
 #endif //CONFIG_REGULATOR_DRV
-
-
 }

@@ -1,5 +1,3 @@
-// #pragma GCC diagnostic ignored "-Wdouble-promotion"
-
 #include "regulator.h"
 #include <math.h>
 #include "imu.h"
@@ -17,27 +15,22 @@
 #endif  // CONFIG_LOG_OVER_BLE
 
 #define ANGLE_ACCEPTABLE_OFFSET 1.0f
+#define MAX_INTEGRAL 100.0f
+#define MAX_DERIVATIVE 100.0f
+#define MS_TO_SECONDS 0.001f
 
-#define MAX_INTEGRAL 100
-#define MAX_DERIVATIVE 100
-
-static float integral   = 0;
-static float last_error = 0;
-
-struct imu_data new_imu_data;
-
-struct pid_regulator_parameters _pid_regulator_parameters = {.K = 1.0f, .I = 0.0f, .D = 0.0f, .setpoint = -95.0f};
-
+static bool automatic_control_started                            = false;
+static float angle                                               = 0.0f;
+static struct pid_regulator_parameters _pid_regulator_parameters = {
+    .K = 3.5f, .I = 0.0f, .D = 0.2f, .setpoint = -95.0f};
 static struct k_work_delayable regulator_work;
-
-static bool automatic_control_started;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
 
 static void
-new_imu_callback(struct imu_data data)
+new_imu_callback(float _angle)
 {
-    new_imu_data = data;
+    angle = _angle;
 }
 
 void
@@ -137,36 +130,63 @@ new_pid_regulator_parameters_cb_register(regulator_params_updated_cb_t _new_pid_
     }
 }
 
+static float
+calculate_pid_output(void);
+
 static void
 regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
 
-    int angle_int_part   = new_imu_data.angle_data.angle_int;
-    int angle_fract_part = new_imu_data.angle_data.angle_fract;
-
 #ifdef CONFIG_REGULATOR_LOG
-    platform_log("REGULATOR", LOG_LEVEL_ERR, "Angle_int: %d; angle_frac: %d", angle_int_part, angle_fract_part);
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "Angle_int: %d", (int)angle);
 #endif  // CONFIG_REGULATOR_LOG
 
-    float angle = angle_int_part + (angle_fract_part / 1000000.0f);
+    float const output = calculate_pid_output();
+#ifdef CONFIG_REGULATOR_LOG
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
+#endif  // CONFIG_REGULATOR_LOG
 
-    float error = _pid_regulator_parameters.setpoint - angle;
+    int pwm = (int)fabs((double)output);
+    if(pwm > 100)
+    {
+        pwm = 100;
+    }
 
+    set_start_motors(true);
+    set_duty_cycle_value(pwm);
+    set_direction(output > 0 ? POSITIVE : NEGATIVE);
+
+    reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");
+}
+
+static K_WORK_DELAYABLE_DEFINE(regulator_work, regulator_work_handler);
+
+static float
+calculate_pid_output(void)
+{
+    float error  = _pid_regulator_parameters.setpoint - angle;
     float output = 0.0f;
 
-    if(fabs(error) >= ANGLE_ACCEPTABLE_OFFSET)
+    if((float)fabs((double)error) >= ANGLE_ACCEPTABLE_OFFSET)
     {
-        float dt = (float)CONFIG_REGULATOR_SAMPLE_TIME / 1000.0f;
+        float dt = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
 
+        static float integral = 0;
         integral += error * dt;
 
         if(integral > MAX_INTEGRAL)
+        {
             integral = MAX_INTEGRAL;
-        if(integral < -MAX_INTEGRAL)
-            integral = -MAX_INTEGRAL;
+        }
 
-        float derivative = (error - last_error) / dt;
+        if(integral < -MAX_INTEGRAL)
+        {
+            integral = -MAX_INTEGRAL;
+        }
+
+        static float last_error = 0;
+        float derivative        = (error - last_error) / dt;
 
         if(derivative > MAX_DERIVATIVE)
         {
@@ -177,31 +197,13 @@ regulator_work_handler(struct k_work* work)
         {
             derivative = -MAX_DERIVATIVE;
         }
-
         last_error = error;
 
         output = _pid_regulator_parameters.K * error + _pid_regulator_parameters.I * integral +
                  _pid_regulator_parameters.D * derivative;
-#ifdef CONFIG_REGULATOR_LOG
-        platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
-#endif  // CONFIG_REGULATOR_LOG
     }
-
-    int pwm = (int)fabs(output);
-
-    if(pwm > 100)
-    {
-        pwm = 100;
-    }
-
-    set_start_motors(true);
-    set_duty_cycle_value(0);
-    set_direction(output > 0 ? POSITIVE : NEGATIVE);
-
-    reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");
+    return output;
 }
-
-static K_WORK_DELAYABLE_DEFINE(regulator_work, regulator_work_handler);
 
 void
 regulator_start_automatic_control(void)

@@ -1,0 +1,16 @@
+config REGULATOR_DRV
+    bool "Regulator driver module"
+    depends on IMU_DRV
+    depends on MOTOR_CONTROLLER_DRV
+
+if REGULATOR_DRV
+
+config REGULATOR_SAMPLE_TIME
+    int "Regulator sampling time in miliseconds"
+    default 10
+
+config REGULATOR_LOG
+    bool "Enable logging from motors driver"
+    depends on LOGGER_DRV
+
+endif #REGULATOR_DRV

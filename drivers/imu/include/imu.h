@@ -8,19 +8,19 @@
 extern "C" {
 #endif
 
-typedef void (*imu_updated_cb_t)(void);
+struct imu_data
+{
+    struct angle
+    {
+        int angle_int;    // integral part of an angle
+        int angle_fract;  // fract part of an angle
+    } angle_data;
+};
+
+typedef void (*imu_updated_cb_t)(struct imu_data _imu_data);
 
 void
 new_imu_cb_register(imu_updated_cb_t _new_imu_cb);
-
-struct sensor_value const* const
-get_gyro_data(void);
-
-struct sensor_value const* const
-get_accelerometer_data(void);
-
-struct sensor_value const
-get_temperature(void);
 
 #ifdef __cplusplus
 }

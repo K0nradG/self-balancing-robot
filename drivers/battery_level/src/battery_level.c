@@ -249,7 +249,7 @@ battery_stop_periodic_measurement(void)
     }
 
 #ifdef CONFIG_BATTERY_LEVEL_LOG
-    platform_log("INTERFACE", LOG_LEVEL_DBG, "Battery level measurement work cancelled");
+    platform_log("BATTERY CONTROLLER", LOG_LEVEL_DBG, "Battery level measurement work cancelled");
 #endif  // CONFIG_BATTERY_LEVEL_LOG
 }
 

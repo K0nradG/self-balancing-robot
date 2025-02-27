@@ -1,6 +1,6 @@
 #include "regulator.h"
 #include <math.h>
-#include "imu.h"
+#include <stdlib.h>
 #include "motor_controller.h"
 #include "utils.h"
 
@@ -9,8 +9,6 @@
 #endif  // CONFIG_REGULATOR_LOG
 
 #ifdef CONFIG_LOG_OVER_BLE
-#include "ble_logger_service.h"
-
 #define BLE_NUS_MAX_DATA_LEN 251
 #endif  // CONFIG_LOG_OVER_BLE
 
@@ -27,13 +25,40 @@ static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
 
-static void
-new_imu_callback(float _angle)
+void
+new_imu_angle_for_regulator(float _angle)
 {
     angle = _angle;
 }
 
+#ifdef CONFIG_LOG_OVER_BLE
+
+static void
+parse_data(const char* data);
+
 void
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
+{
+    if(len > BLE_NUS_MAX_DATA_LEN)
+    {
+#ifdef CONFIG_REGULATOR_LOG
+        platform_log("APP", LOG_LEVEL_ERR, "Data length exceeds buffer size!");
+#endif  // CONFIG_REGULATOR_LOG
+        return;
+    }
+
+    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
+    memset(received_data, 0, sizeof(received_data));
+
+    memcpy(received_data, data, len);
+    received_data[len] = '\0';
+#ifdef CONFIG_REGULATOR_LOG
+    platform_log("APP", LOG_LEVEL_ERR, "Received NUS data: %s", received_data);
+#endif  // CONFIG_REGULATOR_LOG
+    parse_data(received_data);
+}
+
+static void
 parse_data(const char* data)
 {
     const char* ptr = data;
@@ -80,41 +105,11 @@ parse_data(const char* data)
     /*dont try logging data here!!! it causes dongle crash due to to big amount of time taken when nuc data received
     callback*/
 }
-
-#ifdef CONFIG_LOG_OVER_BLE
-
-void
-new_nus_regulator_parameters_received(const uint8_t* data, uint16_t len)
-{
-    if(len > BLE_NUS_MAX_DATA_LEN)
-    {
-#ifdef CONFIG_REGULATOR_LOG
-        platform_log("APP", LOG_LEVEL_ERR, "Data length exceeds buffer size!");
-#endif  // CONFIG_REGULATOR_LOG
-        return;
-    }
-
-    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
-    memset(received_data, 0, sizeof(received_data));
-
-    memcpy(received_data, data, len);
-    received_data[len] = '\0';
-#ifdef CONFIG_REGULATOR_LOG
-    platform_log("APP", LOG_LEVEL_ERR, "Received NUS data: %s", received_data);
-#endif  // CONFIG_REGULATOR_LOG
-    parse_data(received_data);
-}
 #endif  // CONFIG_LOG_OVER_BLE
 
 static int
 init(void)
 {
-    new_imu_cb_register(new_imu_callback);
-
-#ifdef CONFIG_LOG_OVER_BLE
-    new_nus_data_received_cb_register(new_nus_regulator_parameters_received);
-#endif  // CONFIG_LOG_OVER_BLE
-
     set_enable_controller(true);
     motor_controller_start();
 

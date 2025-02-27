@@ -17,6 +17,14 @@ struct pid_regulator_parameters
 
 typedef void (*regulator_params_updated_cb_t)(struct pid_regulator_parameters _pid_regulator_parameters);
 
+#ifdef CONFIG_LOG_OVER_BLE
+void
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
+#endif //CONFIG_LOG_OVER_BLE
+
+void
+new_imu_angle_for_regulator(float _angle);
+
 void
 new_pid_regulator_parameters_cb_register(regulator_params_updated_cb_t _new_pid_regulator_parameters_cb);
 

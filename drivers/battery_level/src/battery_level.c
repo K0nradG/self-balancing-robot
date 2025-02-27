@@ -17,7 +17,7 @@
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
-battery_level_updated_cb_t new_battery_level_cb;
+battery_level_updated_cb_t new_battery_level_cb = NULL;
 
 static int16_t adc_battery_buffer;
 

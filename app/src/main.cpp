@@ -1,17 +1,13 @@
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/kernel.h>
-
 #ifdef CONFIG_INTERFACE_DRV
 #include "interface.h"
 #define BLINKING_INTERVAL 500
 #endif  // CONFIG_INTERFACE_DRV
 
-#ifdef CONFIG_REGULATOR_DRV
-#include "regulator.h"
-#endif //CONFIG_REGULATOR_DRV
+#ifdef CONFIG_LOG_OVER_BLE
+#include "ble_logger_service.h"
+#endif // CONFIG_IMU_DRV
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #include "battery_level.h"
@@ -28,6 +24,8 @@ new_battery_level_callback(battery_level_data data)
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_REGULATOR_DRV
+#include "imu.h"
+#include "regulator.h"
 
 void new_pid_regulator_parameters(pid_regulator_parameters data) 
 {
@@ -60,10 +58,18 @@ main(void)
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
+#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Receiving regulator parameters through NUS.");
+#endif  // CONFIG_APP_LOG
+    new_nus_data_received_cb_register(new_nus_parameters_received_for_regulator);
+#endif // CONFIG_LOG_OVER_BLE
+
 #ifdef CONFIG_REGULATOR_DRV
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Regulator driver is enabled.");
 #endif //CONFIG_APP_LOG
+    new_imu_cb_register(new_imu_angle_for_regulator);
     regulator_start_automatic_control();
     new_pid_regulator_parameters_cb_register(new_pid_regulator_parameters);
 #endif //CONFIG_REGULATOR_DRV

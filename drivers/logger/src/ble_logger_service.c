@@ -7,9 +7,9 @@
 #include "ble_connection.h"
 LOG_MODULE_REGISTER(ble_logger_nus, CONFIG_LOGGER_LOG_LEVEL);
 
-static bool nus_notification_enabled;
+static bool nus_notification_enabled = false;
 
-static nus_data_received_cb_t nus_data_received_cb;
+static nus_data_received_cb_t nus_data_received_cb = NULL;
 
 static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)

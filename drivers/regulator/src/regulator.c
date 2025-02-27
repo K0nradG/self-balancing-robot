@@ -81,6 +81,8 @@ parse_data(const char* data)
     callback*/
 }
 
+#ifdef CONFIG_LOG_OVER_BLE
+
 void
 new_nus_regulator_parameters_received(const uint8_t* data, uint16_t len)
 {
@@ -102,13 +104,16 @@ new_nus_regulator_parameters_received(const uint8_t* data, uint16_t len)
 #endif  // CONFIG_REGULATOR_LOG
     parse_data(received_data);
 }
+#endif  // CONFIG_LOG_OVER_BLE
 
 static int
 init(void)
 {
     new_imu_cb_register(new_imu_callback);
 
+#ifdef CONFIG_LOG_OVER_BLE
     new_nus_data_received_cb_register(new_nus_regulator_parameters_received);
+#endif  // CONFIG_LOG_OVER_BLE
 
     set_enable_controller(true);
     motor_controller_start();

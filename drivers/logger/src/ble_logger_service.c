@@ -9,14 +9,14 @@ LOG_MODULE_REGISTER(ble_logger_nus, CONFIG_LOGGER_LOG_LEVEL);
 
 static bool nus_notification_enabled;
 
-static nus_data_recived_cb_t nus_data_recived_cb;
+static nus_data_received_cb_t nus_data_received_cb;
 
 static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
 {
-    if(nus_data_recived_cb)
+    if(nus_data_received_cb)
     {
-        nus_data_recived_cb(data, len);
+        nus_data_received_cb(data, len);
     }
     LOG_INF("NUS received data: %.*s", len, data);
 }
@@ -68,11 +68,11 @@ ble_logger_send(char* data)
 }
 
 void
-new_nus_cb_register(nus_data_recived_cb_t _nus_data_recived_cb)
+new_nus_data_received_cb_register(nus_data_received_cb_t _nus_data_received_cb)
 {
-    if(_nus_data_recived_cb)
+    if(_nus_data_received_cb)
     {
-        nus_data_recived_cb = _nus_data_recived_cb;
+        nus_data_received_cb = _nus_data_received_cb;
     }
 }
 

@@ -9,9 +9,9 @@ extern "C" {
 
 struct pid_regulator_parameters
 {
-    float k;
-    float i;
-    float d;
+    float K;
+    float I;
+    float D;
     float setpoint;
 };
 

@@ -97,11 +97,11 @@ calculate_angle(
     // float accel_angle = atan2(ay, sqrt(ax * ax + az * az)) * (180.0 / M_PI); (-90,90)
     float accel_angle = atan2(ay, az) * (180.0 / M_PI);  //(-180,180)
 
-    float gyro_rate = gyro_data[1].val1 + gyro_data[1].val2 / 1000000.0;
+    float gyro_rate = gyro_data[0].val1 + gyro_data[0].val2 / 1000000.0;
 
     // integration of angular acceleration from the gyroscope
     static float gyro_angle = 0;
-    gyro_angle += gyro_rate * dt;  // imu has its own integration time independent from regualtor
+    gyro_angle += gyro_rate * dt;  // imu has its own integration time independent from regulator
 
     // complementary filter
     float angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;

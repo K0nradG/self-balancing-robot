@@ -6,7 +6,7 @@ config REGULATOR_DRV
 if REGULATOR_DRV
 
 config REGULATOR_SAMPLE_TIME
-    int "Regulator sampling time in miliseconds"
+    int "Regulator sampling time in milliseconds"
     default 10
 
 config REGULATOR_LOG

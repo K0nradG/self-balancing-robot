@@ -5,10 +5,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef void (*nus_data_recived_cb_t)(const uint8_t* data, uint16_t len);
+typedef void (*nus_data_received_cb_t)(const uint8_t* data, uint16_t len);
 
 void
-new_nus_data_recived_cb_register(nus_data_recived_cb_t _nus_data_recived_cb);
+new_nus_data_received_cb_register(nus_data_received_cb_t _nus_data_received_cb);
 
 void
 ble_logger_send(char* data);

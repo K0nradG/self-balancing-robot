@@ -1,21 +1,20 @@
+// #pragma GCC diagnostic ignored "-Wdouble-promotion"
+
 #include "regulator.h"
+#include <math.h>
 #include "imu.h"
 #include "motor_controller.h"
+#include "utils.h"
 
 #ifdef CONFIG_REGULATOR_LOG
 #include "logger.h"
-#endif
+#endif  // CONFIG_REGULATOR_LOG
 
 #ifdef CONFIG_LOG_OVER_BLE
 #include "ble_logger_service.h"
 
 #define BLE_NUS_MAX_DATA_LEN 251
-#endif
-
-#define INIT_REGULATOR_PARAM_K 1
-#define INIT_REGULATOR_PARAM_I 1
-#define INIT_REGULATOR_PARAM_D 1
-#define INIT_REGULATOR_PARAM_SETPOINT -90
+#endif  // CONFIG_LOG_OVER_BLE
 
 #define ANGLE_ACCEPTABLE_OFFSET 1.0f
 
@@ -27,22 +26,13 @@ static float last_error = 0;
 
 struct imu_data new_imu_data;
 
-struct pid_regulator_parameters _pid_regulator_parameters;
+struct pid_regulator_parameters _pid_regulator_parameters = {.K = 1.0f, .I = 0.0f, .D = 0.0f, .setpoint = -95.0f};
 
 static struct k_work_delayable regulator_work;
 
 static bool automatic_control_started;
 
-regulator_params_updated_cb_t new_pid_regulator_parameters_cb;
-
-static void
-init_regulator_parameters()
-{
-    _pid_regulator_parameters.k        = INIT_REGULATOR_PARAM_K;
-    _pid_regulator_parameters.i        = INIT_REGULATOR_PARAM_I;
-    _pid_regulator_parameters.d        = INIT_REGULATOR_PARAM_D;
-    _pid_regulator_parameters.setpoint = INIT_REGULATOR_PARAM_SETPOINT;
-}
+regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
 
 static void
 new_imu_callback(struct imu_data data)
@@ -72,16 +62,16 @@ parse_data(const char* data)
             switch(key)
             {
                 case 'k':
-                    _pid_regulator_parameters.k = value;
+                    _pid_regulator_parameters.K = value;
                     break;
                 case 'i':
-                    _pid_regulator_parameters.i = value;
+                    _pid_regulator_parameters.I = value;
                     break;
                 case 'd':
-                    _pid_regulator_parameters.d = value;
+                    _pid_regulator_parameters.D = value;
                     break;
                 case 's':
-                    _pid_regulator_parameters.setpiont = value;
+                    _pid_regulator_parameters.setpoint = value;
                     break;
             }
             if(new_pid_regulator_parameters_cb)
@@ -94,18 +84,18 @@ parse_data(const char* data)
             ptr++;
         }
     }
-    /*dont try logiing data here!!! it causes dongle crash due to to big amount of time taken when nuc data recived
+    /*dont try logging data here!!! it causes dongle crash due to to big amount of time taken when nuc data received
     callback*/
 }
 
 void
-new_nus_regulator_parameters_recived(const uint8_t* data, uint16_t len)
+new_nus_regulator_parameters_received(const uint8_t* data, uint16_t len)
 {
     if(len > BLE_NUS_MAX_DATA_LEN)
     {
 #ifdef CONFIG_REGULATOR_LOG
         platform_log("APP", LOG_LEVEL_ERR, "Data length exceeds buffer size!");
-#endif
+#endif  // CONFIG_REGULATOR_LOG
         return;
     }
 
@@ -114,20 +104,18 @@ new_nus_regulator_parameters_recived(const uint8_t* data, uint16_t len)
 
     memcpy(received_data, data, len);
     received_data[len] = '\0';
-
+#ifdef CONFIG_REGULATOR_LOG
     platform_log("APP", LOG_LEVEL_ERR, "Received NUS data: %s", received_data);
+#endif  // CONFIG_REGULATOR_LOG
     parse_data(received_data);
 }
 
 static int
 init(void)
 {
-    init_regulator_parameters();
     new_imu_cb_register(new_imu_callback);
 
-    new_nus_data_recived_cb_register(new_nus_regulator_parameters_recived);
-
-    new_nus_data_recived_cb_register();
+    new_nus_data_received_cb_register(new_nus_regulator_parameters_received);
 
     set_enable_controller(true);
     motor_controller_start();
@@ -157,6 +145,10 @@ regulator_work_handler(struct k_work* work)
     int angle_int_part   = new_imu_data.angle_data.angle_int;
     int angle_fract_part = new_imu_data.angle_data.angle_fract;
 
+#ifdef CONFIG_REGULATOR_LOG
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "Angle_int: %d; angle_frac: %d", angle_int_part, angle_fract_part);
+#endif  // CONFIG_REGULATOR_LOG
+
     float angle = angle_int_part + (angle_fract_part / 1000000.0f);
 
     float error = _pid_regulator_parameters.setpoint - angle;
@@ -177,13 +169,22 @@ regulator_work_handler(struct k_work* work)
         float derivative = (error - last_error) / dt;
 
         if(derivative > MAX_DERIVATIVE)
+        {
             derivative = MAX_DERIVATIVE;
+        }
+
         if(derivative < -MAX_DERIVATIVE)
+        {
             derivative = -MAX_DERIVATIVE;
+        }
 
         last_error = error;
 
-        output = K * error + I * integral + D * derivative;
+        output = _pid_regulator_parameters.K * error + _pid_regulator_parameters.I * integral +
+                 _pid_regulator_parameters.D * derivative;
+#ifdef CONFIG_REGULATOR_LOG
+        platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
+#endif  // CONFIG_REGULATOR_LOG
     }
 
     int pwm = (int)fabs(output);
@@ -194,7 +195,7 @@ regulator_work_handler(struct k_work* work)
     }
 
     set_start_motors(true);
-    set_duty_cycle_value(pwm);
+    set_duty_cycle_value(0);
     set_direction(output > 0 ? POSITIVE : NEGATIVE);
 
     reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");

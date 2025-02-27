@@ -1,3 +1,5 @@
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
+
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
@@ -30,9 +32,11 @@ new_battery_level_callback(battery_level_data data)
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_REGULATOR_DRV
-void new_pid_regulator_parameters(pid_regulator_parameters data) {
+
+void new_pid_regulator_parameters(pid_regulator_parameters data) 
+{
 #ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "Kp: %f, Ki: %f, Kd: %f, Setpoint: %f", data.k, data.i, data.d, data.setpoint);
+    platform_log("APP", LOG_LEVEL_INF, "Kp: %f, Ki: %f, Kd: %f, Setpoint: %f", data.K, data.I, data.D, data.setpoint);
 #endif  // CONFIG_APP_LOG
 }
 

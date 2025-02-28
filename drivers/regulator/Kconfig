@@ -7,7 +7,7 @@ if REGULATOR_DRV
 
 config REGULATOR_SAMPLE_TIME
     int "Regulator sampling time in milliseconds"
-    default 1
+    default 5
 
 config REGULATOR_LOG
     bool "Enable logging from motors driver"

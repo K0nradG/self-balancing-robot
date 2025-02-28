@@ -4,6 +4,10 @@ config MOTOR_CONTROLLER_DRV
 
 if MOTOR_CONTROLLER_DRV
 
+config PWM_LIMIT
+    int "Max PWM limit"
+    default  100
+
 config PWM_PERIOD_NS
     int "PWM PERIOD [ns]"
     default  20000000

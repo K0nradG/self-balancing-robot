@@ -138,19 +138,15 @@ regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
 
-#ifdef CONFIG_REGULATOR_LOG
-    platform_log("REGULATOR", LOG_LEVEL_ERR, "Angle_int: %d", (int)angle);
-#endif  // CONFIG_REGULATOR_LOG
-
     float const output = calculate_pid_output();
 #ifdef CONFIG_REGULATOR_LOG
     platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
 #endif  // CONFIG_REGULATOR_LOG
 
     int pwm = (int)fabs((double)output);
-    if(pwm > 100)
+    if(pwm > CONFIG_PWM_LIMIT)
     {
-        pwm = 100;
+        pwm = CONFIG_PWM_LIMIT;
     }
 
     set_start_motors(true);

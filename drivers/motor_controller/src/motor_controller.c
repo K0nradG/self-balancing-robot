@@ -50,11 +50,11 @@ set_direction(DIRECTION direction)
 }
 
 void
-set_duty_cycle_value(uint32_t duty_cycle_percent)
+set_duty_cycle_value(uint8_t duty_cycle_percent)
 {
-    if(duty_cycle_percent > 100)
+    if(duty_cycle_percent > CONFIG_PWM_LIMIT)
     {
-        duty_cycle_percent = 100;
+        duty_cycle_percent = CONFIG_PWM_LIMIT;
     }
 
     if(duty_cycle_percent < 0)
@@ -187,7 +187,7 @@ run_motors_in_direction(DIRECTION direction)
 static void
 set_new_duty_cycle_value(uint8_t duty_cycle_percent)
 {
-    uint32_t duty_cycle_ns = (CONFIG_PWM_PERIOD_NS * duty_cycle_percent) / 100;
+    uint32_t duty_cycle_ns = (CONFIG_PWM_PERIOD_NS * duty_cycle_percent) / CONFIG_PWM_LIMIT;
     int err                = pwm_set_dt(&pwm_dc_1, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
     err                    = pwm_set_dt(&pwm_dc_2, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
 

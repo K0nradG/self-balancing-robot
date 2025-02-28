@@ -17,7 +17,7 @@ typedef enum DIRECTION
 typedef struct MOTORS_DATA
 {
     DIRECTION direction;
-    uint32_t duty_cycle_percent;
+    uint8_t duty_cycle_percent;
     bool start;
 } MOTORS_DATA;
 
@@ -31,7 +31,7 @@ void
 set_direction(DIRECTION direction);
 
 void
-set_duty_cycle_value(uint32_t duty_cycle_percent);
+set_duty_cycle_value(uint8_t duty_cycle_percent);
 
 void
 motor_controller_start(void);

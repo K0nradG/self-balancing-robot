@@ -3,6 +3,7 @@
 #include "imu.h"
 #include <math.h>
 #include <zephyr/init.h>
+#include "imu_config.h"
 
 #ifdef CONFIG_IMU_LOG
 #include "logger.h"
@@ -70,6 +71,17 @@ init(void)
         return -ENODEV;
     }
 #endif  // CONFIG_MPU6050_TRIGGER
+
+    set_dlpf(imu_dev);
+#ifdef CONFIG_IMU_LOG
+    platform_log("IMU", LOG_LEVEL_INF, "imu dlpf set");
+#endif  // CONFIG_IMU_LOG
+
+    set_mesurement_interval(imu_dev);
+
+#ifdef CONFIG_IMU_LOG
+    platform_log("IMU", LOG_LEVEL_INF, "meas interval set");
+#endif  // CONFIG_IMU_LOG
 
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu init finished");

@@ -1,38 +1,19 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 #include "imu.h"
-#include <zephyr/drivers/sensor.h>
+#include <math.h>
 #include <zephyr/init.h>
 
 #ifdef CONFIG_IMU_LOG
 #include "logger.h"
 #endif  // CONFIG_IMU_LOG
 
-static struct sensor_value temperature           = {0};
-static struct sensor_value accelerometer_data[3] = {0};
-static struct sensor_value gyro_data[3]          = {0};
+#define ALPHA 0.98f
+#define M_PI 3.14159265358979323846f
+#define MICRO_PARTS_CONVERT 1e-06f
 
 struct device const* imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
-
-imu_updated_cb_t new_imu_cb;
-
-struct sensor_value const* const
-get_gyro_data(void)
-{
-    return gyro_data;
-}
-
-struct sensor_value const* const
-get_accelerometer_data(void)
-{
-    return accelerometer_data;
-}
-
-struct sensor_value const
-get_temperature(void)
-{
-    return temperature;
-}
+imu_updated_cb_t new_imu_cb  = NULL;
 
 static int
 process_imu(struct device const* dev);
@@ -98,9 +79,44 @@ init(void)
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
+static float
+calculate_angle(
+    struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)
+{
+    ARG_UNUSED(temperature);
+
+    static int64_t last_time   = 0;
+    int64_t const current_time = k_uptime_get();
+
+    // Compute dynamic DT in seconds
+    float const dt = (last_time > 0) ? (current_time - last_time) / 1000.0 : 0.01;  // Default DT if first run
+
+    float const ax = accelerometer_data[0].val1 + (accelerometer_data[0].val2 * MICRO_PARTS_CONVERT);
+    float const ay = accelerometer_data[1].val1 + (accelerometer_data[1].val2 * MICRO_PARTS_CONVERT);
+    float const az = accelerometer_data[2].val1 + (accelerometer_data[2].val2 * MICRO_PARTS_CONVERT);
+
+    // float accel_angle = atan2(ay, sqrt(ax * ax + az * az)) * (180.0 / M_PI); (-90,90)
+    float const accel_angle = (float)atan2(ay, az) * (180.0f / M_PI);  //(-180,180)
+
+    static float angle = 0.0f;
+    float gyro_rate    = gyro_data[0].val1 + (gyro_data[0].val2 * MICRO_PARTS_CONVERT);
+    float gyro_angle   = angle + gyro_rate * dt;
+
+    // Complementary filter (later it could be exchanged for Kalman filter):
+    angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;
+
+    last_time = current_time;
+
+    return angle;
+}
+
 static int
 process_imu(struct device const* dev)
 {
+    static struct sensor_value accelerometer_data[3] = {0};
+    static struct sensor_value gyro_data[3]          = {0};
+    static struct sensor_value temperature           = {0};
+
     int ret = sensor_sample_fetch(dev);  // Fetch new data
 
     ret |= sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ, accelerometer_data);
@@ -115,9 +131,11 @@ process_imu(struct device const* dev)
         return -ENODEV;
     }
 
+    float const angle = calculate_angle(accelerometer_data, gyro_data, &temperature);
+
     if(new_imu_cb)
     {
-        new_imu_cb();
+        new_imu_cb(angle);
     }
 
     return ret;

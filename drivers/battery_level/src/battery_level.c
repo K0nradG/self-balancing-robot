@@ -17,7 +17,7 @@
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
-battery_level_updated_cb_t new_battery_level_cb;
+battery_level_updated_cb_t new_battery_level_cb = NULL;
 
 static int16_t adc_battery_buffer;
 
@@ -249,7 +249,7 @@ battery_stop_periodic_measurement(void)
     }
 
 #ifdef CONFIG_BATTERY_LEVEL_LOG
-    platform_log("INTERFACE", LOG_LEVEL_DBG, "Battery level measurement work cancelled");
+    platform_log("BATTERY CONTROLLER", LOG_LEVEL_DBG, "Battery level measurement work cancelled");
 #endif  // CONFIG_BATTERY_LEVEL_LOG
 }
 

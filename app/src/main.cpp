@@ -1,19 +1,13 @@
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/kernel.h>
-
-#ifdef CONFIG_LOGGER_DRV
-#include "logger.h"
-#endif  // CONFIG_LOGGER_DRV
-
-#ifdef CONFIG_MOTOR_CONTROLLER_DRV
-#include "motor_controller.h"
-#endif  // CONFIG_MOTOR_CONTROLLER_DRV
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
 
 #ifdef CONFIG_INTERFACE_DRV
 #include "interface.h"
 #define BLINKING_INTERVAL 500
 #endif  // CONFIG_INTERFACE_DRV
+
+#ifdef CONFIG_LOG_OVER_BLE
+#include "ble_logger_service.h"
+#endif // CONFIG_IMU_DRV
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #include "battery_level.h"
@@ -29,52 +23,18 @@ new_battery_level_callback(battery_level_data data)
 }
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
-#ifdef CONFIG_IMU_DRV
+#ifdef CONFIG_REGULATOR_DRV
 #include "imu.h"
+#include "regulator.h"
 
-static void
-new_imu_callback(void)
+void new_pid_regulator_parameters(pid_regulator_parameters data) 
 {
 #ifdef CONFIG_APP_LOG
-    struct sensor_value const* const gyro_data          = get_gyro_data();
-    struct sensor_value const* const accelerometer_data = get_accelerometer_data();
-    struct sensor_value const temperature               = get_temperature();
-
-    if(gyro_data)
-    {
-        platform_log("APP", LOG_LEVEL_INF, "Gyro X: %d.%06d", gyro_data[0].val1, gyro_data[0].val2);
-#ifdef CONFIG_APP_DEBUG
-        k_msleep(500);
-#endif  // CONFIG_APP_DEBUG
-    }
-    else
-    {
-        platform_log("APP", LOG_LEVEL_ERR, "Gyro data not valid!");
-        return;
-    }
-
-    if(accelerometer_data)
-    {
-        platform_log(
-            "APP", LOG_LEVEL_INF, "Accelerometer X: %d.%06d", accelerometer_data[0].val1, accelerometer_data[0].val2);
-#ifdef CONFIG_APP_DEBUG
-        k_msleep(500);
-#endif  // CONFIG_APP_DEBUG
-    }
-    else
-    {
-        platform_log("APP", LOG_LEVEL_ERR, "Accelerometer data not valid!");
-        return;
-    }
-
-    platform_log("APP", LOG_LEVEL_INF, "Temperature: %d.%06d", temperature.val1, temperature.val2);
-#ifdef CONFIG_APP_DEBUG
-    k_msleep(500);
-#endif  // CONFIG_APP_DEBUG
+    platform_log("APP", LOG_LEVEL_INF, "Kp: %f, Ki: %f, Kd: %f, Setpoint: %f", data.K, data.I, data.D, data.setpoint);
 #endif  // CONFIG_APP_LOG
 }
 
-#endif  // CONFIG_IMU_DRV
+#endif //CONFIG_REGULATOR_DRV
 
 int
 main(void)
@@ -82,13 +42,6 @@ main(void)
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Application started.");
 #endif  // CONFIG_APP_LOG
-
-#ifdef CONFIG_IMU_DRV
-#ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "IMU driver is enabled.");
-#endif  // CONFIG_APP_LOG
-    new_imu_cb_register(new_imu_callback);
-#endif  // CONFIG_IMU_DRV
 
 #ifdef CONFIG_INTERFACE_DRV
 #ifdef CONFIG_APP_LOG
@@ -103,48 +56,21 @@ main(void)
 #endif  // CONFIG_APP_LOG
     new_battery_level_cb_register(new_battery_level_callback);
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
-#else
-#ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "Battery level driver is not enabled.");
-#endif  // CONFIG_APP_LOG
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
-#ifdef CONFIG_MOTOR_CONTROLLER_DRV
+#ifdef CONFIG_LOG_OVER_BLE
 #ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "Motor controller  driver is enabled.");
+    platform_log("APP", LOG_LEVEL_INF, "Receiving regulator parameters through NUS.");
 #endif  // CONFIG_APP_LOG
-    set_enable_controller(true);
-    set_start_motors(true);
-    set_direction(POSITIVE);
-    motor_controller_start();
+    new_nus_data_received_cb_register(new_nus_parameters_received_for_regulator);
+#endif // CONFIG_LOG_OVER_BLE
 
-    for(int pwm = 0; pwm <= 100; pwm++)
-    {
-        set_duty_cycle_value(pwm);
-        k_usleep(50000);
-    }
-
-    for(int pwm = 100; pwm >= 0; pwm--)
-    {
-        set_duty_cycle_value(pwm);
-        k_usleep(50000);
-    }
-    set_direction(NEGATIVE);
-
-    for(int pwm = 0; pwm <= 100; pwm++)
-    {
-        set_duty_cycle_value(pwm);
-        k_usleep(50000);
-    }
-
-    for(int pwm = 100; pwm >= 0; pwm--)
-    {
-        set_duty_cycle_value(pwm);
-        k_usleep(50000);
-    }
-#else
+#ifdef CONFIG_REGULATOR_DRV
 #ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "Motor controller driver is not enabled.");
-#endif  // CONFIG_APP_LOG
-#endif  // CONFIG_MOTOR_CONTROLLER_DRV
+    platform_log("APP", LOG_LEVEL_INF, "Regulator driver is enabled.");
+#endif //CONFIG_APP_LOG
+    new_imu_cb_register(new_imu_angle_for_regulator);
+    regulator_start_automatic_control();
+    new_pid_regulator_parameters_cb_register(new_pid_regulator_parameters);
+#endif //CONFIG_REGULATOR_DRV
 }

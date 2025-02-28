@@ -7,11 +7,17 @@
 #include "ble_connection.h"
 LOG_MODULE_REGISTER(ble_logger_nus, CONFIG_LOGGER_LOG_LEVEL);
 
-static bool nus_notification_enabled;
+static bool nus_notification_enabled = false;
+
+static nus_data_received_cb_t nus_data_received_cb = NULL;
 
 static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
 {
+    if(nus_data_received_cb)
+    {
+        nus_data_received_cb(data, len);
+    }
     LOG_INF("NUS received data: %.*s", len, data);
 }
 
@@ -58,6 +64,15 @@ ble_logger_send(char* data)
         {
             LOG_ERR("NUS failed to send data: %d", err);
         }
+    }
+}
+
+void
+new_nus_data_received_cb_register(nus_data_received_cb_t _nus_data_received_cb)
+{
+    if(_nus_data_received_cb)
+    {
+        nus_data_received_cb = _nus_data_received_cb;
     }
 }
 

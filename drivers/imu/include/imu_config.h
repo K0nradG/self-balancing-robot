@@ -3,9 +3,6 @@
 
 #include <zephyr/drivers/i2c.h>
 
-bool
-check_dlpf(const struct device* i2c_dev);
-
 void
 set_dlpf(const struct device* i2c_dev);
 

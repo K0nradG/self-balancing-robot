@@ -6,32 +6,8 @@
 #endif
 
 #define MPU6050_I2C_ADDR 0x68
-
 #define DLPF_REG_ADDR 0x1A
 #define DLPF_44_HZ_REG_VAL 0x03
-#define DLPF_REG_MASK 0x07
-
-bool
-check_dlpf(const struct device* i2c_dev)
-{
-    uint8_t dlpf_value;
-    i2c_reg_read_byte(i2c_dev, MPU6050_I2C_ADDR, DLPF_REG_ADDR, &dlpf_value);
-
-#ifdef CONFIG_LOG_IMU
-    platform_log("APP", LOG_LEVEL_INF, "DLPF ustawione na: %d\n", dlpf_value & DLPF_REG_MASK);
-#endif
-
-    dlpf_value &= DLPF_REG_MASK;
-
-    if(dlpf_value > 0)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
 
 void
 set_dlpf(const struct device* i2c_dev)

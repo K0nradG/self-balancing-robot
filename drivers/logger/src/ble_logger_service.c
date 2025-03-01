@@ -11,6 +11,18 @@ static bool nus_notification_enabled = false;
 
 static nus_data_received_cb_t nus_data_received_cb = NULL;
 
+bool
+get_notif_status()
+{
+    return nus_notification_enabled;
+}
+
+void
+set_notif_status(bool value)
+{
+    nus_notification_enabled = value;
+}
+
 static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
 {
@@ -26,12 +38,12 @@ nus_notif_enabled(enum bt_nus_send_status status)
 {
     if(status == BT_NUS_SEND_STATUS_ENABLED)
     {
-        nus_notification_enabled = true;
+        set_notif_status(true);
         LOG_INF("notification enabled");
     }
     else if(status == BT_NUS_SEND_STATUS_DISABLED)
     {
-        nus_notification_enabled = false;
+        set_notif_status(false);
         LOG_INF("notification disabled");
     }
 }
@@ -57,7 +69,7 @@ SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 void
 ble_logger_send(char* data)
 {
-    if(get_con_status() && nus_notification_enabled)
+    if(get_con_status() && get_notif_status())
     {
         int err = bt_nus_send(NULL, data, strlen(data));
         if(err)

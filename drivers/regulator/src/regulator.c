@@ -1,7 +1,13 @@
-#include "regulator.h"
+#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#include "identyfication_data_send.h"
+#include "imu.h"
+#include "model_identification.h"
+#endif
+
 #include <math.h>
 #include <stdlib.h>
 #include "motor_controller.h"
+#include "regulator.h"
 #include "utils.h"
 
 #ifdef CONFIG_REGULATOR_LOG
@@ -20,7 +26,17 @@
     N_dt / (1.0f + \
             N_dt)  // Alpha coefficients to be used directly by the low-pass filter: alpha = (N * dt) / (1 + N * dt)
 
-static bool automatic_control_started                            = false;
+int cnt = 0;
+
+static bool automatic_control_started = false;
+
+#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+
+#define MAX_MOTOR_TORQUE_NM 0.0784 /* 0.8 kg *cm*/
+
+struct identification_data data;
+#endif
+
 static float angle                                               = 0.0f;
 static struct pid_regulator_parameters _pid_regulator_parameters = {
     .Kp = 4.0f, .Ki = 0.5f, .Kd = 0.01f, .setpoint = -95.0f};
@@ -28,11 +44,21 @@ static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
 
+#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+void
+new_imu_angle_for_regulator(struct identification_data _data)
+
+{
+    data  = _data;
+    angle = data.angle;
+}
+#else
 void
 new_imu_angle_for_regulator(float _angle)
 {
     angle = _angle;
 }
+#endif /*CONFIG_MODEL_IDENTYFICATION_DRV*/
 
 #ifdef CONFIG_LOG_OVER_BLE
 
@@ -142,7 +168,7 @@ regulator_work_handler(struct k_work* work)
     float const error  = _pid_regulator_parameters.setpoint - angle;
     float const output = calculate_pid_output(error);
 #ifdef CONFIG_REGULATOR_LOG
-    platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
+    // platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
 #endif  // CONFIG_REGULATOR_LOG
 
     int pwm = (int)fabsf(output);
@@ -187,6 +213,21 @@ calculate_pid_output(float error)
         }
         output = limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
     }
+
+#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+
+    int pwm          = (int)fabsf(output);
+    int current_time = k_uptime_get();
+
+    if(!buffer_all_full())
+    {
+        buffer_put(ANGLE_BUFFER_ID, angle);
+        buffer_put(ANGLE_DT_BUFFER_ID, data.angle_dt);
+        buffer_put(TIME_BUFFER_ID, current_time);
+        buffer_put(U_BUFFER_ID, (float)((pwm / 100) * MAX_MOTOR_TORQUE_NM));
+    }
+#endif
+
     return output;
 }
 

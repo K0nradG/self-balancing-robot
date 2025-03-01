@@ -12,7 +12,6 @@
 #define BLE_NUS_MAX_DATA_LEN 251
 #endif  // CONFIG_LOG_OVER_BLE
 
-#define ANGLE_ACCEPTABLE_OFFSET 1.0f
 #define MAX_INTEGRAL 100.0f
 #define MAX_DERIVATIVE 100.0f
 #define MS_TO_SECONDS 0.001f
@@ -20,7 +19,7 @@
 static bool automatic_control_started                            = false;
 static float angle                                               = 0.0f;
 static struct pid_regulator_parameters _pid_regulator_parameters = {
-    .K = 0.0f, .I = 0.0f, .D = 0.0f, .setpoint = -95.0f};
+    .K = 0.0f, .I = 0.0f, .D = 0.0f, .setpoint = -101.0f};
 static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
@@ -111,7 +110,6 @@ static int
 init(void)
 {
     set_enable_controller(true);
-    motor_controller_start();
 
 #ifdef CONFIG_REGULATOR_LOG
     platform_log("REGULATOR", LOG_LEVEL_INF, "regulator init finished");
@@ -153,6 +151,7 @@ regulator_work_handler(struct k_work* work)
     set_duty_cycle_value(pwm);
     set_direction(output > 0 ? POSITIVE : NEGATIVE);
 
+    trigger_motors_update();
     reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");
 }
 
@@ -161,43 +160,38 @@ static K_WORK_DELAYABLE_DEFINE(regulator_work, regulator_work_handler);
 static float
 calculate_pid_output(void)
 {
-    float error  = _pid_regulator_parameters.setpoint - angle;
-    float output = 0.0f;
+    float error = _pid_regulator_parameters.setpoint - angle;
+    float dt    = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
 
-    if((float)fabs((double)error) >= ANGLE_ACCEPTABLE_OFFSET)
+    static float integral = 0;
+    integral += error * dt;
+
+    if(integral > MAX_INTEGRAL)
     {
-        float dt = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
-
-        static float integral = 0;
-        integral += error * dt;
-
-        if(integral > MAX_INTEGRAL)
-        {
-            integral = MAX_INTEGRAL;
-        }
-
-        if(integral < -MAX_INTEGRAL)
-        {
-            integral = -MAX_INTEGRAL;
-        }
-
-        static float last_error = 0;
-        float derivative        = (error - last_error) / dt;
-
-        if(derivative > MAX_DERIVATIVE)
-        {
-            derivative = MAX_DERIVATIVE;
-        }
-
-        if(derivative < -MAX_DERIVATIVE)
-        {
-            derivative = -MAX_DERIVATIVE;
-        }
-        last_error = error;
-
-        output = _pid_regulator_parameters.K * error + _pid_regulator_parameters.I * integral +
-                 _pid_regulator_parameters.D * derivative;
+        integral = MAX_INTEGRAL;
     }
+
+    if(integral < -MAX_INTEGRAL)
+    {
+        integral = -MAX_INTEGRAL;
+    }
+
+    static float last_error = 0;
+    float derivative        = (error - last_error) / dt;
+
+    if(derivative > MAX_DERIVATIVE)
+    {
+        derivative = MAX_DERIVATIVE;
+    }
+
+    if(derivative < -MAX_DERIVATIVE)
+    {
+        derivative = -MAX_DERIVATIVE;
+    }
+    last_error = error;
+
+    float const output = _pid_regulator_parameters.K * error + _pid_regulator_parameters.I * integral +
+                         _pid_regulator_parameters.D * derivative;
     return output;
 }
 

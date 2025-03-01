@@ -27,7 +27,8 @@ set_sensor_settings(uint8_t reg, uint8_t _configuration)
 #ifdef CONFIG_IMU_LOG
     if(ret != 0)
     {
-        platform_log("IMU", LOG_LEVEL_ERR, "Failed to write I2C device %x at Reg. %x", dev_i2c.addr, configuration[0]);
+        platform_log(
+            "IMU", LOG_LEVEL_ERR, "Failed to write I2C device %x at Reg. %x", dev_i2c.addr, (double)configuration[0]);
     }
     else
     {

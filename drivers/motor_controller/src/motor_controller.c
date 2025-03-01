@@ -229,10 +229,15 @@ motor_controller_work_handler(struct k_work* work)
         enable_controller();
         update_motors_control();
     }
-    reschedule_work(&motor_controller_work, K_MSEC(INTERRUPT_INTERVAL), "Motor control");
 }
 
 static K_WORK_DELAYABLE_DEFINE(motor_controller_work, motor_controller_work_handler);
+
+void
+trigger_motor_update(void)
+{
+    k_work_submit(&motor_controller_work.work);
+}
 
 void
 motor_controller_start(void)

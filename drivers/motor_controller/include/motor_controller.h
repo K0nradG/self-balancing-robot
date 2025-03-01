@@ -39,6 +39,9 @@ motor_controller_start(void);
 void
 motor_controller_stop(void);
 
+void
+trigger_motor_update(void);
+
 #ifdef __cplusplus
 }
 #endif

@@ -153,6 +153,8 @@ regulator_work_handler(struct k_work* work)
     set_duty_cycle_value(pwm);
     set_direction(output > 0 ? POSITIVE : NEGATIVE);
 
+    trigger_motor_update();
+
     reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");
 }
 

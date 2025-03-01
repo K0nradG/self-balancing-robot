@@ -12,14 +12,18 @@
 #define BLE_NUS_MAX_DATA_LEN 251
 #endif  // CONFIG_LOG_OVER_BLE
 
-#define MAX_INTEGRAL 100.0f
-#define MAX_DERIVATIVE 100.0f
 #define MS_TO_SECONDS 0.001f
+#define M_PI 3.14159265358979323846f
+#define N (2.0f * M_PI * (float)CONFIG_FILTER_CUTOFF_FREQUENCY)         // Filter coefficient in [rad/s]
+#define N_dt (N * (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS)  // [rad]
+#define ALPHA      \
+    N_dt / (1.0f + \
+            N_dt)  // Alpha coefficients to be used directly by the low-pass filter: alpha = (N * dt) / (1 + N * dt)
 
 static bool automatic_control_started                            = false;
 static float angle                                               = 0.0f;
 static struct pid_regulator_parameters _pid_regulator_parameters = {
-    .K = 4.0f, .I = 0.0f, .D = 0.0f, .setpoint = -92.0f};
+    .Kp = 4.0f, .Ki = 0.5f, .Kd = 0.01f, .setpoint = -95.0f};
 static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
@@ -79,13 +83,13 @@ parse_data(const char* data)
             switch(key)
             {
                 case 'k':
-                    _pid_regulator_parameters.K = value;
+                    _pid_regulator_parameters.Kp = value;
                     break;
                 case 'i':
-                    _pid_regulator_parameters.I = value;
+                    _pid_regulator_parameters.Ki = value;
                     break;
                 case 'd':
-                    _pid_regulator_parameters.D = value;
+                    _pid_regulator_parameters.Kd = value;
                     break;
                 case 's':
                     _pid_regulator_parameters.setpoint = value;
@@ -141,11 +145,7 @@ regulator_work_handler(struct k_work* work)
     platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
 #endif  // CONFIG_REGULATOR_LOG
 
-    int pwm = (int)fabs((double)output);
-    if(pwm > CONFIG_PWM_LIMIT)
-    {
-        pwm = CONFIG_PWM_LIMIT;
-    }
+    int pwm = (int)fabsf(output);
 
     set_start_motors(true);
     set_duty_cycle_value(pwm);
@@ -158,39 +158,58 @@ regulator_work_handler(struct k_work* work)
 static K_WORK_DELAYABLE_DEFINE(regulator_work, regulator_work_handler);
 
 static float
+limit(float input, float lower_bound, float upper_bound);
+
+static float
+low_pass_filter(float input);
+
+static float
 calculate_pid_output(float error)
 {
-    float dt = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
+    static float const dt    = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
+    float const proportional = _pid_regulator_parameters.Kp * error;
 
     static float integral = 0;
-    integral += error * dt;
+    integral += _pid_regulator_parameters.Ki * error * dt;
 
-    if(integral > MAX_INTEGRAL)
+    static float last_error               = 0;
+    float const error_difference_filtered = low_pass_filter(error - last_error);
+    float const derivative                = _pid_regulator_parameters.Kd * (error_difference_filtered / dt);
+    last_error                            = error;
+
+    float output = proportional + integral + derivative;
+
+    if(fabsf(output) > (float)CONFIG_PWM_LIMIT)
     {
-        integral = MAX_INTEGRAL;
+        if((output * error) > 0)
+        {
+            integral -= _pid_regulator_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
+        }
+        output = limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
     }
+    return output;
+}
 
-    if(integral < -MAX_INTEGRAL)
+static float
+limit(float input, float lower_bound, float upper_bound)
+{
+    if(input < lower_bound)
     {
-        integral = -MAX_INTEGRAL;
+        input = lower_bound;
     }
-
-    static float last_error = 0;
-    float derivative        = (error - last_error) / dt;
-
-    if(derivative > MAX_DERIVATIVE)
+    if(input > upper_bound)
     {
-        derivative = MAX_DERIVATIVE;
+        input = upper_bound;
     }
+    return input;
+}
 
-    if(derivative < -MAX_DERIVATIVE)
-    {
-        derivative = -MAX_DERIVATIVE;
-    }
-    last_error = error;
-
-    float const output = _pid_regulator_parameters.K * error + _pid_regulator_parameters.I * integral +
-                         _pid_regulator_parameters.D * derivative;
+static float
+low_pass_filter(float input)
+{
+    static float last_output = 0.0f;
+    float const output       = ALPHA * input + (1 - ALPHA) * last_output;
+    last_output              = output;
     return output;
 }
 

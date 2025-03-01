@@ -13,4 +13,8 @@ config REGULATOR_LOG
     bool "Enable logging from motors driver"
     depends on LOGGER_DRV
 
+config FILTER_CUTOFF_FREQUENCY
+    int "Filter cut-off frequency in Hz"
+    default 40
+
 endif #REGULATOR_DRV

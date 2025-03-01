@@ -19,7 +19,7 @@
 static bool automatic_control_started                            = false;
 static float angle                                               = 0.0f;
 static struct pid_regulator_parameters _pid_regulator_parameters = {
-    .K = 0.0f, .I = 0.0f, .D = 0.0f, .setpoint = -101.0f};
+    .K = 4.0f, .I = 0.0f, .D = 0.0f, .setpoint = -92.0f};
 static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;

@@ -129,14 +129,14 @@ new_pid_regulator_parameters_cb_register(regulator_params_updated_cb_t _new_pid_
 }
 
 static float
-calculate_pid_output(void);
+calculate_pid_output(float error);
 
 static void
 regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
-
-    float const output = calculate_pid_output();
+    float const error  = _pid_regulator_parameters.setpoint - angle;
+    float const output = calculate_pid_output(error);
 #ifdef CONFIG_REGULATOR_LOG
     platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
 #endif  // CONFIG_REGULATOR_LOG
@@ -149,7 +149,7 @@ regulator_work_handler(struct k_work* work)
 
     set_start_motors(true);
     set_duty_cycle_value(pwm);
-    set_direction(output > 0 ? POSITIVE : NEGATIVE);
+    set_direction(error > 0 ? POSITIVE : NEGATIVE);
 
     trigger_motors_update();
     reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");
@@ -158,10 +158,9 @@ regulator_work_handler(struct k_work* work)
 static K_WORK_DELAYABLE_DEFINE(regulator_work, regulator_work_handler);
 
 static float
-calculate_pid_output(void)
+calculate_pid_output(float error)
 {
-    float error = _pid_regulator_parameters.setpoint - angle;
-    float dt    = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
+    float dt = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
 
     static float integral = 0;
     integral += error * dt;

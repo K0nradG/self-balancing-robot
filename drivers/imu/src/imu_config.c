@@ -1,4 +1,6 @@
 #include "imu_config.h"
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
 #include <zephyr/drivers/i2c.h>
 
 #ifdef CONFIG_IMU_LOG
@@ -11,22 +13,37 @@
 #define DLPF_44_HZ_REG_VAL 0x03
 
 #define IMU_MEASUREMENT_INTERVAL_REG_ADDR 0x19
-#define IMU_MEASUREMENT_INTERVAL_REG_VAL 0x09
+#define IMU_MEASUREMENT_INTERVAL_REG_VAL 0x01
 
-void
-set_dlpf(const struct device* i2c_dev)
+#define HDC_2080_NODE DT_INST(0, invensense_mpu6050)
+static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(HDC_2080_NODE);
+
+static void
+set_sensor_settings(uint8_t reg, uint8_t _configuration)
 {
-    i2c_reg_write_byte(i2c_dev, MPU6050_I2C_ADDR, DLPF_REG_ADDR, DLPF_44_HZ_REG_VAL);
-#ifdef CONFIG_LOG_IMU
-    platform_log("APP", LOG_LEVEL_INF, "dlpf set to 44Hz");
-#endif
+    uint8_t configuration[2] = {reg, _configuration};
+
+    int ret = i2c_write_dt(&dev_i2c, configuration, sizeof(configuration));
+#ifdef CONFIG_IMU_LOG
+    if(ret != 0)
+    {
+        platform_log("IMU", LOG_LEVEL_ERR, "Failed to write I2C device %x at Reg. %x", dev_i2c.addr, configuration[0]);
+    }
+    else
+    {
+        platform_log("IMU", LOG_LEVEL_INF, "I2C reg write successful.");
+    }
+#endif  // CONFIG_IMU_LOG
 }
 
 void
-set_measurement_interval(const struct device* i2c_dev)
+set_dlpf(void)
 {
-    i2c_reg_write_byte(i2c_dev, MPU6050_I2C_ADDR, IMU_MEASUREMENT_INTERVAL_REG_ADDR, IMU_MEASUREMENT_INTERVAL_REG_VAL);
-#ifdef CONFIG_LOG_IMU
-    platform_log("APP", LOG_LEVEL_INF, "imu measurement interval set to 100Hz");
-#endif
+    set_sensor_settings(DLPF_REG_ADDR, DLPF_44_HZ_REG_VAL);
+}
+
+void
+set_measurement_interval(void)
+{
+    set_sensor_settings(IMU_MEASUREMENT_INTERVAL_REG_ADDR, IMU_MEASUREMENT_INTERVAL_REG_VAL);
 }

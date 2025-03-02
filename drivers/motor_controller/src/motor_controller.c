@@ -4,20 +4,18 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/init.h>
+#include "zephyr/kernel.h"
 
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
 #include "logger.h"
 #endif  // CONFIG_MOTOR_CONTROLLER_LOG
 
-#include "utils.h"
-
-#define INTERRUPT_INTERVAL 20  // [ms]
 #define N_GPIO_PINS 5
 #define DIRECTION_CONTROL_PINS_BEGIN_IDX 1
+#define PWM_PERIOD_NS PWM_USEC(CONFIG_PWM_PERIOD_US)
 
-static bool controller_enabled              = false;
-static bool periodic_motors_control_started = false;
-static MOTORS_DATA motors_data              = {.direction = POSITIVE, .duty_cycle_percent = 0, .start = false};
+static bool controller_enabled = false;
+static MOTORS_DATA motors_data = {.direction = POSITIVE, .duty_cycle_percent = 0, .start = false};
 static struct k_work_delayable motor_controller_work;
 
 static struct gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
@@ -187,9 +185,9 @@ run_motors_in_direction(DIRECTION direction)
 static void
 set_new_duty_cycle_value(uint8_t duty_cycle_percent)
 {
-    uint32_t duty_cycle_ns = (CONFIG_PWM_PERIOD_NS * duty_cycle_percent) / CONFIG_PWM_LIMIT;
-    int err                = pwm_set_dt(&pwm_dc_1, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
-    err                    = pwm_set_dt(&pwm_dc_2, CONFIG_PWM_PERIOD_NS, duty_cycle_ns);
+    uint32_t duty_cycle_ns = (PWM_PERIOD_NS * duty_cycle_percent) / CONFIG_PWM_LIMIT;
+    int err                = pwm_set_dt(&pwm_dc_1, PWM_PERIOD_NS, duty_cycle_ns);
+    err                    = pwm_set_dt(&pwm_dc_2, PWM_PERIOD_NS, duty_cycle_ns);
 
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
     if(err)
@@ -234,46 +232,7 @@ motor_controller_work_handler(struct k_work* work)
 static K_WORK_DELAYABLE_DEFINE(motor_controller_work, motor_controller_work_handler);
 
 void
-trigger_motor_update(void)
+trigger_motors_update(void)
 {
     k_work_submit(&motor_controller_work.work);
-}
-
-void
-motor_controller_start(void)
-{
-    if(periodic_motors_control_started)
-    {
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motor worker already started");
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
-        return;
-    }
-    periodic_motors_control_started = true;
-
-    reschedule_work(&motor_controller_work, K_NO_WAIT, "motor_control");
-}
-
-void
-motor_controller_stop(void)
-{
-    if(!periodic_motors_control_started)
-    {
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motor worker not started");
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
-        return;
-    }
-    periodic_motors_control_started = false;
-
-    int const ret = k_work_cancel_delayable(&motor_controller_work);
-
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-    if(ret)
-    {
-        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "cancel motor worker failed");
-        return;
-    }
-    platform_log("MOTOR_CONTROLLER", LOG_LEVEL_DBG, "canceled motor worker");
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
 }

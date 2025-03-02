@@ -8,9 +8,9 @@ config PWM_LIMIT
     int "Max PWM limit"
     default  100
 
-config PWM_PERIOD_NS
-    int "PWM PERIOD [ns]"
-    default  20000000
+config PWM_PERIOD_US
+    int "PWM PERIOD [us]"
+    default  100 # Equivalent of 0.1 ms.
 
 config MOTOR_CONTROLLER_LOG
     bool "Enable logging from motors driver"

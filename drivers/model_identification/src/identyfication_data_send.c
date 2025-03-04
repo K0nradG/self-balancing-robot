@@ -7,10 +7,10 @@
 
 float buffer[BUFFER_SIZE];
 
-static struct k_work_delayable identyfication_data_sending_work;
+static struct k_work_delayable identification_data_sending_work;
 
 static void
-identyfication_data_sending_work_handler(struct k_work* work)
+identification_data_sending_work_handler(struct k_work* work)
 {
     platform_log("MODEL", LOG_LEVEL_INF, "model data sending start\n");
 
@@ -37,12 +37,12 @@ identyfication_data_sending_work_handler(struct k_work* work)
     platform_log("MODEL", LOG_LEVEL_INF, "model data sending finished\n");
 }
 
-static K_WORK_DELAYABLE_DEFINE(identyfication_data_sending_work, identyfication_data_sending_work_handler);
+static K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_data_sending_work_handler);
 
 void
-trigger_identyfication_data_sending(void)
+trigger_identification_data_sending(void)
 {
     regulator_stop_automatic_control();
     k_msleep(10);
-    k_work_submit(&identyfication_data_sending_work.work);
+    k_work_submit(&identification_data_sending_work.work);
 }

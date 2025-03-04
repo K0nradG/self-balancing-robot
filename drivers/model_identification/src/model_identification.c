@@ -20,7 +20,7 @@ button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins
 {
     if(buffer_all_full())
     {
-        trigger_identyfication_data_sending();
+        trigger_identification_data_sending();
     }
 }
 

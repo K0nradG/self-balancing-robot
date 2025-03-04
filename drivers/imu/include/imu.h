@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
 struct identification_data
 {
@@ -22,7 +22,7 @@ typedef void (*imu_updated_cb_t)(struct identification_data data);
 
 typedef void (*imu_updated_cb_t)(float angle);
 
-#endif /*CONFIG_MODEL_IDENTYFICATION_DRV*/
+#endif /*CONFIG_MODEL_IDENTIFICATION_DRV*/
 
 void
 new_imu_cb_register(imu_updated_cb_t _new_imu_cb);

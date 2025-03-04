@@ -9,8 +9,7 @@
 #define BUFFER_SIZE (RECORD_TIME_MS / SAMPLE_RATE_MS)
 
 #define BUFFER_COUNT \
-    4  // Liczba niezależnych buforów, jeden bufor 4kB (1000 þróbek X rozmiar float) -> wszytskie bufory 16kB
-
+    4  // Independent buffers number. One buffer is 4kB (1000 floats), 4 buffers - 16kB
 #define ANGLE_BUFFER_ID 0
 #define ANGLE_DT_BUFFER_ID 1
 #define U_BUFFER_ID 2

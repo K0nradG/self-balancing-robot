@@ -1,7 +1,7 @@
-#ifndef IDENTYFICATION_DATA_SEND_H
-#define IDENTYFICATION_DATA_SEND_H
+#ifndef IDENTIFICATION_DATA_SEND_H
+#define IDENTIFICATION_DATA_SEND_H
 
 void
-trigger_identyfication_data_sending(void);
+trigger_identification_data_sending(void);
 
-#endif /* IDENTYFICATION_DATA_SEND_H */
+#endif /* IDENTIFICATION_DATA_SEND_H */

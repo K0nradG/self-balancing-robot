@@ -1,4 +1,4 @@
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "identyfication_data_send.h"
 #include "imu.h"
 #include "model_identification.h"
@@ -30,7 +30,7 @@ int cnt = 0;
 
 static bool automatic_control_started = false;
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
 struct identification_data data;
 #endif
@@ -42,7 +42,7 @@ static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 void
 new_imu_angle_for_regulator(struct identification_data _data)
 
@@ -56,7 +56,7 @@ new_imu_angle_for_regulator(float _angle)
 {
     angle = _angle;
 }
-#endif /*CONFIG_MODEL_IDENTYFICATION_DRV*/
+#endif /*CONFIG_MODEL_IDENTIFICATION_DRV*/
 
 #ifdef CONFIG_LOG_OVER_BLE
 
@@ -205,7 +205,7 @@ calculate_pid_output(float error)
 
     if(fabsf(output) > (float)CONFIG_PWM_LIMIT)
     {
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
         int current_time = k_uptime_get();
 
@@ -224,7 +224,7 @@ calculate_pid_output(float error)
         output = limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
     }
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     if(!buffer_all_full())
     {
         buffer_put(ANGLE_BUFFER_ID, angle);

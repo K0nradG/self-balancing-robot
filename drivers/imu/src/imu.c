@@ -90,7 +90,7 @@ init(void)
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 static struct identification_data
 #else
 static float
@@ -122,7 +122,7 @@ calculate_angle(
 
     last_time = current_time;
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
     struct identification_data data;
 
@@ -132,7 +132,7 @@ calculate_angle(
     return data;
 #else
     return angle;
-#endif /*CONFIG_MODEL_IDENTYFICATION_DRV*/
+#endif /*CONFIG_MODEL_IDENTIFICATION_DRV*/
 }
 
 static int
@@ -156,7 +156,7 @@ process_imu(struct device const* dev)
         return -ENODEV;
     }
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
     struct identification_data data = calculate_angle(accelerometer_data, gyro_data, &temperature);
 #else
@@ -165,7 +165,7 @@ process_imu(struct device const* dev)
 
     if(new_imu_cb)
     {
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         new_imu_cb(data);
 #else
         new_imu_cb(angle);

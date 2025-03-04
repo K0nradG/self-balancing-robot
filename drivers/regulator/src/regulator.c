@@ -232,6 +232,21 @@ calculate_pid_output(float error)
         }
         output = limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
     }
+
+#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
+
+    int pwm          = (int)fabsf(output);
+    int current_time = k_uptime_get();
+
+    if(!buffer_all_full())
+    {
+        buffer_put(ANGLE_BUFFER_ID, angle);
+        buffer_put(ANGLE_DT_BUFFER_ID, data.angle_dt);
+        buffer_put(TIME_BUFFER_ID, current_time);
+        buffer_put(U_BUFFER_ID, (float)((pwm / 100) * MAX_MOTOR_TORQUE_NM));
+    }
+#endif
+
     return output;
 }
 

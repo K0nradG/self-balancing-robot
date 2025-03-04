@@ -17,6 +17,12 @@ new_nus_data_received_cb_register(nus_data_received_cb_t _nus_data_received_cb);
 void
 ble_logger_send(char* data);
 
+bool
+get_notif_status();
+
+void
+set_notif_status(bool value);
+
 #ifdef __cplusplus
 }
 #endif

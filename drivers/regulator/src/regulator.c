@@ -32,8 +32,6 @@ static bool automatic_control_started = false;
 
 #ifdef CONFIG_MODEL_IDENTYFICATION_DRV
 
-#define MAX_MOTOR_TORQUE_NM 0.0784 /* 0.8 kg *cm*/
-
 struct identification_data data;
 #endif
 
@@ -177,13 +175,6 @@ regulator_work_handler(struct k_work* work)
     set_duty_cycle_value(pwm);
     set_direction(error > 0 ? POSITIVE : NEGATIVE);
 
-#ifdef CONFIG_MODEL_IDENTYFICATION_DRV
-    if(!buffer_all_full())
-    {
-        buffer_put(U_BUFFER_ID, (float)((pwm / 100) * MAX_MOTOR_TORQUE_NM));
-    }
-#endif
-
     trigger_motors_update();
     reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");
 }
@@ -234,16 +225,12 @@ calculate_pid_output(float error)
     }
 
 #ifdef CONFIG_MODEL_IDENTYFICATION_DRV
-
-    int pwm          = (int)fabsf(output);
-    int current_time = k_uptime_get();
-
     if(!buffer_all_full())
     {
         buffer_put(ANGLE_BUFFER_ID, angle);
         buffer_put(ANGLE_DT_BUFFER_ID, data.angle_dt);
-        buffer_put(TIME_BUFFER_ID, current_time);
-        buffer_put(U_BUFFER_ID, (float)((pwm / 100) * MAX_MOTOR_TORQUE_NM));
+        buffer_put(TIME_BUFFER_ID, k_uptime_get());
+        buffer_put(U_BUFFER_ID, output);
     }
 #endif
 

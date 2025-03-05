@@ -36,6 +36,9 @@ set_duty_cycle_value(uint8_t duty_cycle_percent);
 void
 trigger_motors_update(void);
 
+void
+stop_motors(void);
+
 #ifdef __cplusplus
 }
 #endif

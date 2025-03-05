@@ -95,7 +95,7 @@ init(void)
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
-static void
+void
 stop_motors(void)
 {
     int ret = 0;

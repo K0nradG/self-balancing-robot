@@ -2,6 +2,7 @@ config REGULATOR_DRV
     bool "Regulator driver module"
     depends on IMU_DRV
     depends on MOTOR_CONTROLLER_DRV
+    depends on !MODEL_IDENTIFICATION_DRV
 
 if REGULATOR_DRV
 

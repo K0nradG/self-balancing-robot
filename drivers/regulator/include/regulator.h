@@ -1,10 +1,6 @@
 #ifndef REGULATOR_H_
 #define REGULATOR_H_
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "imu.h"
-#endif
-
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -26,13 +22,8 @@ void
 new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
 #endif  // CONFIG_LOG_OVER_BLE
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-void
-new_imu_angle_for_regulator(struct identification_data _data);
-#else
 void
 new_imu_angle_for_regulator(float _angle);
-#endif
 
 void
 new_pid_regulator_parameters_cb_register(regulator_params_updated_cb_t _new_pid_regulator_parameters_cb);

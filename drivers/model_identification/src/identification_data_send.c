@@ -3,7 +3,6 @@
 #include "ble_logger_service.h"
 #include "logger.h"
 #include "model_identification.h"
-#include "regulator.h"
 
 float buffer[BUFFER_SIZE];
 
@@ -35,6 +34,8 @@ identification_data_sending_work_handler(struct k_work* work)
         }
     }
     platform_log("MODEL", LOG_LEVEL_INF, "model data sending finished\n");
+
+    notify_data_sent();
 }
 
 static K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_data_sending_work_handler);
@@ -42,7 +43,5 @@ static K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_
 void
 trigger_identification_data_sending(void)
 {
-    regulator_stop_automatic_control();
-    k_msleep(10);
     k_work_submit(&identification_data_sending_work.work);
 }

@@ -1,11 +1,17 @@
 config MODEL_IDENTIFICATION_DRV
     bool "motor controller module"
     depends on LOG_OVER_SERIAL
+    depends on IMU_DRV
+    depends on MOTOR_CONTROLLER_DRV
 
 if MODEL_IDENTIFICATION_DRV
 
 config MODEL_IDENTIFICATION_LOG
     bool "Enable logging from model identification driver"
-    depends on MODEL_IDENTIFICATION_DRV
+    depends on LOGGER_DRV
 
-endif #REGULATOR_DRV
+config MODEL_IDENTIFICATION_SAMPLE_TIME
+    int "Model identification sampling time in milliseconds"
+    default 1
+
+endif #MODEL_IDENTIFICATION_DRV

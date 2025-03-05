@@ -1,5 +1,9 @@
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 
+#ifdef CONFIG_APP_LOG
+#include "logger.h"
+#endif // CONFIG_APP_LOG
+
 #ifdef CONFIG_INTERFACE_DRV
 #include "interface.h"
 #define BLINKING_INTERVAL 500
@@ -36,6 +40,10 @@ void new_pid_regulator_parameters(pid_regulator_parameters data)
 
 #endif //CONFIG_REGULATOR_DRV
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif // CONFIG_MODEL_IDENTIFICATION_DRV
+
 int
 main(void)
 {
@@ -62,8 +70,17 @@ main(void)
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Receiving regulator parameters through NUS.");
 #endif  // CONFIG_APP_LOG
+#ifdef CONFIG_REGULATOR_DRV
     new_nus_data_received_cb_register(new_nus_parameters_received_for_regulator);
+#endif // CONFIG_REGULATOR_DRV
 #endif // CONFIG_LOG_OVER_BLE
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Model identification driver is enabled.");
+#endif //CONFIG_APP_LOG
+    new_imu_cb_register(new_imu_data_for_identification); // Identification is started via button.
+#endif //CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_REGULATOR_DRV
 #ifdef CONFIG_APP_LOG

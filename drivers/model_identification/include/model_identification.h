@@ -28,7 +28,7 @@ void
 model_identification_start(void);
 
 void
-model_identification_stop(void);
+notify_data_sent(void);
 
 #ifdef __cplusplus
 }

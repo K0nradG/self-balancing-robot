@@ -31,7 +31,15 @@ typedef struct parameters
 
 } parameters;
 
+typedef enum identification_state
+{
+    IDENTIFICATION_STOPPED,
+    IDENTIFICATION_STARTED,
+    TRIGGER_SENDING
+} identification_state;
+
 static parameters identification_parameters = {.angle = 0.0f, .angle_dt = 0.0f, .duty_cycle = 0.0f};
+static identification_state state           = IDENTIFICATION_STOPPED;
 
 void
 new_imu_data_for_identification(struct identification_data data)
@@ -84,6 +92,9 @@ static void
 generate_control(void);
 
 static void
+model_identification_stop(void);
+
+static void
 model_identification_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
@@ -94,6 +105,15 @@ model_identification_work_handler(struct k_work* work)
         buffer_put(ANGLE_DT_BUFFER_ID, identification_parameters.angle_dt);
         buffer_put(U_BUFFER_ID, identification_parameters.duty_cycle);
         buffer_put(TIME_BUFFER_ID, k_uptime_get());
+    }
+    else
+    {
+        if(state == IDENTIFICATION_STARTED)
+        {
+            state = TRIGGER_SENDING;
+            model_identification_stop();
+            return;
+        }
     }
 
     generate_control();
@@ -122,9 +142,12 @@ model_identification_start(void)
     reschedule_work(&model_identification_work, K_NO_WAIT, "model identification");
 }
 
-void
+static void
 model_identification_stop(void)
 {
+    set_start_motors(false);
+    stop_motors();
+
     if(!model_identification_started)
     {
 #ifdef CONFIG_MODEL_IDENTIFICATION_LOG
@@ -143,11 +166,8 @@ model_identification_stop(void)
     }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-    platform_log("IDENTIFICATION", LOG_LEVEL_DBG, "model identification work cancelled");
+    platform_log("IDENTIFICATION", LOG_LEVEL_INF, "model identification work cancelled");
 #endif  // CONFIG_MODEL_IDENTIFICATION_LOG
-
-    set_start_motors(false);
-    stop_motors();
 }
 
 static bool
@@ -201,13 +221,13 @@ buffer_all_full(void)
     return true;
 }
 
+static void
+state_machine_update(void);
+
 void
 button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
 {
-    if(buffer_all_full())
-    {
-        trigger_identification_data_sending();
-    }
+    state_machine_update();
 }
 
 static void
@@ -241,5 +261,53 @@ generate_control(void)
         {
             direction = POSITIVE;
         }
+    }
+}
+
+static void
+buffers_reset(void);
+
+static void
+state_machine_update(void)
+{
+    switch(state)
+    {
+        case IDENTIFICATION_STOPPED:  // Comeback to this state is handled by identification_data_send.
+        {
+            state = IDENTIFICATION_STARTED;
+            buffers_reset();
+            model_identification_start();
+            break;
+        }
+        case IDENTIFICATION_STARTED:
+        {
+            break;
+        }
+        case TRIGGER_SENDING:
+        {
+            trigger_identification_data_sending();
+            break;
+        }
+        default:
+        {
+            break;
+        }
+    }
+}
+
+void
+notify_data_sent(void)  // Used by identification_data_send to show that data has already been sent.
+{
+    state = IDENTIFICATION_STOPPED;
+}
+
+static void
+buffers_reset(void)
+{
+    for(int i = 0; i < BUFFER_COUNT; i++)
+    {
+        ring_buf_reset(&buffers[i]);
+        buffer_index[i] = 0;
+        is_full[i]      = false;
     }
 }

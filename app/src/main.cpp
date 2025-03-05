@@ -79,8 +79,7 @@ main(void)
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Model identification driver is enabled.");
 #endif //CONFIG_APP_LOG
-    new_imu_cb_register(new_imu_data_for_identification);
-    model_identification_start();
+    new_imu_cb_register(new_imu_data_for_identification); // Identification is started via button.
 #endif //CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_REGULATOR_DRV

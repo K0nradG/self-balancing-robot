@@ -1,13 +1,7 @@
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "identyfication_data_send.h"
-#include "imu.h"
-#include "model_identification.h"
-#endif
-
+#include "regulator.h"
 #include <math.h>
 #include <stdlib.h>
 #include "motor_controller.h"
-#include "regulator.h"
 #include "utils.h"
 
 #ifdef CONFIG_REGULATOR_LOG
@@ -26,15 +20,7 @@
     N_dt / (1.0f + \
             N_dt)  // Alpha coefficients to be used directly by the low-pass filter: alpha = (N * dt) / (1 + N * dt)
 
-int cnt = 0;
-
-static bool automatic_control_started = false;
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-
-struct identification_data data;
-#endif
-
+static bool automatic_control_started                            = false;
 static float angle                                               = 0.0f;
 static struct pid_regulator_parameters _pid_regulator_parameters = {
     .Kp = 4.0f, .Ki = 0.5f, .Kd = 0.01f, .setpoint = -95.0f};
@@ -42,21 +28,11 @@ static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-void
-new_imu_angle_for_regulator(struct identification_data _data)
-
-{
-    data  = _data;
-    angle = data.angle;
-}
-#else
 void
 new_imu_angle_for_regulator(float _angle)
 {
     angle = _angle;
 }
-#endif /*CONFIG_MODEL_IDENTIFICATION_DRV*/
 
 #ifdef CONFIG_LOG_OVER_BLE
 
@@ -205,34 +181,12 @@ calculate_pid_output(float error)
 
     if(fabsf(output) > (float)CONFIG_PWM_LIMIT)
     {
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-
-        int current_time = k_uptime_get();
-
-        if(!buffer_all_full())
-        {
-            buffer_put(ANGLE_BUFFER_ID, angle);
-            buffer_put(ANGLE_DT_BUFFER_ID, data.angle_dt);
-            buffer_put(TIME_BUFFER_ID, current_time);
-        }
-#endif
-
         if((output * error) > 0)
         {
             integral -= _pid_regulator_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
         }
         output = limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
     }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    if(!buffer_all_full())
-    {
-        buffer_put(ANGLE_BUFFER_ID, angle);
-        buffer_put(ANGLE_DT_BUFFER_ID, data.angle_dt);
-        buffer_put(TIME_BUFFER_ID, k_uptime_get());
-        buffer_put(U_BUFFER_ID, output);
-    }
-#endif
 
     return output;
 }

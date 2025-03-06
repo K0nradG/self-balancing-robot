@@ -1,11 +1,9 @@
-s = tf('s');
-G = (160.1*s + 1.019e04) / (s^2 + 5.114*s + 4.831e-11);
-
 t = 0:0.01:10;
-u = sin(t);
-y = sin(t);
+u = ones(size(t));
 
-[Kp, Ki, Kd] = tune(G, t, u, y);
+[y, ~] = lsim(sys, u, t);
+
+[Kp, Ki, Kd] = tune(sys, t, u, y);
 
 disp(['Optimal PID params:']);
 disp(['Kp = ', num2str(Kp)]);
@@ -13,7 +11,7 @@ disp(['Ki = ', num2str(Ki)]);
 disp(['Kd = ', num2str(Kd)]);
 
 controller = pid(Kp, Ki, Kd);
-closed_loop_system = feedback(controller * G, 1);
+closed_loop_system = feedback(controller * sys, 1);
 
 figure;
 step(closed_loop_system);
@@ -23,35 +21,35 @@ function controller = pid_controller(Kp, Ki, Kd, s)
 controller = Kp + Ki / s + Kd * s;
 end
 
-function cost = cost_function(pid_gains, system, t, u, y)
+function cost = cost_function(pid_gains, system, t, u, y_ref)
 
 Kp = pid_gains(1);
 Ki = pid_gains(2);
 Kd = pid_gains(3);
 
 s = tf('s');
-
 controller = pid_controller(Kp, Ki, Kd, s);
 closed_loop = feedback(controller * system, 1);
 
-[y_out, t_out] = lsim(closed_loop, u, t);
+[y_out, ~] = lsim(closed_loop, u, t);
 
-error = y - interp1(t_out, y_out, t, 'linear', 'extrap');
+error = y_ref - y_out;
 cost = sum(error.^2);
 end
 
-function [Kp, Ki, Kd] = tune(system, t, u, y, initial_guess)
+function [Kp, Ki, Kd] = tune(system, t, u, y_ref, initial_guess)
 if nargin < 5
-    initial_guess = [0.28239543504953135, 9.181766682296, 0.0];
+    initial_guess = [0.01, 0.01, 0.01];
 end
 
 lb = [0, 0, 0];
 ub = [100, 100, 100];
 
-options = optimset('fminunc');
-options = optimset(options, 'MaxFunEvals', 500, 'MaxIter', 500);
+options = optimset('fmincon');
+options = optimset(options, 'MaxFunEvals', 500, 'MaxIter', 500, 'Display', 'iter');
 
-[pid_gains, ~] = fminunc(@(pid_gains) cost_function(pid_gains, system, t, u, y), initial_guess, options);
+[pid_gains, ~] = fmincon(@(pid_gains) cost_function(pid_gains, system, t, u, y_ref), ...
+    initial_guess, [], [], [], [], lb, ub, [], options);
 
 Kp = pid_gains(1);
 Ki = pid_gains(2);

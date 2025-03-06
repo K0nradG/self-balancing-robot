@@ -1,6 +1,7 @@
 load('matlab_data/robot_data.mat');
 
-theta = theta(:);
+angle_shift = 95;
+theta = (theta(:) + angle_shift);
 pwm = pwm(:);
 
 dt = 0.002;
@@ -19,3 +20,7 @@ num = sys_tf.Numerator;
 den = sys_tf.den;
 
 sys = tf(num, den)
+
+figure;
+compare(data, sys_tf); % Compare models with actual data
+title('Model Fit Comparison');

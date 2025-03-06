@@ -4,13 +4,13 @@ import re
 import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-log_file = os.path.join(script_dir, "data", "minicom.txt")
+log_file = os.path.join(script_dir, "data", "minicom_v2.txt")
 matlab_dir = os.path.join(script_dir, "matlab_data")
 
 if not os.path.exists(matlab_dir):
     os.makedirs(matlab_dir)
 
-output_mat_file = os.path.join(matlab_dir, "robot_data.mat")
+output_mat_file = os.path.join(matlab_dir, "robot_data_v2.mat")
 
 with open(log_file, "r") as file:
     lines = [line.strip() for line in file if "MODEL:" in line]

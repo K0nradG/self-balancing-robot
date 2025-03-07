@@ -24,4 +24,3 @@ sys = tf(num, den, dt)
 figure;
 compare(data, sys_tf);
 title('Discrete Model Fit Comparison');
-

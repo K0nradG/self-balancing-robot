@@ -1,6 +1,6 @@
 # Python scripts overview
 
-## `Clangd` issues fix
+## Clangd issues fix
 
 In order for `clangd` to work properly, `compile_commands.json` must be acquired from `CMake` build. The `get_compile_commands.py` takes the generated file from build directory and formats it by getting rid of flags not recognized by `clang`.
 
@@ -13,6 +13,10 @@ Whenever compilation warnings/errors occur, try running `get_compile_commands.py
 - run `receive_serial_data.py` script,
 - press button on Dongle to start receiving through the script,
 - once the sending is finished, data will be logged to `data/minicom.txt` file (can be changed in the script).
+
+## Parsing to valid .mat file
+
+MATLAB scripts created to **identify object model** based on the data gathered from Dongle accept only a **specific** data format. After receiving the serial data (e.g. running `receive_serial_data.py`) run `parse_to_mat.py`. The script will take the received data and parse them to the format accepted by the `.m` scripts. After that, MATLAB scripts can be run to perform identification and/or regulators tuning.
 
 ## Model Identification
 

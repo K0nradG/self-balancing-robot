@@ -3,7 +3,7 @@
 Model of **an inverted pendulum on a cart** (self-balancing robot) can be described by two differential equations. However, in our case we are only concerned about the model of the **inverted pendulum** itself - we are not controlling the robot position, but only trying to **balance** it:
 
 $$
-(I + m\ell^2) \ddot{\theta} = m\ell \ddot{x} \cos{\theta} + b \dot{\theta} + m g \ell \sin{\theta}.
+(I + m\ell^2) \ddot{\theta} = m\ell \ddot{x} \cos{\theta} - b \dot{\theta} + m g \ell \sin{\theta}.
 $$
 
 #### Where:
@@ -16,7 +16,7 @@ $$
 In our case, the center of mass was **very close** to the pivot point. That is why, we can simplify the equations by getting rid of **$ I $**, which after simplifications leads us to:
 
 $$
-\ell \ddot{\theta} = \ddot{x}\cos{\theta} + b \dot{\theta} + g \sin{\theta}.
+\ell \ddot{\theta} = \ddot{x}\cos{\theta} - b \dot{\theta} + g \sin{\theta}.
 $$
 
 This equation was modeled in `pendulum_model.slx` Simulink file, for some random parameters from `simulation_data.m`, to test the model behavior. 
@@ -40,13 +40,13 @@ $$
 This leaves us with:
 
 $$
-\ell \ddot{\theta} = \ddot{x} + b \dot{\theta} + g \theta.
+\ell \ddot{\theta} = \ddot{x} - b \dot{\theta} + g \theta.
 $$
 
 Dividing by **$\ell$** gives us:
 
 $$
-\ddot{\theta} = \frac{\ddot{x}}{\ell} + \frac{b}{\ell} \dot{\theta} + \frac{g}{\ell} \theta.
+\ddot{\theta} = \frac{\ddot{x}}{\ell} - \frac{b}{\ell} \dot{\theta} + \frac{g}{\ell} \theta.
 $$
 
 
@@ -60,13 +60,13 @@ $$
 As we can see, the control input **u** (PWM signal) is directly related to the force driving the motors through some constant **k** (in simple linear case). This allows us to derive the **transfer function** for our system (assuming zero initial conditions):
 
 $$
-s^2 \Theta(s) = \frac{k}{m\ell} U(s) + \frac{b}{\ell} s \Theta(s) + \frac{g}{\ell} \Theta(s)
+s^2 \Theta(s) = \frac{k}{m\ell} U(s) - \frac{b}{\ell} s \Theta(s) + \frac{g}{\ell} \Theta(s)
 $$
 
 Rearranging terms:
 
 $$
-\left( s^2 - \frac{b}{\ell} s - \frac{g}{\ell} \right) \Theta(s) = \frac{k}{m\ell} U(s).
+\left( s^2 + \frac{b}{\ell} s - \frac{g}{\ell} \right) \Theta(s) = \frac{k}{m\ell} U(s).
 $$
 
 Solving for the transfer function:
@@ -78,7 +78,7 @@ $$
 We get:
 
 $$
-G(s) = \frac{\frac{k}{m\ell}}{s^2 - \frac{b}{\ell} s - \frac{g}{\ell}}.
+G(s) = \frac{\frac{k}{m\ell}}{s^2 + \frac{b}{\ell} s - \frac{g}{\ell}}.
 $$
 
 It clearly shows that the open-loop system is unstable.

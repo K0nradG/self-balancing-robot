@@ -98,4 +98,3 @@ def model_identification(t, theta, theta_dot, u):
     return alpha_1, alpha_2, alpha_3
 
 model_identification(time, angle, angle_dot, u)
-

@@ -4,8 +4,9 @@ import re
 import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
 log_file = os.path.join(script_dir, "data", "minicom_v2.txt")
-matlab_dir = os.path.join(script_dir, "matlab_data")
+matlab_dir = os.path.join(parent_dir, "matlab", "matlab_data")
 
 if not os.path.exists(matlab_dir):
     os.makedirs(matlab_dir)

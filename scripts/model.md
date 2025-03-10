@@ -50,7 +50,7 @@ $$
 $$
 
 
-## Continous transfer fucntion
+## Continuous transfer function
 As mentioned before, we are **not** controlling the robot position. Thus, the **$\ddot{x}$** term is simply an input to our system. In `motor_controller` files we are controlling the motors by applying certain **PWM** level to them. Through that, we produce the input **$\ddot{x}$**, which can be obtained from:
 
 $$
@@ -88,31 +88,3 @@ As we can see, there are 3 variables to be identified:
 $$ 
 a_1 = \frac{k}{m\ell}, \quad a_2 = \frac{b}{\ell}, \quad a_3 = \frac{g}{l}.
 $$
-
-## Discrete Transfer Function
-
-Our work is performed using a **microcontroller**. That is why it is important to include the sampling period **$T_{s}$** in the system. The discrete transfer function can be obtained from the continuous one using the **forward-Euler** method:
-
-$$
-\frac{d}{dt} \approx \frac{z - 1}{T_s},
-$$
-
-Substituting **$s$** and **$s^2$** with the forward-Euler derivative approximation gives us:
-
-$$
-G(z) = \frac{\frac{k T_s^2}{m\ell}}{(z - 1)^2 - \frac{b}{\ell} T_s \cdot (z - 1) - \frac{g}{\ell} T_s^2}.
-$$
-
-After rearranging the terms, we obtain:
-
-$$
-G(z) = \frac{\frac{k T_s^2}{m\ell}}{z^2 - \left( 2 + \frac{b}{\ell} T_s \right) z + \left( 1 + \frac{b}{\ell} T_s - \frac{g}{\ell} T_s^2 \right)}.
-$$
-
-## Identification
-
-For proper control loop tuning, **system identification** will be performed based on data collected from an IMU unit (MPU6050). After obtaining the data with the use of e.g. `receive_serial_data.py` script, we can run `parse_to_mat.py` script to parse the received data into `.mat` format accepted by the identification scripts. `identification.m` script implements continuous system identification based on the data entered and `identification_discrete.m` - discrete system identification with fixed sampling rate used in the control loop. 
-
-> **Note:** In order to perform identification for the inverted pendulum, first the partial stabilization using some custom P/PI controller must be done. The stabilization parameters are then incorporated into the system closed loop transfer function, which then gets identified. Since the parameters of the stabilization regulator will be known, the unknown parameters can be easily calculated from that point.
-
-Additionally, `identified_discrete_model.slx` allows to run the simulation for the obtained transfer function of a discrete inverted pendulum model (first `identification_discrete.m` file needs to be run).

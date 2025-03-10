@@ -33,12 +33,12 @@ a3_minus_Kp_a1 = den_closed(3);
 
 a1 = Kp_a1 / Kp;
 a2 = den_closed(2);
-a3 = a3_minus_Kp_kl + Kp_a1;
+a3 = a3_minus_Kp_a1 + Kp_a1;
 
 disp('Object Continous Transfer Function:');
-tf([0, 0, a1], [1, -a2, -a3])
+tf_continous = tf([0, 0, a1], [1, -a2, -a3])
 
-[Ac, Bc, Cc, Dc] = tf2ss(model.Numerator{1}, model.Denominator{1});
+[Ac, Bc, Cc, Dc] = tf2ss(tf_continous.Numerator{1}, tf_continous.Denominator{1});
 
 % Discretization using Forward-Euler method:
 A_d = eye(size(Ac)) + Ts * Ac;

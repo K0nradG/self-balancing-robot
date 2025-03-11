@@ -5,3 +5,5 @@ build_*
 
 *.vscode
 compile_commands.json
+slrpj
+*.asv

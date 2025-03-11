@@ -1,4 +1,4 @@
-load('matlab_data/fix-gyro-bed-not-help_s-98_k11.1.mat');
+load('matlab_data/fix-gyro-floor-help_s-98_k11.1.mat');
 
 % Parameters:
 angle_shift = 98;
@@ -6,7 +6,7 @@ Ts = 0.001;
 
 % Identification inputs:
 theta = deg2rad(theta + angle_shift);
-pwm = pwm * -1;
+pwm = pwm * -100;
 
 % Identification:
 data = iddata(theta', pwm', Ts);
@@ -25,17 +25,23 @@ title('Identified Model Fit Comparison');
 % Calculating model parameters based on identification results:
 Kp = 11.1;
 
-Kp_a1 = num_closed(1);
-a3_minus_Kp_a1 = den_closed(3);
+b0 = num_closed(1);
+b1 = den_closed(3);
 
-a1 = Kp_a1 / Kp;
-a2 = den_closed(2);
-a3 = a3_minus_Kp_a1 + Kp_a1;
+a1 = b0 / Kp 
+a2 = den_closed(2)
+a3 = b1 - b0
 
 disp('Object Continous Transfer Function:');
-tf_continous = tf([0, 0, a1], [1, a2, -a3])
+tf_continous = tf([0, 0, a1], [1, a2, a3]) % Maybe later it can be tested with -a3 (if the model is right).
 
-[Ac, Bc, Cc, Dc] = tf2ss(tf_continous.Numerator{1}, tf_continous.Denominator{1});
+% Obtaining observable state-space representation (C = [1, 0]) from a
+% controllable one:
+ss_controllable = canon(tf_continous, 'companion', 'col');
+Ac = ss_controllable.A';
+Bc = ss_controllable.C';
+Cc = ss_controllable.B';
+Dc = ss_controllable.D';
 
 % Discretization using Forward-Euler method:
 A_d = eye(size(Ac)) + Ts * Ac;
@@ -43,5 +49,4 @@ B_d = Ts * Bc;
 C_d = Cc;
 D_d = Dc;
 
-ss_object_discrete = ss(A_d, B_d, C_d, D_d, Ts);
-tf_object_discrete = tf(ss_object_discrete)
+ss_object_discrete = ss(A_d, B_d, C_d, D_d, Ts)

@@ -6,24 +6,29 @@ For proper control loop tuning, **system identification** will be performed base
 
 In order to perform identification for the inverted pendulum, first the **partial stabilization** using some custom **P/PI** controller must be done. The stabilization parameters are then incorporated into the system **closed loop** transfer function, which then gets identified. Since the parameters of the stabilization regulator will be **known**, the unknown system parameters can be easily calculated from that point.
 
+To remind, model transfer function can be written as:
+
+$$
+G(s) = \frac{a_1}{s^2 + a_2 s + a_3}.
+$$
+
 Assuming the use of **Proportional** controller with its gain given by **$K_p$**, closed loop transfer function of continuous model would be given by:
 
 $$
-G_{closed}(s) = \frac{K_p \cdot \frac{k}{m\ell}}{s^2 + \frac{b}{\ell} s - \left( \frac{g}{\ell} - K_p \cdot \frac{k}{m\ell} \right)}.
+G_{closed}(s) = \frac{K_p \cdot a_1}{s^2 + a_2 s + a3 + K_p \cdot a_1}.
 $$
 
-To simplify we can use $a_1, a_2$, and $a_3$ to substitute for our unknown terms:
+Nominator and last denominators terms can be written as $b_0$, $b_1$ respectively for simplification. Then, the closed loop transfer function would be given by:
 
 $$
-G_{closed}(s) = \frac{K_p \cdot a_1}{s^2 + a_2 s + a_3}.
+G_{closed}(s) = \frac{b_0}{s^2 + a_2 s + b_1}.
 $$
 
 Where:
-- $a_1 = \frac{k}{m\ell}$,
-- $a_2 = \frac{b}{\ell}$,
-- $a_3 = -\frac{g}{l} + K_p * a_1$.
+- $b_0 = K_p \cdot a_1$.
+- $b_1 = a_3 + b_0$.
 
-Knowing **Kp** and all of the unknowns, we can easily calculate the inverted pendulum model parameters.
+Having identified the closed loop transfer function and knowing **Kp** , we can easily calculate the inverted pendulum model parameters.
 
 Knowing the model continuos transfer function we can change it to state-space representation (using **ts2ss()** function in MATLAB) to obtain the A, B, C and D matrices of the system. Then we can calculate the discrete model using **forward-Euler** approximation:
 

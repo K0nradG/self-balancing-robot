@@ -86,5 +86,11 @@ It clearly shows that the open-loop system is unstable.
 As we can see, there are 3 variables to be identified:
 
 $$ 
-a_1 = \frac{k}{m\ell}, \quad a_2 = \frac{b}{\ell}, \quad a_3 = \frac{g}{l}.
+a_1 = \frac{k}{m\ell}, \quad a_2 = \frac{b}{\ell}, \quad a_3 = -\frac{g}{l}.
+$$
+
+The system can be then written as:
+
+$$
+G(s) = \frac{a_1}{s^2 + a_2 s + a_3}.
 $$

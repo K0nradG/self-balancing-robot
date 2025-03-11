@@ -6,3 +6,6 @@ K = dlqr(A_d, B_d, Q, R);
 
 disp('Kalman Gain:');
 disp(K);
+
+disp('Eigenvalues of Closed Loop ='),
+disp(eig(A_d - B_d * K))

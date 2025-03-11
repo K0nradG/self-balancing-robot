@@ -1,18 +1,15 @@
-load('matlab_data/robot_data.mat');
+load('matlab_data/fix-gyro-bed-not-help_s-98_k11.1.mat');
 
 % Parameters:
-angle_shift = 95;
-Ts = 0.002;
+angle_shift = 98;
+Ts = 0.001;
 
 % Identification inputs:
-theta = (theta(:) + angle_shift);
-theta_dot = theta_dot(:);
-pwm = pwm(:);
-time = (0:length(theta)-1) * Ts;
-theta_ddot = [0; diff(theta_dot) / Ts];
+theta = deg2rad(theta + angle_shift);
+pwm = pwm * -1;
 
 % Identification:
-data = iddata(theta, pwm, Ts);
+data = iddata(theta', pwm', Ts);
 sys_closed_loop = tfest(data, 2, 0); % No poles, two zeroes
 
 num_closed = sys_closed_loop.Numerator;
@@ -26,7 +23,7 @@ compare(data, sys_closed_loop);
 title('Identified Model Fit Comparison');
 
 % Calculating model parameters based on identification results:
-Kp = 10.0;
+Kp = 11.1;
 
 Kp_a1 = num_closed(1);
 a3_minus_Kp_a1 = den_closed(3);
@@ -36,7 +33,7 @@ a2 = den_closed(2);
 a3 = a3_minus_Kp_a1 + Kp_a1;
 
 disp('Object Continous Transfer Function:');
-tf_continous = tf([0, 0, a1], [1, -a2, -a3])
+tf_continous = tf([0, 0, a1], [1, a2, -a3])
 
 [Ac, Bc, Cc, Dc] = tf2ss(tf_continous.Numerator{1}, tf_continous.Denominator{1});
 

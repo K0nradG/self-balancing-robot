@@ -7,3 +7,4 @@ build_*
 compile_commands.json
 slrpj
 *.asv
+receive_serial_data.py

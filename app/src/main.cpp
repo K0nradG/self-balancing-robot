@@ -31,14 +31,27 @@ new_battery_level_callback(battery_level_data data)
 #include "imu.h"
 #include "regulator.h"
 
+#ifdef CONFIG_PID_ENABLED
+#include "pid.h"
 void
 new_pid_regulator_parameters(pid_regulator_parameters data)
 {
 #ifdef CONFIG_APP_LOG
-    // nie moznawypisac wiecej niz 2 int zuzyciem printk
+    // More than two ints can't be printed with print.
     platform_log("APP", LOG_LEVEL_INF, "Kp: %f, Ki: %f, Kd: %f, Setpoint: %f", data.K, data.I, data.D, data.setpoint);
 #endif  // CONFIG_APP_LOG
 }
+#else
+#include "lqr.h"
+void
+new_lqr_parameters(lqr_parameters data)
+{
+#ifdef CONFIG_APP_LOG
+    // More than two ints can't be printed with print.
+    platform_log("APP", LOG_LEVEL_INF, "K1: %f, K2: %f, Setpoint: %f", data.Kx, data.Ky, data.setpoint);
+#endif  // CONFIG_APP_LOG
+}
+#endif // CONFIG_PID_ENABLED
 
 #endif  // CONFIG_REGULATOR_DRV
 
@@ -73,7 +86,13 @@ main(void)
     platform_log("APP", LOG_LEVEL_INF, "Receiving regulator parameters through NUS.");
 #endif  // CONFIG_APP_LOG
 #ifdef CONFIG_REGULATOR_DRV
-    new_nus_data_received_cb_register(new_nus_parameters_received_for_regulator);
+#ifdef CONFIG_PID_ENABLED
+    new_nus_data_received_cb_register(new_nus_parameters_received_for_pid);
+    new_pid_parameters_cb_register(new_pid_regulator_parameters);
+    #else
+    new_nus_data_received_cb_register(new_nus_parameters_received_for_lqr);
+    new_lqr_parameters_cb_register(new_lqr_parameters);
+    #endif // CONFIG_PID_ENABLED
 #endif  // CONFIG_REGULATOR_DRV
 #endif  // CONFIG_LOG_OVER_BLE
 
@@ -93,7 +112,14 @@ main(void)
 #endif  // CONFIG_APP_LOG
     new_imu_cb_register(new_imu_angle_for_regulator);
     regulator_start_automatic_control();
-    new_pid_regulator_parameters_cb_register(new_pid_regulator_parameters);
+
+    #ifdef CONFIG_PID_ENABLED
+    new_calculate_regulator_output_cb_register(calculate_pid_output);
+    new_get_setpoint_cb_register(get_setpoint_pid);
+    #else
+    new_calculate_regulator_output_cb_register(calculate_lqr_output);
+    new_get_setpoint_cb_register(get_setpoint_lqr);
+    #endif // CONFIG_PID_ENABLED
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 #endif  // CONFIG_REGULATOR_DRV
 }

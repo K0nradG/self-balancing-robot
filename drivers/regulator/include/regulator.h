@@ -22,22 +22,7 @@ typedef void (*regulator_data_updated_cb_t)(struct identification_regulator_data
 
 void
 new_pwm_cb_register(regulator_data_updated_cb_t _new_pwm_cb);
-#endif
-
-struct pid_regulator_parameters
-{
-    float Kp;
-    float Ki;
-    float Kd;
-    float setpoint;
-};
-
-typedef void (*regulator_params_updated_cb_t)(struct pid_regulator_parameters _pid_regulator_parameters);
-
-#ifdef CONFIG_LOG_OVER_BLE
-void
-new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
-#endif  // CONFIG_LOG_OVER_BLE
+#endif // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 void
@@ -46,10 +31,21 @@ new_imu_angle_for_regulator(struct identification_data data);
 #else
 void
 new_imu_angle_for_regulator(float _angle);
-#endif
+#endif // CONFIG_MODEL_IDENTIFICATION_DRV
+
+#ifdef CONFIG_PID_ENABLED
+typedef float (*calculate_regulator_output_cb_t)(float angle);
+#else
+typedef float (*calculate_regulator_output_cb_t)(float angle, float angle_dt);
+#endif // CONFIG_PID_ENABLED
 
 void
-new_pid_regulator_parameters_cb_register(regulator_params_updated_cb_t _new_pid_regulator_parameters_cb);
+new_calculate_regulator_output_cb_register(calculate_regulator_output_cb_t _new_calculate_regulator_output_cb);
+
+typedef float (*get_setpoint_cb_t)(void);
+
+void
+new_get_setpoint_cb_register(get_setpoint_cb_t _new_get_setpoint_cb);
 
 void
 regulator_start_automatic_control(void);

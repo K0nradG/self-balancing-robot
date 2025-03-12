@@ -1,12 +1,12 @@
 load('matlab_data/fix-gyro-floor-help_s-98_k11.1.mat');
 
 % Parameters:
-angle_shift = 98;
+angle_shift = deg2rad(98);
 Ts = 0.001;
 
 % Identification inputs:
 theta = deg2rad(theta + angle_shift);
-pwm = pwm * -100;
+pwm = pwm * -1;
 
 % Identification:
 data = iddata(theta', pwm', Ts);
@@ -28,7 +28,7 @@ Kp = 11.1;
 b0 = num_closed(1);
 b1 = den_closed(3);
 
-a1 = b0 / Kp 
+a1 = b0 / Kp
 a2 = den_closed(2)
 a3 = b1 - b0
 

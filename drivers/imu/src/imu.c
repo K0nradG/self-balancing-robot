@@ -1,4 +1,5 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
 
 #include "imu.h"
 #include <math.h>
@@ -20,8 +21,8 @@ struct device const* imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
 imu_updated_cb_t new_imu_cb  = NULL;
 
 float gyro_angle =
-    NAN;  // it is set to nan becuase the first value of gyro_rate should be set from accelereometer to
-          // prevent the situation where the regiulator retpoint depends on inital postition of an robot(imu)
+    NAN;  // it is set to NAN because the first value of gyro_rate should be set from accelerometer to
+          // prevent the situation where the regulator setpoint depends on inital position of the robot (imu).
 
 static float gyro_offset_x = 0.0f;
 static float gyro_offset_y = 0.0f;
@@ -151,15 +152,15 @@ calculate_angle(
     float const ay = (float)sensor_value_to_double(&accelerometer_data[1]);
     float const az = (float)sensor_value_to_double(&accelerometer_data[2]);
 
-    float gyro_rate_x = (float)sensor_value_to_double(&gyro_data[0]) + 0.032657;  // gyro callibration
+    float gyro_rate_x = (float)sensor_value_to_double(&gyro_data[0]) + 0.032657f;  // Gyro calibration
 
-    float const accel_angle = (float)atan2(ay, az);  // radians
+    float const accel_angle = (float)atan2f(ay, az);  // [radians]
 
-    float gyro_rate = gyro_rate_x;  // rad/s
+    float gyro_rate = gyro_rate_x;  // [rad/s]
 
     if(isnan(gyro_angle))
     {
-        gyro_angle = accel_angle;  // set gyto initial value
+        gyro_angle = accel_angle;  // Set gyro initial value
     }
 
     gyro_angle += gyro_rate * dt;
@@ -167,7 +168,7 @@ calculate_angle(
     reset_cnt++;
     if(cnt >= RESET_INTERVAL)
     {
-        gyro_angle = accel_angle;  // Resetowanie kąta
+        gyro_angle = accel_angle;  // Angle Reset
         reset_cnt  = 0;
     }
 

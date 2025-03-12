@@ -2,8 +2,7 @@ import json
 import os
 import shutil
 
-def update_compile_commands():
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def update_compile_commands(root_dir: str) -> None:
     root_json = os.path.join(root_dir, "compile_commands.json")
     app_json = os.path.join(root_dir, "app", "build", "app", "compile_commands.json")
     
@@ -19,8 +18,7 @@ def update_compile_commands():
     shutil.copy(app_json, root_json)
     print("Updated compile_commands.json successfully.")
 
-def format_compile_commands():
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+def format_compile_commands(root_dir: str) -> None:
     json_file = os.path.join(root_dir, "compile_commands.json")
     
     try:
@@ -43,11 +41,13 @@ def format_compile_commands():
     print("Formatted compile_commands.json successfully.")
 
 def main():
+    root_dir: str = os.getcwd()
+
     print("Running update function...")
-    update_compile_commands()
+    update_compile_commands(root_dir)
     
     print("Running format function...")
-    format_compile_commands()
+    format_compile_commands(root_dir)
     
     print("All tasks completed successfully!")
 

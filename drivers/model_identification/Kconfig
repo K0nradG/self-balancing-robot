@@ -3,6 +3,7 @@ config MODEL_IDENTIFICATION_DRV
     depends on LOG_OVER_SERIAL
     depends on IMU_DRV
     depends on MOTOR_CONTROLLER_DRV
+    depends on REGULATOR_DRV
 
 if MODEL_IDENTIFICATION_DRV
 

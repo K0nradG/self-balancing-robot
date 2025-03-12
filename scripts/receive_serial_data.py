@@ -39,7 +39,7 @@ def parse_serial_data(port, log_file_name, baudrate=115200, timeout=1):
         print(f"Serial error: {e}")
 
 if __name__ == "__main__":
-    port = "COM6"
-    parse_serial_data(port, "minicom.txt")
+    port = "/dev/ttyACM0"
+    parse_serial_data(port, "minicom_v5.txt")
 
-    print("Data logged to data/minicom.txt.")
+    print("Data logged to data/minicom_v5.txt.")

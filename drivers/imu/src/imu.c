@@ -9,12 +9,25 @@
 #include "logger.h"
 #endif  // CONFIG_IMU_LOG
 
-#define ALPHA 0.98f
+#define ALPHA 0.95f
 #define M_PI 3.14159265358979323846f
 #define MICRO_PARTS_CONVERT 1e-06f
 
+static int reset_cnt;
+#define RESET_INTERVAL 100
+
 struct device const* imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
 imu_updated_cb_t new_imu_cb  = NULL;
+
+float gyro_angle =
+    NAN;  // it is set to nan becuase the first value of gyro_rate should be set from accelereometer to
+          // prevent the situation where the regiulator retpoint depends on inital postition of an robot(imu)
+
+static float gyro_offset_x = 0.0f;
+static float gyro_offset_y = 0.0f;
+static float gyro_offset_z = 0.0f;
+static int sample_count    = 0;
+#define GYRO_CALIBRATION_SAMPLES 10000
 
 static int
 process_imu(struct device const* dev);
@@ -42,6 +55,34 @@ handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 
 void
 new_imu_cb_register(imu_updated_cb_t _new_imu_cb);
+
+int cnt = 0;
+
+void
+calibrate_gyro(struct sensor_value* gyro_data)
+{
+    if(sample_count < GYRO_CALIBRATION_SAMPLES)
+    {
+        gyro_offset_x += (float)sensor_value_to_double(&gyro_data[0]);
+        gyro_offset_y += (float)sensor_value_to_double(&gyro_data[1]);
+        gyro_offset_z += (float)sensor_value_to_double(&gyro_data[2]);
+        sample_count++;
+    }
+    else
+    {
+        gyro_offset_x /= GYRO_CALIBRATION_SAMPLES;
+        gyro_offset_y /= GYRO_CALIBRATION_SAMPLES;
+        gyro_offset_z /= GYRO_CALIBRATION_SAMPLES;
+
+        if(cnt == 0)
+        {
+            platform_log(
+                "IMU", LOG_LEVEL_INF, "Gyro calibration complete: X = %f, Y = %f, Z = %f", gyro_offset_x, gyro_offset_y,
+                gyro_offset_z);
+            cnt++;
+        }
+    }
+}
 
 static int
 init(void)
@@ -85,6 +126,7 @@ init(void)
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu init finished");
 #endif  // CONFIG_IMU_LOG
+
     return 0;
 }
 
@@ -106,19 +148,30 @@ calculate_angle(
     // Compute dynamic DT in seconds
     float const dt = (last_time > 0) ? (current_time - last_time) / 1000.0 : 0.01;  // Default DT if first run
 
-    float const ax = accelerometer_data[0].val1 + (accelerometer_data[0].val2 * MICRO_PARTS_CONVERT);
-    float const ay = accelerometer_data[1].val1 + (accelerometer_data[1].val2 * MICRO_PARTS_CONVERT);
-    float const az = accelerometer_data[2].val1 + (accelerometer_data[2].val2 * MICRO_PARTS_CONVERT);
+    float const ay = (float)sensor_value_to_double(&accelerometer_data[1]);
+    float const az = (float)sensor_value_to_double(&accelerometer_data[2]);
 
-    // float accel_angle = atan2(ay, sqrt(ax * ax + az * az)) * (180.0 / M_PI); (-90,90)
-    float const accel_angle = (float)atan2(ay, az) * (180.0f / M_PI);  //(-180,180)
+    float gyro_rate_x = (float)sensor_value_to_double(&gyro_data[0]) + 0.032657;  // gyro callibration
 
-    static float angle = 0.0f;
-    float gyro_rate    = gyro_data[0].val1 + (gyro_data[0].val2 * MICRO_PARTS_CONVERT);
-    float gyro_angle   = angle + gyro_rate * dt;
+    float const accel_angle = (float)atan2(ay, az);  // radians
 
-    // Complementary filter (later it could be exchanged for Kalman filter):
-    angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;
+    float gyro_rate = gyro_rate_x;  // rad/s
+
+    if(isnan(gyro_angle))
+    {
+        gyro_angle = accel_angle;  // set gyto initial value
+    }
+
+    gyro_angle += gyro_rate * dt;
+
+    reset_cnt++;
+    if(cnt >= RESET_INTERVAL)
+    {
+        gyro_angle = accel_angle;  // Resetowanie kąta
+        reset_cnt  = 0;
+    }
+
+    float angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;
 
     last_time = current_time;
 
@@ -147,6 +200,8 @@ process_imu(struct device const* dev)
     ret |= sensor_channel_get(dev, SENSOR_CHAN_ACCEL_XYZ, accelerometer_data);
     ret |= sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
     ret |= sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
+
+    // calibrate_gyro(gyro_data); //TODO: make Calibration on Kconfig
 
     if(ret)
     {

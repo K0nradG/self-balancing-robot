@@ -5,8 +5,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
 #include "identification_data_send.h"
-#include "motor_controller.h"
-#include "utils.h"
+#include "regulator.h"
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_LOG
 #include "logger.h"
@@ -23,13 +22,19 @@ static bool is_full[BUFFER_COUNT];
 static bool model_identification_started = false;
 static struct k_work_delayable model_identification_work;
 
-typedef struct parameters
+typedef struct imu_parameters
 {
     float angle;
     float angle_dt;
-    float duty_cycle;
 
-} parameters;
+} imu_parameters;
+
+typedef struct regulator_parameters
+{
+    float dt;
+    float pwm;
+
+} regulator_parameters;
 
 typedef enum identification_state
 {
@@ -38,14 +43,17 @@ typedef enum identification_state
     TRIGGER_SENDING
 } identification_state;
 
-static parameters identification_parameters = {.angle = 0.0f, .angle_dt = 0.0f, .duty_cycle = 0.0f};
-static identification_state state           = IDENTIFICATION_STOPPED;
+static identification_state state = IDENTIFICATION_STOPPED;
+
+static struct identification_regulator_data identification_data;
 
 void
-new_imu_data_for_identification(struct identification_data data)
+new_regulator_data_for_identification(struct identification_regulator_data data)
 {
-    identification_parameters.angle    = data.angle;
-    identification_parameters.angle_dt = data.angle_dt;
+    identification_data.dt       = data.dt;
+    identification_data.pwm      = data.pwm;
+    identification_data.angle    = data.angle;
+    identification_data.angle_dt = data.angle_dt;
 }
 
 void
@@ -89,9 +97,6 @@ static bool
 buffer_put(uint8_t buffer_id, float data);
 
 static void
-generate_control(void);
-
-static void
 model_identification_stop(void);
 
 static void
@@ -101,10 +106,10 @@ model_identification_work_handler(struct k_work* work)
 
     if(!buffer_all_full())
     {
-        buffer_put(ANGLE_BUFFER_ID, identification_parameters.angle);
-        buffer_put(ANGLE_DT_BUFFER_ID, identification_parameters.angle_dt);
-        buffer_put(U_BUFFER_ID, identification_parameters.duty_cycle);
-        buffer_put(TIME_BUFFER_ID, k_uptime_get());
+        buffer_put(ANGLE_BUFFER_ID, identification_data.angle);
+        buffer_put(ANGLE_DT_BUFFER_ID, identification_data.angle_dt);
+        buffer_put(U_BUFFER_ID, identification_data.pwm);
+        buffer_put(TIME_BUFFER_ID, identification_data.dt);
     }
     else
     {
@@ -116,58 +121,29 @@ model_identification_work_handler(struct k_work* work)
         }
     }
 
-    generate_control();
-    trigger_motors_update();
-
 #ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-    platform_log("IDENTIFICATION", LOG_LEVEL_INF, "PWM %d", (int)identification_parameters.duty_cycle);
+    platform_log("IDENTIFICATION", LOG_LEVEL_INF, "PWM %d", (int)identification_data.pwm);
 #endif  // CONFIG_MODEL_IDENTIFICATION_LOG
-    reschedule_work(
-        &model_identification_work, K_MSEC(CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME), "model identification");
 }
 
 static K_WORK_DELAYABLE_DEFINE(model_identification_work, model_identification_work_handler);
 
 void
+trigger_collecting_identification_data()
+{
+    k_work_submit(&model_identification_work.work);
+}
+
+void
 model_identification_start(void)
 {
-    if(model_identification_started)
-    {
-#ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-        platform_log("IDENTIFICATION", LOG_LEVEL_ERR, "model identification worker already started");
-#endif  // CONFIG_MODEL_IDENTIFICATION_LOG
-    }
-    model_identification_started = true;
-
-    reschedule_work(&model_identification_work, K_NO_WAIT, "model identification");
+    regulator_start_automatic_control();
 }
 
 static void
 model_identification_stop(void)
 {
-    set_start_motors(false);
-    stop_motors();
-
-    if(!model_identification_started)
-    {
-#ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-        platform_log("IDENTIFICATION", LOG_LEVEL_ERR, "model identification worker not started");
-#endif  // CONFIG_MODEL_IDENTIFICATION_LOG
-    }
-    model_identification_started = false;
-
-    const int ret = k_work_cancel_delayable(&model_identification_work);
-    if(ret)
-    {
-#ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-        platform_log("IDENTIFICATION", LOG_LEVEL_ERR, "cancel model identification work err:%d", ret);
-#endif  // CONFIG_MODEL_IDENTIFICATION_LOG
-        return;
-    }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-    platform_log("IDENTIFICATION", LOG_LEVEL_INF, "model identification work cancelled");
-#endif  // CONFIG_MODEL_IDENTIFICATION_LOG
+    regulator_stop_automatic_control();
 }
 
 static bool
@@ -228,40 +204,6 @@ void
 button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
 {
     state_machine_update();
-}
-
-static void
-generate_control(void)
-{
-    static uint16_t const cycles_delay    = 100u;
-    static uint16_t cycles                = 0u;
-    static int const duty_cycle_amplitude = 40;
-    static DIRECTION direction            = POSITIVE;
-
-    set_start_motors(true);
-    set_direction(direction);
-    set_duty_cycle_value(duty_cycle_amplitude);
-    identification_parameters.duty_cycle = (float)duty_cycle_amplitude;
-
-    if(direction == NEGATIVE)
-    {
-        identification_parameters.duty_cycle *= -1.0f;
-    }
-
-    cycles++;
-    if(cycles > cycles_delay)
-    {
-        cycles = 0u;
-
-        if(direction == POSITIVE)
-        {
-            direction = NEGATIVE;
-        }
-        else
-        {
-            direction = POSITIVE;
-        }
-    }
 }
 
 static void

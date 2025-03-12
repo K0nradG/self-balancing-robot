@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "imu.h"
-
+#include "regulator.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,7 +19,7 @@ extern "C" {
 #define TIME_BUFFER_ID 3
 
 void
-new_imu_data_for_identification(struct identification_data data);
+new_regulator_data_for_identification(struct identification_regulator_data data);
 
 uint16_t
 buffer_get(uint8_t buffer_id, float* data, uint16_t max_len);
@@ -29,6 +29,9 @@ model_identification_start(void);
 
 void
 notify_data_sent(void);
+
+void
+trigger_collecting_identification_data();
 
 #ifdef __cplusplus
 }

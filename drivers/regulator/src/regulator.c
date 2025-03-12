@@ -20,19 +20,43 @@
     N_dt / (1.0f + \
             N_dt)  // Alpha coefficients to be used directly by the low-pass filter: alpha = (N * dt) / (1 + N * dt)
 
-static bool automatic_control_started                            = false;
-static float angle                                               = 0.0f;
+static bool automatic_control_started = false;
+static float angle                    = 0.0f;
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+static float angle_dt = 0.0f;
+#endif
+
 static struct pid_regulator_parameters _pid_regulator_parameters = {
-    .Kp = 4.0f, .Ki = 0.5f, .Kd = 0.01f, .setpoint = -95.0f};
+    .Kp = 650.3f, .Ki = 4.1f, .Kd = 2.0f, .setpoint = 0.0f};
+#define ANGLE_OFFSET 98
+
 static struct k_work_delayable regulator_work;
 
 regulator_params_updated_cb_t new_pid_regulator_parameters_cb = NULL;
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#include "regulator.h"
+regulator_data_updated_cb_t new_pwm_cb = NULL;
+
+#endif
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+void
+new_imu_angle_for_regulator(struct identification_data data)
+{
+    angle    = data.angle;
+    angle_dt = data.angle_dt;
+}
+
+#else
 void
 new_imu_angle_for_regulator(float _angle)
 {
     angle = _angle;
 }
+#endif
 
 #ifdef CONFIG_LOG_OVER_BLE
 
@@ -132,6 +156,17 @@ new_pid_regulator_parameters_cb_register(regulator_params_updated_cb_t _new_pid_
     }
 }
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+void
+new_pwm_cb_register(regulator_data_updated_cb_t _new_pwm_cb)
+{
+    if(_new_pwm_cb)
+    {
+        new_pwm_cb = _new_pwm_cb;
+    }
+}
+#endif
+
 static float
 calculate_pid_output(float error);
 
@@ -139,10 +174,11 @@ static void
 regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
-    float const error  = _pid_regulator_parameters.setpoint - angle;
+    float const error =
+        (_pid_regulator_parameters.setpoint) * (M_PI / 180.0f) - (angle + (ANGLE_OFFSET * (M_PI / 180.0f)));
     float const output = calculate_pid_output(error);
 #ifdef CONFIG_REGULATOR_LOG
-    // platform_log("REGULATOR", LOG_LEVEL_ERR, "Output: %d", (int)output);
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "angle: %d  error %d", (int)angle, (int)error);
 #endif  // CONFIG_REGULATOR_LOG
 
     int pwm = (int)fabsf(output);
@@ -150,6 +186,9 @@ regulator_work_handler(struct k_work* work)
     set_start_motors(true);
     set_duty_cycle_value(pwm);
     set_direction(error > 0 ? POSITIVE : NEGATIVE);
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+    trigger_collecting_identification_data();
+#endif
 
     trigger_motors_update();
     reschedule_work(&regulator_work, K_MSEC(CONFIG_REGULATOR_SAMPLE_TIME), "automatic control");
@@ -166,7 +205,12 @@ low_pass_filter(float input);
 static float
 calculate_pid_output(float error)
 {
-    static float const dt    = (float)CONFIG_REGULATOR_SAMPLE_TIME * MS_TO_SECONDS;
+    static int64_t last_time   = 0;
+    int64_t const current_time = k_uptime_get();
+
+    float const dt = (last_time > 0) ? (current_time - last_time) / 1000.0f : 0.01f;
+    last_time      = current_time;
+
     float const proportional = _pid_regulator_parameters.Kp * error;
 
     static float integral = 0;
@@ -187,6 +231,19 @@ calculate_pid_output(float error)
         }
         output = limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
     }
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+
+    struct identification_regulator_data data;
+    data.dt       = k_uptime_get();
+    data.pwm      = output;
+    data.angle    = angle;
+    data.angle_dt = angle_dt;
+
+    if(new_pwm_cb)
+    {
+        new_pwm_cb(data);
+    }
+#endif
 
     return output;
 }
@@ -238,6 +295,8 @@ regulator_stop_automatic_control(void)
 #endif  // CONFIG_REGULATOR_LOG
     }
     automatic_control_started = false;
+
+    set_start_motors(false);
 
     const int ret = k_work_cancel_delayable(&regulator_work);
     if(ret)

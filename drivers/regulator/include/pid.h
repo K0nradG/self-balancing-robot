@@ -16,20 +16,20 @@ struct pid_regulator_parameters
 };
 
 float
-calculate_pid_output(float error);
+calculate_regulator_output(float error);
 
 typedef void (*pid_params_updated_cb_t)(struct pid_regulator_parameters _pid_regulator_parameters);
 
 #ifdef CONFIG_LOG_OVER_BLE
 void
-new_nus_parameters_received_for_pid(const uint8_t* data, uint16_t len);
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
 #endif  // CONFIG_LOG_OVER_BLE
 
 void
 new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb);
 
 float
-get_setpoint_pid(void);
+get_setpoint(void);
 
 #ifdef __cplusplus
 }

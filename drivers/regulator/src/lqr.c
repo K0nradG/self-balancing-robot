@@ -11,7 +11,7 @@ static struct lqr_parameters lqr_parameters   = {.Kx = 0.0f, .Ky = 0.0f};
 lqr_params_updated_cb_t new_lqr_parameters_cb = NULL;
 
 float
-calculate_lqr_output(float angle, float angle_dt)
+calculate_regulator_output(float angle, float angle_dt)
 {
     float const output =
         -(lqr_parameters.Kx * angle + lqr_parameters.Ky * angle_dt);  // u = -Kx control law (x - state vector).
@@ -33,7 +33,7 @@ static void
 parse_data(const char* data);
 
 void
-new_nus_parameters_received_for_lqr(const uint8_t* data, uint16_t len)
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
 {
     if(len > BLE_NUS_MAX_DATA_LEN)
     {
@@ -102,7 +102,7 @@ parse_data(const char* data)
 #endif  // CONFIG_LOG_OVER_BLE
 
 float
-get_setpoint_lqr(void)
+get_setpoint(void)
 {
     return lqr_parameters.setpoint;
 }

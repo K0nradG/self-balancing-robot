@@ -14,7 +14,7 @@ static struct pid_regulator_parameters pid_regulator_parameters = {
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
 
 float
-calculate_pid_output(float error)
+calculate_regulator_output(float error)
 {
     static int64_t last_time   = 0;
     int64_t const current_time = k_uptime_get();
@@ -60,7 +60,7 @@ static void
 parse_data(const char* data);
 
 void
-new_nus_parameters_received_for_pid(const uint8_t* data, uint16_t len)
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
 {
     if(len > BLE_NUS_MAX_DATA_LEN)
     {
@@ -132,7 +132,7 @@ parse_data(const char* data)
 #endif  // CONFIG_LOG_OVER_BLE
 
 float
-get_setpoint_pid(void)
+get_setpoint(void)
 {
     return pid_regulator_parameters.setpoint;
 }

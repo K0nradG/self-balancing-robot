@@ -15,20 +15,20 @@ struct lqr_parameters
 };
 
 float
-calculate_lqr_output(float angle, float angle_dt);
+calculate_regulator_output(float angle, float angle_dt);
 
 typedef void (*lqr_params_updated_cb_t)(struct lqr_parameters _lqr_regulator_parameters);
 
 #ifdef CONFIG_LOG_OVER_BLE
 void
-new_nus_parameters_received_for_lqr(const uint8_t* data, uint16_t len);
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
 #endif  // CONFIG_LOG_OVER_BLE
 
 void
 new_lqr_parameters_cb_register(lqr_params_updated_cb_t _new_lqr_parameters_cb);
 
 float
-get_setpoint_lqr(void);
+get_setpoint(void);
 
 #ifdef __cplusplus
 }

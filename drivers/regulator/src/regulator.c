@@ -81,11 +81,16 @@ regulator_work_handler(struct k_work* work)
     {
         error = new_get_setpoint_cb() * DEG_TO_RAD - (angle + ANGLE_OFFSET * DEG_TO_RAD);
     }
+
+    float output = 0.0f;
+    if(new_calculate_regulator_output_cb)
+    {
 #ifdef CONFIG_PID_ENABLED
-    float const output = new_calculate_regulator_output_cb(error);
+        output = new_calculate_regulator_output_cb(error);
 #else
-    float const output = new_calculate_regulator_output_cb(angle, angle_dt);
+        output = new_calculate_regulator_output_cb(angle, angle_dt);
 #endif  // CONFIG_PID_ENABLED
+    }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 

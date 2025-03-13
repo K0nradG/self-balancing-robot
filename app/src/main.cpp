@@ -70,6 +70,7 @@ main(void)
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "interface driver is enabled.");
 #endif  // CONFIG_APP_LOG
+
     led_start_periodic_blinking(BLINKING_INTERVAL);
 #endif  // CONFIG_INTERFACE_DRV
 
@@ -77,6 +78,7 @@ main(void)
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Battery level driver is enabled.");
 #endif  // CONFIG_APP_LOG
+
     new_battery_level_cb_register(new_battery_level_callback);
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
 #endif  // CONFIG_BATTERY_LEVEL_DRV
@@ -85,41 +87,39 @@ main(void)
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Receiving regulator parameters through NUS.");
 #endif  // CONFIG_APP_LOG
+
 #ifdef CONFIG_REGULATOR_DRV
 #ifdef CONFIG_PID_ENABLED
     new_nus_data_received_cb_register(new_nus_parameters_received_for_pid);
     new_pid_parameters_cb_register(new_pid_regulator_parameters);
-    #else
+#else
     new_nus_data_received_cb_register(new_nus_parameters_received_for_lqr);
     new_lqr_parameters_cb_register(new_lqr_parameters);
-    #endif // CONFIG_PID_ENABLED
+#endif // CONFIG_PID_ENABLED
 #endif  // CONFIG_REGULATOR_DRV
 #endif  // CONFIG_LOG_OVER_BLE
 
+#ifdef CONFIG_REGULATOR_DRV
+#ifdef CONFIG_PID_ENABLED
+    new_calculate_regulator_output_cb_register(calculate_pid_output);
+    new_get_setpoint_cb_register(get_setpoint_pid);
+#else
+    new_calculate_regulator_output_cb_register(calculate_lqr_output);
+    new_get_setpoint_cb_register(get_setpoint_lqr);
+#endif // CONFIG_PID_ENABLED 
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Model identification driver is enabled.");
 #endif  // CONFIG_APP_LOG
-    new_imu_cb_register(new_imu_angle_for_regulator);
-    new_pwm_cb_register(new_regulator_data_for_identification);
-    // regulator_start_automatic_control();
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-#ifdef CONFIG_REGULATOR_DRV
-#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
-#ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "Regulator driver is enabled.");
-#endif  // CONFIG_APP_LOG
-    new_imu_cb_register(new_imu_angle_for_regulator);
-    regulator_start_automatic_control();
+new_imu_cb_register(new_imu_angle_for_regulator);
+new_pwm_cb_register(new_regulator_data_for_identification);
+#else
+new_imu_cb_register(new_imu_angle_for_regulator);
+regulator_start_automatic_control();
+#endif // CONFIG_MODEL_IDENTIFICATION_DRV
 
-    #ifdef CONFIG_PID_ENABLED
-    new_calculate_regulator_output_cb_register(calculate_pid_output);
-    new_get_setpoint_cb_register(get_setpoint_pid);
-    #else
-    new_calculate_regulator_output_cb_register(calculate_lqr_output);
-    new_get_setpoint_cb_register(get_setpoint_lqr);
-    #endif // CONFIG_PID_ENABLED
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-#endif  // CONFIG_REGULATOR_DRV
+#endif // CONFIG_REGULATOR_DRV
 }

@@ -13,7 +13,7 @@ extern "C" {
 #define ALPHA      \
     N_dt / (1.0f + \
             N_dt)  // Alpha coefficients to be used directly by the low-pass filter: alpha = (N * dt) / (1 + N * dt)
-#define DEG_TO_RAD (180.0f / M_PI)
+#define DEG_TO_RAD (M_PI / 180.0f)
 #define ANGLE_OFFSET 98.0f
 
 #ifdef CONFIG_LOG_OVER_BLE

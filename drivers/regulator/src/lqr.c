@@ -3,21 +3,8 @@
 #include <string.h>
 #include "regulator_utils.h"
 
-#ifdef CONFIG_REGULATOR_LOG
-#include "logger.h"
-#endif  // CONFIG_REGULATOR_LOG
-
 static struct lqr_parameters lqr_parameters   = {.Kx = 0.0f, .Ky = 0.0f};
 lqr_params_updated_cb_t new_lqr_parameters_cb = NULL;
-
-float
-calculate_regulator_output(float angle, float angle_dt)
-{
-    float const output =
-        -(lqr_parameters.Kx * angle + lqr_parameters.Ky * angle_dt);  // u = -Kx control law (x - state vector).
-
-    return limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
-}
 
 void
 new_lqr_parameters_cb_register(lqr_params_updated_cb_t _new_lqr_parameters_cb)
@@ -28,35 +15,24 @@ new_lqr_parameters_cb_register(lqr_params_updated_cb_t _new_lqr_parameters_cb)
     }
 }
 
-#ifdef CONFIG_LOG_OVER_BLE
-static void
-parse_data(const char* data);
-
-void
-new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
+float
+calculate_regulator_output(float angle, float angle_dt)
 {
-    if(len > BLE_NUS_MAX_DATA_LEN)
-    {
-#ifdef CONFIG_REGULATOR_LOG
-        platform_log("APP", LOG_LEVEL_ERR, "Data length exceeds buffer size!");
-#endif  // CONFIG_REGULATOR_LOG
-        return;
-    }
+    float const output =
+        -(lqr_parameters.Kx * angle + lqr_parameters.Ky * angle_dt);  // u = -Kx control law (x - state vector).
 
-    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
-    memset(received_data, 0, sizeof(received_data));
-
-    memcpy(received_data, data, len);
-    received_data[len] = '\0';
-#ifdef CONFIG_REGULATOR_LOG
-    platform_log("APP", LOG_LEVEL_ERR, "Received NUS data: %s", received_data);
-#endif  // CONFIG_REGULATOR_LOG
-
-    parse_data(data);
+    return limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
 }
 
-static void
-parse_data(const char* data)
+float
+get_setpoint(void)
+{
+    return lqr_parameters.setpoint;
+}
+
+#ifdef CONFIG_LOG_OVER_BLE
+void
+parse_regulator_data(const char* data)
 {
     const char* ptr = data;
     while(*ptr)
@@ -100,9 +76,3 @@ parse_data(const char* data)
     callback*/
 }
 #endif  // CONFIG_LOG_OVER_BLE
-
-float
-get_setpoint(void)
-{
-    return lqr_parameters.setpoint;
-}

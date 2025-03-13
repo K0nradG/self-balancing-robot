@@ -16,10 +16,6 @@ extern "C" {
 #define DEG_TO_RAD (M_PI / 180.0f)
 #define ANGLE_OFFSET 98.0f
 
-#ifdef CONFIG_LOG_OVER_BLE
-#define BLE_NUS_MAX_DATA_LEN 251
-#endif  // CONFIG_LOG_OVER_BLE
-
 float
 limit(float input, float lower_bound, float upper_bound);
 

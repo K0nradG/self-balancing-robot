@@ -5,11 +5,14 @@
 #include <string.h>
 #include <zephyr/logging/log.h>
 #include "ble_connection.h"
+
+#define BLE_NUS_MAX_DATA_LEN 251
+
 LOG_MODULE_REGISTER(ble_logger_nus, CONFIG_LOGGER_LOG_LEVEL);
 
 static bool nus_notification_enabled = false;
 
-static nus_data_received_cb_t nus_data_received_cb = NULL;
+static regulator_parameters_parser_cb_t regulator_parameters_parser_cb = NULL;
 
 bool
 get_notif_status()
@@ -24,12 +27,12 @@ set_notif_status(bool value)
 }
 
 static void
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
+
+static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
 {
-    if(nus_data_received_cb)
-    {
-        nus_data_received_cb(data, len);
-    }
+    new_nus_parameters_received_for_regulator(data, len);
     LOG_INF("NUS received data: %.*s", len, data);
 }
 
@@ -79,12 +82,38 @@ ble_logger_send(char* data)
     }
 }
 
-void
-new_nus_data_received_cb_register(nus_data_received_cb_t _nus_data_received_cb)
+static void
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
 {
-    if(_nus_data_received_cb)
+    if(len > BLE_NUS_MAX_DATA_LEN)
     {
-        nus_data_received_cb = _nus_data_received_cb;
+#ifdef CONFIG_REGULATOR_LOG
+        LOG_ERR("Data length exceeds buffer size!");
+#endif  // CONFIG_REGULATOR_LOG
+        return;
+    }
+
+    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
+    memset(received_data, 0, sizeof(received_data));
+
+    memcpy(received_data, data, len);
+    received_data[len] = '\0';
+#ifdef CONFIG_REGULATOR_LOG
+    LOG_INF("Received NUS data: %s", received_data);
+#endif  // CONFIG_REGULATOR_LOG
+
+    if(regulator_parameters_parser_cb)
+    {
+        regulator_parameters_parser_cb(data);
+    }
+}
+
+void
+new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _regulator_parameters_parser_cb)
+{
+    if(_regulator_parameters_parser_cb)
+    {
+        regulator_parameters_parser_cb = _regulator_parameters_parser_cb;
     }
 }
 

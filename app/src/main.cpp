@@ -89,7 +89,7 @@ main(void)
 #endif  // CONFIG_APP_LOG
 
 #ifdef CONFIG_REGULATOR_DRV
-new_nus_data_received_cb_register(new_nus_parameters_received_for_regulator);
+    new_regulator_parameters_parser_cb_register(parse_regulator_data); // Parser callback definition depends on the regulator type.
 
 #ifdef CONFIG_PID_ENABLED
     new_pid_parameters_cb_register(new_pid_regulator_parameters);
@@ -100,19 +100,19 @@ new_nus_data_received_cb_register(new_nus_parameters_received_for_regulator);
 #endif  // CONFIG_LOG_OVER_BLE
 
 #ifdef CONFIG_REGULATOR_DRV
-new_imu_cb_register(new_imu_angle_for_regulator);
-new_calculate_regulator_output_cb_register(calculate_regulator_output);
-new_get_setpoint_cb_register(get_setpoint);
+    new_imu_cb_register(new_imu_angle_for_regulator); // IMU callback is different when identification is ON or OFF.
+    new_calculate_regulator_output_cb_register(calculate_regulator_output); // Regulator output calculation callback depends on the regulator type.
+    new_get_setpoint_cb_register(get_setpoint); // Setpoint getter callback depends on the regulator type
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-new_pwm_cb_register(new_regulator_data_for_identification);
+    new_pwm_cb_register(new_regulator_data_for_identification);
 
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Model identification driver is enabled.");
 #endif  // CONFIG_APP_LOG
 
 #else
-regulator_start_automatic_control();
+    regulator_start_automatic_control();
 #endif // CONFIG_MODEL_IDENTIFICATION_DRV
 #endif // CONFIG_REGULATOR_DRV
 }

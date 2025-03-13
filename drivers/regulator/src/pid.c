@@ -4,14 +4,18 @@
 #include "regulator_utils.h"
 #include "zephyr/kernel.h"
 
-#ifdef CONFIG_REGULATOR_LOG
-#include "logger.h"
-#endif  // CONFIG_REGULATOR_LOG
-
 static struct pid_regulator_parameters pid_regulator_parameters = {
     .Kp = 650.3f, .Ki = 4.1f, .Kd = 2.0f, .setpoint = 0.0f};
-
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
+
+void
+new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb)
+{
+    if(_new_pid_parameters_cb)
+    {
+        new_pid_parameters_cb = _new_pid_parameters_cb;
+    }
+}
 
 float
 calculate_regulator_output(float error)
@@ -46,44 +50,15 @@ calculate_regulator_output(float error)
     return output;
 }
 
-void
-new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb)
+float
+get_setpoint(void)
 {
-    if(_new_pid_parameters_cb)
-    {
-        new_pid_parameters_cb = _new_pid_parameters_cb;
-    }
+    return pid_regulator_parameters.setpoint;
 }
 
 #ifdef CONFIG_LOG_OVER_BLE
-static void
-parse_data(const char* data);
-
 void
-new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
-{
-    if(len > BLE_NUS_MAX_DATA_LEN)
-    {
-#ifdef CONFIG_REGULATOR_LOG
-        platform_log("APP", LOG_LEVEL_ERR, "Data length exceeds buffer size!");
-#endif  // CONFIG_REGULATOR_LOG
-        return;
-    }
-
-    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
-    memset(received_data, 0, sizeof(received_data));
-
-    memcpy(received_data, data, len);
-    received_data[len] = '\0';
-#ifdef CONFIG_REGULATOR_LOG
-    platform_log("APP", LOG_LEVEL_ERR, "Received NUS data: %s", received_data);
-#endif  // CONFIG_REGULATOR_LOG
-
-    parse_data(data);
-}
-
-static void
-parse_data(const char* data)
+parse_regulator_data(const char* data)
 {
     const char* ptr = data;
     while(*ptr)
@@ -130,9 +105,3 @@ parse_data(const char* data)
     callback*/
 }
 #endif  // CONFIG_LOG_OVER_BLE
-
-float
-get_setpoint(void)
-{
-    return pid_regulator_parameters.setpoint;
-}

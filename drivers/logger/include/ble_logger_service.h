@@ -9,10 +9,10 @@
 extern "C" {
 #endif
 
-typedef void (*nus_data_received_cb_t)(const uint8_t* data, uint16_t len);
+typedef void (*regulator_parameters_parser_cb_t)(const char* data);
 
 void
-new_nus_data_received_cb_register(nus_data_received_cb_t _nus_data_received_cb);
+new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _regulator_parameters_parser_cb);
 
 void
 ble_logger_send(char* data);

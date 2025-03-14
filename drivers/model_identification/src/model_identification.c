@@ -19,7 +19,6 @@ static uint8_t buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)];
 static uint16_t buffer_index[BUFFER_COUNT] = {0};
 static bool is_full[BUFFER_COUNT];
 
-static bool model_identification_started = false;
 static struct k_work_delayable model_identification_work;
 
 typedef struct imu_parameters
@@ -84,7 +83,6 @@ init(void)
         is_full[i]      = false;
     }
 
-    set_enable_controller(true);
     return 0;
 }
 

@@ -5,7 +5,7 @@
 #include "zephyr/kernel.h"
 
 static struct pid_regulator_parameters pid_regulator_parameters = {
-    .Kp = 650.3f, .Ki = 4.1f, .Kd = 2.0f, .setpoint = 0.0f};
+    .Kp = 650.3f, .Ki = 20.1f, .Kd = 2.0f, .setpoint = 0.0f};
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
 
 void

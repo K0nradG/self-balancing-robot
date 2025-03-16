@@ -114,12 +114,12 @@ init(void)
     }
 #endif  // CONFIG_MPU6050_TRIGGER
 
-    set_dlpf();
+    // set_dlpf();
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu dlpf set");
 #endif  // CONFIG_IMU_LOG
 
-    set_measurement_interval();
+    // set_measurement_interval();
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "meas interval set");
 #endif  // CONFIG_IMU_LOG

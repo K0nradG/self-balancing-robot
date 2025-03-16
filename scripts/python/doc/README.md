@@ -12,11 +12,11 @@ Whenever compilation warnings/errors occur, try running `get_compile_commands.py
 - open `receive_serial_data.py` - modify `COM` port name (specific to Windows and Linux),
 - run `receive_serial_data.py` script,
 - press button on Dongle to start receiving through the script,
-- once the sending is finished, data will be logged to `data/minicom.txt` file (can be changed in the script).
+- once the sending is finished, data will be logged to a specified location.
 
 ## Parsing to valid .mat file
 
-MATLAB scripts created to **identify object model** based on the data gathered from Dongle accept only a **specific** data format. After receiving the serial data (e.g. running `receive_serial_data.py`) run `parse_to_mat.py`. The script will take the received data and parse them to the format accepted by the `.m` scripts. After that, MATLAB scripts can be run to perform identification and/or regulators tuning.
+MATLAB scripts created to **identify object model** based on the data gathered from Dongle accept only a **specific** data format. After receiving the serial data (e.g. running `receive_serial_data.py`) run `parse_to_mat_with_merge.py`. The script will take the specified data and combine them into one `.mat` format accepted by the `.m` scripts. After that, MATLAB scripts can be run to perform identification and/or regulators tuning.
 
 ## Model Identification
 

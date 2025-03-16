@@ -3,9 +3,9 @@ import os
 import shutil
 
 def update_compile_commands():
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    root_json = os.path.join(root_dir, "compile_commands.json")
-    app_json = os.path.join(root_dir, "app", "build", "app", "compile_commands.json")
+    root_dir: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root_json: str = os.path.join(root_dir, "compile_commands.json")
+    app_json: str = os.path.join(root_dir, "app", "build", "app", "compile_commands.json")
     
     if not os.path.exists(app_json):
         print(f"Error: {app_json} does not exist.")
@@ -20,8 +20,8 @@ def update_compile_commands():
     print("Updated compile_commands.json successfully.")
 
 def format_compile_commands():
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    json_file = os.path.join(root_dir, "compile_commands.json")
+    root_dir: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    json_file: str = os.path.join(root_dir, "compile_commands.json")
     
     try:
         with open(json_file, "r", encoding="utf-8") as f:

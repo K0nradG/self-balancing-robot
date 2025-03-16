@@ -17,4 +17,7 @@ config FILTER_CUTOFF_FREQUENCY
     int "Filter cut-off frequency in Hz"
     default 40
 
+config PID_ENABLED
+    bool "PID controller enabled, else enable LQR"
+
 endif #REGULATOR_DRV

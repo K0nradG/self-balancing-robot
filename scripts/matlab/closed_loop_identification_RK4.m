@@ -1,42 +1,46 @@
 clc; clearvars; close
 init
 
-% Override init:
-angle_shift = 98;
-
-% Identification inputs:
-theta = theta + deg2rad(angle_shift); % To check if theta is by default in radians.
+% Adjust input signals:
+theta = theta + deg2rad(angle_shift); % To check if theta is by default in radians and needs shifting.
 pwm = pwm * -1; % May need inverting to account for improper signs of angle/pwm.
 
-% Identification:
-data = iddata(theta', pwm', Ts);
-sys_closed_loop = tfest(data, 3, 2); % No poles, two zeroes
+% Optimization inputs:
+u = pwm;
+xr = theta;
+tf_ = (1:length(u)) * Ts;
+x0 = [xr(1); 0];
 
-num_closed = sys_closed_loop.Numerator;
-den_closed = sys_closed_loop.Denominator;
+% Initial guess for parameters [a, b, c]
+initial_guess = [2.8023, 44.0931, 0.0369]; % Best params so far.
 
-disp('Estimated Closed Loop Transfer Function:');
-tf(num_closed, den_closed)
+% Run optimization:
+best_params = fminsearch(@(params) objective_function(params, x0, u, tf_(end), xr), initial_guess);
+
+% Display results:
+disp('Optimized parameters:');
+disp(best_params);
+[t,x] = rk4(x0,u,tf_(end), best_params);
 
 figure;
-compare(data, sys_closed_loop);
-title('Identified Model Fit Comparison');
+plot(t(2:end), xr);
+hold on;
+plot(t, x(:,1));
+xlim([0, tf_(end)]);
+title('Obiekt rzeczywisty i symulacja kąta');
+legend('Obiekt rzeczywisty', 'Symulacja', 'Location', 'best');
+grid on;
+
+b0 = best_params(3);
+b1 = best_params(2);
+a2_reg = best_params(1);
 
 % Calculating model parameters based on identification results:
 Kp = 650.3;
-Ki = 4.1;
-Kd = 2;
 
-b2 = num_closed(1);
-b1 = num_closed(2);
-b0 = num_closed(3);
-c2 = den_closed(2);
-c1 = den_closed(3);
-c0 = den_closed(4);
-
-a1 = ((b2 / Kd) + (b1 / Kp) + (b0 / Ki)) / 3
-a2 = c2 - b2
-a3 = c1 - b1
+a1 = b0 / Kp 
+a2 = a2_reg
+a3 = b1 - b0
 
 disp('Object Continous Transfer Function:');
 tf_continous = tf([0, 0, a1], [1, a2, -a3])

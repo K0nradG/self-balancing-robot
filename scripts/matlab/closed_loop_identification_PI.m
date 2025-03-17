@@ -1,9 +1,8 @@
 clc; clearvars; close
-load('matlab_data/k650.3i4.1d2s-98.mat');
+init
 
-% Parameters:
+% Override init:
 angle_shift = 98;
-Ts = 0.001;
 
 % Identification inputs:
 theta = theta + deg2rad(angle_shift); % To check if theta is by default in radians.
@@ -40,7 +39,9 @@ a3 = c1 - b1
 disp('Object Continuous Transfer Function:');
 tf_continuous = tf([0, a1], [1, a2, -a3]);
 
-ss_continous = canon(tf_continous);
+% Regular state space representation:
+[A, B, C, D] = tf2ss(tf_continous.Numerator{1}, tf_continous.Denominator{1});
+ss_continous = ss(A, B, C, D);
 
 %Ac = ss_controllable.A';
 %Bc = ss_controllable.C';
@@ -55,4 +56,4 @@ ss_continous = canon(tf_continous);
 
 %ss_object_discrete = ss(A_d, B_d, C_d, D_d, Ts)
 %ss_object_discrete = c2d(ss(Ac, Bc, Cc, Dc), Ts, 'zoh')
-ss_object_discrete = c2d(ss(ss_continous.A, ss_continous.B, ss_continous.C, ss_continous.D), Ts, 'zoh')
+ss_object_discrete = c2d(ss(ss_continous.A, ss_continous.B, ss_continous.C, ss_continous.D), Ts, 'zoh');

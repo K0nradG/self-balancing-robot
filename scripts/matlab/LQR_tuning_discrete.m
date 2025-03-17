@@ -1,11 +1,11 @@
 % Weight matrices:
-Q = diag([1000, 10]);
-R = 0.001;
+Q = diag([100, 1]);
+R = 1;
 
 K = dlqr(ss_object_discrete.A, ss_object_discrete.B, Q, R);
 
 disp('Kalman Gain:');
-disp(K);
+disp(K)
 
 eig_vals = eig(ss_object_discrete.A - ss_object_discrete.B * K);
 

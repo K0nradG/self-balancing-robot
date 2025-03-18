@@ -31,7 +31,7 @@ Where:
 
 Having identified the closed loop transfer function and knowing **Kp** , we can easily calculate the inverted pendulum model parameters.
 
-This approach was implemented in the `closed_loop_identification_P.m` script.
+This approach was implemented in the `closed_loop_identification_P.m` script using **System Identification Toolbox** in MATLAB.
 
 # PI Regulator Identification
 
@@ -72,7 +72,7 @@ Where:
 - $c_1 = a_3 + b_1$,
 - $c_0 = b_0$.
 
-This method was implemented in the `closed_loop_identification_PI.m` script.
+This method was implemented in the `closed_loop_identification_PI.m` script using **System Identification Toolbox** in MATLAB.
 
 
 ## PID regulator identification
@@ -115,7 +115,11 @@ Where:
 - $c_1 = a_3 + b_1$,
 - $c_0 = b_0$.
 
-This approach was implemented in the `closed_loop_identification_PID.m` script.
+This approach was implemented in the `closed_loop_identification_PID.m` script using **System Identification Toolbox** in MATLAB.
+
+> **Note!** Apart from the first method of identification based on closed loop (with only proportional controller), the results were rather poor. Is is believed that the reason for that was too much stability, which caused the controller input to cover the object real dynamics. This, in turn, made it really hard to estimate the system true behavior.
+
+**That is why, for the other approaches only the proportional controller closed loop identification method was used.**
 
 ## Least Squares Method
 
@@ -143,4 +147,50 @@ $$
 
 $X$ columns contain **inputs** to the system: $\theta$, $\dot{\theta}$ and control signal value (PWM). $Y$ contains the **output** the system is to be fitted to: $\ddot{\theta}$ - calculated by **differentiating** the input $\dot{\theta}$. When differentiating, applying some form of **filtering** e.g. a **Butterworth filter**, could be desired since when calculating the second derivative directly some errors may be encountered that may affect the whole identification process. $\Theta$ will contain the parameters that best satisfy the least squares procedure.
 
-This approach was implemented in the `closed_loop_identification_LS.m` script. It also implements the calculation of model parameters from the identified **closed loop system** with only the **proportional controller**.
+This approach was implemented in the `closed_loop_identification_LS.m` script. It implements the calculation of model parameters from the identified **closed loop system** with only the **proportional controller**.
+
+## Optimization Approach
+
+The problem of determining model parameters can be formulated as **finding a curve that best fits** the given data. The previous approach based on the **Least Squares** (LS) method had a significant drawback — the necessity to compute $\ddot{\theta}$ directly by differentiating $\dot{\theta}$. This process introduced a **high level of noise**, which had to be filtered before performing identification.
+
+To overcome this issue, the following approach has been proposed:
+
+1. **Estimate** the unknown model parameters.
+2. **Substitute** them into the system equation.
+3. **Solve** the system of differential equations, e.g., using the **Runge-Kutta** 4th order (RK4) method.
+4. Create a **cost function**, such as the **sum of squared errors** between the solution and the input data.
+5. **Minimize** the objective function to improve model fitting.
+6. Obtain **new estimates** of the parameters.
+7. **Reinsert** the parameters into the equations and **repeat** the entire process until a specified level of error between the curves is achieved.
+
+### RK4 method for solving differential equations
+
+**The Runge-Kutta 4th order (RK4)** method is one of the most commonly used numerical algorithms for solving **ordinary differential equations** (ODEs).
+
+### RK4 Algorithm
+For a differential equation of the form:
+
+$$
+\frac{dy}{dt} = f(t, y), \quad y(t_0) = y_0.
+$$
+
+the **RK4** method computes successive values of $y$ using the formula:
+
+$$
+ y_{n+1} = y_n + \frac{1}{6} (k_1 + 2k_2 + 2k_3 + k_4) 
+$$
+
+where the coefficients $ k_1, k_2, k_3, k_4 $ are calculated as:
+
+$$
+ k_1 = h f(t_n, y_n) \\[1em]
+ k_2 = h f(t_n + \frac{h}{2}, y_n + \frac{k_1}{2}) \\[1em]
+ k_3 = h f(t_n + \frac{h}{2}, y_n + \frac{k_2}{2}) \\[1em]
+ k_4 = h f(t_n + h, y_n + k_3) 
+$$
+
+where $h$ is the time step.
+
+This approach was implemented in the `closed_loop_identification_RK4.m` script, where RK4 method of constant solving the differential equations was combined with MATLAB `fminsearch` function. Functions necessary for the script were provided in the `matlab_functions` directory.
+
+The result of this method resulted in **reliable** results, which allowed for proper **PID controller tuning**.

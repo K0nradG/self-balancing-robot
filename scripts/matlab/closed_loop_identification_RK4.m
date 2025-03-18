@@ -4,18 +4,23 @@ init
 % Adjust input signals:
 theta = theta + deg2rad(angle_shift); % To check if theta is by default in radians and needs shifting.
 pwm = pwm * -1; % May need inverting to account for improper signs of angle/pwm.
+pwm = pwm / 100; % Scale PWM to be from -1 to 1.
 
 % Optimization inputs:
-u = pwm;
+from_cm_to_kg = 1 / 100;
+Torque_max = 0.8 * from_cm_to_kg; % [kg * m]
+u = pwm * Torque_max;
 xr = theta;
 tf_ = (1:length(u)) * Ts;
 x0 = [xr(1); 0];
 
-% Initial guess for parameters [a, b, c]
-initial_guess = [2.8023, 44.0931, 0.0369]; % Best params so far.
+% [2.8023, 44.0931, 0.0369] % Best params so far for no torque scaling.
+% Initial guess for parameters [a, b, c]:
+initial_guess = [1, 1, 1]; % For Torque scaling start like this, or select some other point.
 
 % Run optimization:
-best_params = fminsearch(@(params) objective_function(params, x0, u, tf_(end), xr), initial_guess);
+options = optimset('MaxFunEvals', 5000, 'MaxIter', 5000); 
+best_params = fminsearch(@(params) objective_function(params, x0, u, tf_(end), xr), initial_guess, options);
 
 % Display results:
 disp('Optimized parameters:');

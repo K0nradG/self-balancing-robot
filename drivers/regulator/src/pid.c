@@ -4,8 +4,14 @@
 #include "regulator_utils.h"
 #include "zephyr/kernel.h"
 
+// the best
+//     .Kp = 256.2f, .Ki = 1001.0f, .Kd = 8.22f, .setpoint = 0.0f
+
+// great
+//.Kp = 180.7f, .Ki = 1145.0f, .Kd = 4.24f, .setpoint = 0.0f}
+
 static struct pid_regulator_parameters pid_regulator_parameters = {
-    .Kp = 650.3f, .Ki = 20.1f, .Kd = 2.0f, .setpoint = 0.0f};
+    .Kp = 256.2f, .Ki = 1001.0f, .Kd = 8.22f, .setpoint = 0.0f};
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
 
 void

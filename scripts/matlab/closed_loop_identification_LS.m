@@ -1,17 +1,12 @@
 clc; clearvars; close
-
-load('matlab_data/merged_robot_data_k650.3_s-95.mat');
-
-% Parameters
-angle_shift = 95;
-Ts = 0.001;
+init
 
 % Adjust input signals
 theta = theta + deg2rad(angle_shift); % To check if theta is by default in radians.
 pwm = pwm * -1; % May need inverting to account for improper signs of angle/pwm.
 
 % Design a low-pass filter (e.g., a Butterworth filter)
-fc = 10;  % Cut-off frequency (in Hz)
+fc = 8;  % Cut-off frequency (in Hz)
 [b, a] = butter(2, fc * Ts, 'low');  % Second-order Butterworth filter
 
 % Apply the filter to the theta_dot signal:
@@ -37,7 +32,7 @@ b1 = Theta(2);
 b0 = Theta(3);
 
 % Compute estimated theta_ddot using identified model:
-theta_ddot_est = -b1 * theta - a2_reg * theta_dot + b0 * pwm;
+theta_ddot_est = -a2_reg * theta_dot -b1 * theta + b0 * pwm;
 
 % Time vector (must match theta_ddot length)
 t = (0:length(theta_ddot)-1) * Ts; 
@@ -64,7 +59,9 @@ a3 = b1 - b0
 disp('Object Continous Transfer Function:');
 tf_continous = tf([0, 0, a1], [1, a2, -a3])
 
-ss_continous = canon(tf_continous);
+% Regular state space representation:
+[A, B, C, D] = tf2ss(tf_continous.Numerator{1}, tf_continous.Denominator{1});
+ss_continous = ss(A, B, C, D);
 
 %Ac = ss_controllable.A';
 %Bc = ss_controllable.C';
@@ -79,4 +76,4 @@ ss_continous = canon(tf_continous);
 
 %ss_object_discrete = ss(A_d, B_d, C_d, D_d, Ts)
 %ss_object_discrete = c2d(ss(Ac, Bc, Cc, Dc), Ts, 'zoh')
-ss_object_discrete = c2d(ss(ss_continous.A, ss_continous.B, ss_continous.C, ss_continous.D), Ts, 'zoh')
+ss_object_discrete = c2d(ss(ss_continous.A, ss_continous.B, ss_continous.C, ss_continous.D), Ts, 'zoh');

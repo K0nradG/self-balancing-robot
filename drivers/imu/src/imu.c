@@ -32,7 +32,7 @@ static float gyro_offset_z = 0.0f;
 static int sample_count    = 0;
 #define GYRO_CALIBRATION_SAMPLES 10000
 
-#define ANGLE_OFFSET 95.0f
+#define ANGLE_OFFSET 90.0f
 #define DEG_TO_RAD (M_PI / 180.0f)
 
 #define OFFSET (ANGLE_OFFSET * DEG_TO_RAD)

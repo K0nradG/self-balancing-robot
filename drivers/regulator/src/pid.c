@@ -11,7 +11,7 @@
 //.Kp = 180.7f, .Ki = 1145.0f, .Kd = 4.24f, .setpoint = 0.0f}
 
 static struct pid_regulator_parameters pid_regulator_parameters = {
-    .Kp = 556.2f, .Ki = 1001.0f, .Kd = 8.22f, .setpoint = 0.0f};
+    .Kp = 556.2f, .Ki = 1001.0f, .Kd = 8.22f, .setpoint = -4.0f};
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
 
 void

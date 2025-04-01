@@ -27,6 +27,9 @@ typedef void (*imu_updated_cb_t)(float angle);
 void
 new_imu_cb_register(imu_updated_cb_t _new_imu_cb);
 
+void
+mpu_reset(uint8_t conf);
+
 #ifdef __cplusplus
 }
 #endif

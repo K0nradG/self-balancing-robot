@@ -86,5 +86,7 @@ In order to obtain the `compile_commands.json` run the `get_compile_commands.py`
 - measure as much as posiible components before identification.
 - model -> https://medium.com/geekculture/dynamics-modelling-and-simulation-of-self-balancing-robot-in-c-d32a3b835bbf
 
+https://www.researchgate.net/publication/332739123_Design_of_a_Two-Wheel_Self-Balancing_Robot_with_the_Implementation_of_a_Novel_State_Feedback_for_PID_Controller_using_On-Board_State_Estimation_Algorithm
+
 
 

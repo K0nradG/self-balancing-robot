@@ -75,11 +75,11 @@ static void
 regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
-    float error = 0.0f - (angle + ANGLE_OFFSET * DEG_TO_RAD);
+    float error = 0.0f - angle;  // low_pass_filter(angle);
 
     if(new_get_setpoint_cb)
     {
-        error = new_get_setpoint_cb() * DEG_TO_RAD - (angle + ANGLE_OFFSET * DEG_TO_RAD);
+        error = new_get_setpoint_cb() * DEG_TO_RAD - (angle);
     }
 
     float output = 0.0f;

@@ -10,7 +10,7 @@
 #include "logger.h"
 #endif  // CONFIG_IMU_LOG
 
-#define ALPHA 0.95f
+#define ALPHA 0.997f
 #define M_PI 3.14159265358979323846f
 #define MICRO_PARTS_CONVERT 1e-06f
 
@@ -20,15 +20,22 @@ static int reset_cnt;
 struct device const* imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
 imu_updated_cb_t new_imu_cb  = NULL;
 
-float gyro_angle =
-    NAN;  // it is set to NAN because the first value of gyro_rate should be set from accelerometer to
-          // prevent the situation where the regulator setpoint depends on inital position of the robot (imu).
+// volatile float gyro_angle =
+//     NAN;  // it is set to NAN because the first value of gyro_rate should be set from accelerometer to
+//           // prevent the situation where the regulator setpoint depends on inital position of the robot (imu).
+
+volatile float angle = 0;
 
 static float gyro_offset_x = 0.0f;
 static float gyro_offset_y = 0.0f;
 static float gyro_offset_z = 0.0f;
 static int sample_count    = 0;
 #define GYRO_CALIBRATION_SAMPLES 10000
+
+#define ANGLE_OFFSET 90.0f
+#define DEG_TO_RAD (M_PI / 180.0f)
+
+#define OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
 
 static int
 process_imu(struct device const* dev);
@@ -99,6 +106,8 @@ init(void)
         return -ENODEV;
     }
 
+    mpu_reset(1);
+
 #ifdef CONFIG_MPU6050_TRIGGER
     trigger = (struct sensor_trigger) {
         .type = SENSOR_TRIG_DATA_READY,  // Trigger when data is ready
@@ -114,7 +123,7 @@ init(void)
     }
 #endif  // CONFIG_MPU6050_TRIGGER
 
-    // set_dlpf();
+    set_dlpf();
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu dlpf set");
 #endif  // CONFIG_IMU_LOG
@@ -154,26 +163,39 @@ calculate_angle(
 
     float gyro_rate_x = (float)sensor_value_to_double(&gyro_data[0]) + 0.032657f;  // Gyro calibration
 
-    float const accel_angle = (float)atan2f(ay, az);  // [radians]
+    float const accel_angle = (float)atan2f(ay, az) + OFFSET;  // [radians]
 
-    float gyro_rate = gyro_rate_x;  // [rad/s]
+    // float gyro_rate = gyro_rate_x;  // [rad/s]
 
-    if(isnan(gyro_angle))
+    // if(isnan(gyro_angle))
+    //{
+    //     gyro_angle = accel_angle;  // Set gyro initial value
+    // }
+
+    // gyro_angle += gyro_rate_x * dt;
+
+    // reset_cnt++;
+    // if(cnt >= RESET_INTERVAL)
+    //{
+    // gyro_angle = accel_angle;  // Angle Reset
+    // reset_cnt  = 0;
+    //}
+
+    if(dt > 0.01)
     {
-        gyro_angle = accel_angle;  // Set gyro initial value
+        angle = accel_angle;
+    }
+    else
+    {
+        angle = ALPHA * (angle + gyro_rate_x * dt) + (1 - ALPHA) * accel_angle;
     }
 
-    gyro_angle += gyro_rate * dt;
+    // angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;
 
-    reset_cnt++;
-    if(cnt >= RESET_INTERVAL)
-    {
-        gyro_angle = accel_angle;  // Angle Reset
-        reset_cnt  = 0;
-    }
-
-    float angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;
-
+    platform_log("IMU", LOG_LEVEL_ERR, "accel_angle: %f", accel_angle * (1 / DEG_TO_RAD));
+    platform_log("IMU", LOG_LEVEL_ERR, "gryo rate raw: %f", gyro_rate_x * (1 / DEG_TO_RAD));
+    platform_log("IMU", LOG_LEVEL_ERR, "integrated gyro: %f", gyro_rate_x * dt * (1 / DEG_TO_RAD));
+    platform_log("IMU", LOG_LEVEL_ERR, "angle filtr: %f", angle * (1 / DEG_TO_RAD));
     last_time = current_time;
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
@@ -181,7 +203,7 @@ calculate_angle(
     struct identification_data data;
 
     data.angle    = angle;
-    data.angle_dt = gyro_rate;
+    data.angle_dt = gyro_rate_x;
 
     return data;
 #else
@@ -216,7 +238,7 @@ process_imu(struct device const* dev)
 
     struct identification_data data = calculate_angle(accelerometer_data, gyro_data, &temperature);
 #else
-    float const angle = calculate_angle(accelerometer_data, gyro_data, &temperature);
+    float const angle_ = calculate_angle(accelerometer_data, gyro_data, &temperature);
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
     if(new_imu_cb)
@@ -224,7 +246,7 @@ process_imu(struct device const* dev)
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         new_imu_cb(data);
 #else
-        new_imu_cb(angle);
+        new_imu_cb(angle_);
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
     }
 

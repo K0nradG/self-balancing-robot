@@ -79,10 +79,14 @@ In order to obtain the `compile_commands.json` run the `get_compile_commands.py`
 - agreed on basic software scheme.
   
 ## TODO:
-- create layout to use pins same as selected in the PCB,
-- implement drivers logic and necessary API,
-- conduct tests for drivers,
-- implement application logic: controllers and necessary calculations,
-- create test suite for application logic,
-- introduce drivers into application code,
-- conduct tests on the robot.
+- investigate PID output/error while positive and negative angle
+- tune  PID
+- tune alpha in compl filter (IMU)
+- introduce low pass filter in regulator.
+- measure as much as posiible components before identification.
+- model -> https://medium.com/geekculture/dynamics-modelling-and-simulation-of-self-balancing-robot-in-c-d32a3b835bbf
+
+https://www.researchgate.net/publication/332739123_Design_of_a_Two-Wheel_Self-Balancing_Robot_with_the_Implementation_of_a_Novel_State_Feedback_for_PID_Controller_using_On-Board_State_Estimation_Algorithm
+
+
+

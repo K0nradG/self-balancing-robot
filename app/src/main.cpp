@@ -33,6 +33,7 @@ new_battery_level_callback(battery_level_data data)
 
 #ifdef CONFIG_PID_ENABLED
 #include "pid.h"
+
 void
 new_pid_regulator_parameters(pid_regulator_parameters data)
 {
@@ -43,6 +44,7 @@ new_pid_regulator_parameters(pid_regulator_parameters data)
 }
 #else
 #include "lqr.h"
+
 void
 new_lqr_parameters(lqr_parameters data)
 {
@@ -51,7 +53,7 @@ new_lqr_parameters(lqr_parameters data)
     platform_log("APP", LOG_LEVEL_INF, "K1: %f, K2: %f, Setpoint: %f", data.Kx, data.Ky, data.setpoint);
 #endif  // CONFIG_APP_LOG
 }
-#endif // CONFIG_PID_ENABLED
+#endif  // CONFIG_PID_ENABLED
 
 #endif  // CONFIG_REGULATOR_DRV
 
@@ -89,20 +91,22 @@ main(void)
 #endif  // CONFIG_APP_LOG
 
 #ifdef CONFIG_REGULATOR_DRV
-    new_regulator_parameters_parser_cb_register(parse_regulator_data); // Parser callback definition depends on the regulator type.
+    new_regulator_parameters_parser_cb_register(
+        parse_regulator_data);  // Parser callback definition depends on the regulator type.
 
 #ifdef CONFIG_PID_ENABLED
     new_pid_parameters_cb_register(new_pid_regulator_parameters);
 #else
     new_lqr_parameters_cb_register(new_lqr_parameters);
-#endif // CONFIG_PID_ENABLED
+#endif  // CONFIG_PID_ENABLED
 #endif  // CONFIG_REGULATOR_DRV
 #endif  // CONFIG_LOG_OVER_BLE
 
 #ifdef CONFIG_REGULATOR_DRV
-    new_imu_cb_register(new_imu_angle_for_regulator); // IMU callback is different when identification is ON or OFF.
-    new_calculate_regulator_output_cb_register(calculate_regulator_output); // Regulator output calculation callback depends on the regulator type.
-    new_get_setpoint_cb_register(get_setpoint); // Setpoint getter callback depends on the regulator type
+    new_imu_cb_register(new_imu_angle_for_regulator);  // IMU callback is different when identification is ON or OFF.
+    new_calculate_regulator_output_cb_register(
+        calculate_regulator_output);             // Regulator output calculation callback depends on the regulator type.
+    new_get_setpoint_cb_register(get_setpoint);  // Setpoint getter callback depends on the regulator type
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     new_pwm_cb_register(new_regulator_data_for_identification);
@@ -113,6 +117,6 @@ main(void)
 
 #else
     regulator_start_automatic_control();
-#endif // CONFIG_MODEL_IDENTIFICATION_DRV
-#endif // CONFIG_REGULATOR_DRV
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+#endif  // CONFIG_REGULATOR_DRV
 }

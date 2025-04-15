@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 #include "imu.h"
 
 struct identification_regulator_data
@@ -22,22 +22,22 @@ typedef void (*regulator_data_updated_cb_t)(struct identification_regulator_data
 
 void
 new_pwm_cb_register(regulator_data_updated_cb_t _new_pwm_cb);
-#endif // CONFIG_MODEL_IDENTIFICATION_DRV
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 void
 new_imu_angle_for_regulator(struct identification_data data);
 
 #else
 void
 new_imu_angle_for_regulator(float _angle);
-#endif // CONFIG_MODEL_IDENTIFICATION_DRV
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_PID_ENABLED
-typedef float (*calculate_regulator_output_cb_t)(float angle);
+typedef float (*calculate_regulator_output_cb_t)(float angle, float angle_dt);
 #else
 typedef float (*calculate_regulator_output_cb_t)(float angle, float angle_dt);
-#endif // CONFIG_PID_ENABLED
+#endif  // CONFIG_PID_ENABLED
 
 void
 new_calculate_regulator_output_cb_register(calculate_regulator_output_cb_t _new_calculate_regulator_output_cb);

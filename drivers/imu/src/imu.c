@@ -142,7 +142,7 @@ init(void)
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 static struct identification_data
 #else
 static float
@@ -192,13 +192,13 @@ calculate_angle(
 
     // angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;
 
-    platform_log("IMU", LOG_LEVEL_ERR, "accel_angle: %f", accel_angle * (1 / DEG_TO_RAD));
-    platform_log("IMU", LOG_LEVEL_ERR, "gryo rate raw: %f", gyro_rate_x * (1 / DEG_TO_RAD));
-    platform_log("IMU", LOG_LEVEL_ERR, "integrated gyro: %f", gyro_rate_x * dt * (1 / DEG_TO_RAD));
-    platform_log("IMU", LOG_LEVEL_ERR, "angle filtr: %f", angle * (1 / DEG_TO_RAD));
+    // platform_log("IMU", LOG_LEVEL_ERR, "accel_angle: %f", accel_angle * (1 / DEG_TO_RAD));
+    // platform_log("IMU", LOG_LEVEL_ERR, "gryo rate raw: %f", gyro_rate_x * (1 / DEG_TO_RAD));
+    // platform_log("IMU", LOG_LEVEL_ERR, "integrated gyro: %f", gyro_rate_x * dt * (1 / DEG_TO_RAD));
+    // platform_log("IMU", LOG_LEVEL_ERR, "angle filtr: %f", angle * (1 / DEG_TO_RAD));
     last_time = current_time;
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 
     struct identification_data data;
 
@@ -234,7 +234,7 @@ process_imu(struct device const* dev)
         return -ENODEV;
     }
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 
     struct identification_data data = calculate_angle(accelerometer_data, gyro_data, &temperature);
 #else
@@ -243,7 +243,7 @@ process_imu(struct device const* dev)
 
     if(new_imu_cb)
     {
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
         new_imu_cb(data);
 #else
         new_imu_cb(angle_);

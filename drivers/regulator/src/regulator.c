@@ -16,7 +16,7 @@
 static bool automatic_control_started = false;
 static float angle                    = 0.0f;
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 static float angle_dt = 0.0f;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
@@ -31,7 +31,7 @@ regulator_data_updated_cb_t new_pwm_cb = NULL;
 
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 void
 new_imu_angle_for_regulator(struct identification_data data)
 {
@@ -86,7 +86,7 @@ regulator_work_handler(struct k_work* work)
     if(new_calculate_regulator_output_cb)
     {
 #ifdef CONFIG_PID_ENABLED
-        output = new_calculate_regulator_output_cb(error);
+        output = new_calculate_regulator_output_cb(error, angle_dt);
 #else
         output = new_calculate_regulator_output_cb(angle, angle_dt);
 #endif  // CONFIG_PID_ENABLED
@@ -107,7 +107,7 @@ regulator_work_handler(struct k_work* work)
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_REGULATOR_LOG
-    platform_log("REGULATOR", LOG_LEVEL_ERR, "angle: %d  error %d", (int)angle, (int)error);
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "angle_dt: %f  error %f out: %f", angle_dt, error, output);
 #endif  // CONFIG_REGULATOR_LOG
 
     int pwm = (int)fabsf(output);

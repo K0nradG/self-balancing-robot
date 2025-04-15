@@ -11,8 +11,10 @@
 //.Kp = 180.7f, .Ki = 1145.0f, .Kd = 4.24f, .setpoint = 0.0f}
 
 static struct pid_regulator_parameters pid_regulator_parameters = {
-    .Kp = 556.2f, .Ki = 1001.0f, .Kd = 8.22f, .setpoint = -4.0f};
+    .Kp = 550.0f, .Ki = 500.0f, .Kd = 5.0f, .setpoint = -7.4485f};  // k450 i0 d10  s2.3
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
+
+static float const K_feedworward = 10.0f;
 
 void
 new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb)
@@ -24,8 +26,12 @@ new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb)
 }
 
 float
-calculate_regulator_output(float error)
+calculate_regulator_output(float error, float angle_dt)
 {
+    // if(error < 0)
+    //{
+    //     error *= 5;
+    // }
     static int64_t last_time   = 0;
     int64_t const current_time = k_uptime_get();
 
@@ -42,7 +48,12 @@ calculate_regulator_output(float error)
     float const derivative                = pid_regulator_parameters.Kd * (error_difference_filtered / dt);
     last_error                            = error;
 
-    float output = proportional + integral + derivative;
+    float output = proportional + integral + derivative;  //- (K_feedworward * angle_dt);
+
+    // if(error < 0)
+    // {
+    //     output *= 2;
+    // }
 
     if(fabsf(output) > (float)CONFIG_PWM_LIMIT)
     {

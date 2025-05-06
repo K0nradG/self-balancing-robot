@@ -11,7 +11,10 @@
 //.Kp = 180.7f, .Ki = 1145.0f, .Kd = 4.24f, .setpoint = 0.0f}
 
 static struct pid_regulator_parameters pid_regulator_parameters = {
-    .Kp = 550.0f, .Ki = 500.0f, .Kd = 5.0f, .setpoint = -7.4485f};  // k450 i0 d10  s2.3
+    .Kp       = 550.0f,
+    .Ki       = 500.0f,
+    .Kd       = 5.0f,
+    .setpoint = -7.4485f};  // k450 i0 d10  s2.3   //Kp = 550.0f, .Ki = 500.0f, .Kd = 5.0f, .setpoint = -7.4485f}
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
 
 static float const K_feedworward = 10.0f;

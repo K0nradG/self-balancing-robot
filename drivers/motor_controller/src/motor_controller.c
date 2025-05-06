@@ -50,6 +50,8 @@ set_direction(DIRECTION direction)
 void
 set_duty_cycle_value(uint8_t duty_cycle_percent)
 {
+    duty_cycle_percent += 21U;
+
     if(duty_cycle_percent > CONFIG_PWM_LIMIT)
     {
         duty_cycle_percent = CONFIG_PWM_LIMIT;

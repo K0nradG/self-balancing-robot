@@ -11,7 +11,10 @@
 //.Kp = 180.7f, .Ki = 1145.0f, .Kd = 4.24f, .setpoint = 0.0f}
 
 static struct pid_regulator_parameters pid_regulator_parameters = {
-    .Kp = 556.2f, .Ki = 1001.0f, .Kd = 8.22f, .setpoint = -4.0f};
+    .Kp       = 1500.0f,
+    .Ki       = 1000.0f,
+    .Kd       = 0.1f,
+    .setpoint = -7.4485f};  // k450 i0 d10  s2.3   //Kp = 550.0f, .Ki = 500.0f, .Kd = 5.0f, .setpoint = -7.4485f}
 pid_params_updated_cb_t new_pid_parameters_cb = NULL;
 
 void
@@ -24,7 +27,7 @@ new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb)
 }
 
 float
-calculate_regulator_output(float error)
+calculate_regulator_output(float error, float angle_dt)
 {
     static int64_t last_time   = 0;
     int64_t const current_time = k_uptime_get();
@@ -34,8 +37,15 @@ calculate_regulator_output(float error)
 
     float const proportional = pid_regulator_parameters.Kp * error;
 
-    static float integral = 0;
-    integral += pid_regulator_parameters.Ki * error * dt;
+    static float integral = 0.0f;
+    if(fabsf(pid_regulator_parameters.Ki) < 1e-3f)
+    {
+        integral = 0.0f;
+    }
+    else
+    {
+        integral += pid_regulator_parameters.Ki * error * dt;
+    }
 
     static float last_error               = 0;
     float const error_difference_filtered = error - last_error;  // low_pass_filter(error - last_error);

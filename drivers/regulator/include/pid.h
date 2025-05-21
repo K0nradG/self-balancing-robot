@@ -21,7 +21,7 @@ void
 new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb);
 
 float
-calculate_regulator_output(float error);
+calculate_regulator_output(float error, float angle_dt);
 
 float
 get_setpoint(void);

@@ -8,7 +8,7 @@ pwm = pwm / 100; % Scale PWM to be from -1 to 1.
 
 % Optimization inputs:
 from_cm_to_kg = 1 / 100;
-Torque_max = 0.8 * from_cm_to_kg; % [kg * m]
+Torque_max = 0.2943; % [kg * m]
 u = pwm * Torque_max;
 xr = theta;
 tf_ = (1:length(u)) * Ts;
@@ -41,7 +41,7 @@ b1 = best_params(2);
 a2_reg = best_params(1);
 
 % Calculating model parameters based on identification results:
-Kp = 650.3;
+Kp = 1500;
 
 a1 = b0 / Kp 
 a2 = a2_reg

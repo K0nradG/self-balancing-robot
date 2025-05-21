@@ -15,10 +15,10 @@ def merge_serial_data_to_mat() -> None:
 
     output_mat_file: str = os.path.join(matlab_dir, "merged_robot_data_k650.3_s-95.mat")
     files_to_merge = [
-        "k650.3s-95.txt",
-        "k650.3s-95-v2.txt",
-        "k650.3s-95-v3.txt",
-        "k650.3s-95-v4.txt"
+        "minicom.txt",
+        # "k650.3s-95-v2.txt",
+        # "k650.3s-95-v3.txt",
+        # "k650.3s-95-v4.txt"
     ]
 
     buffer_pattern: str = re.compile(r"MODEL:\s*buffor data:\s*(\d+)")

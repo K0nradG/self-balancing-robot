@@ -20,7 +20,7 @@ compare(data, sys_closed_loop);
 title('Identified Model Fit Comparison');
 
 % Calculating model parameters based on identification results:
-Kp = 650.3;
+Kp = 1500;
 
 b0 = num_closed(1);
 b1 = den_closed(3);
@@ -49,4 +49,4 @@ ss_continous = ss(A, B, C, D);
 
 %ss_object_discrete = ss(A_d, B_d, C_d, D_d, Ts)
 %ss_object_discrete = c2d(ss(Ac, Bc, Cc, Dc), Ts, 'zoh')
-ss_object_discrete = c2d(ss(ss_continous.A, ss_continous.B, ss_continous.C, ss_continous.D), Ts, 'zoh');
+ss_object_discrete = c2d(ss(ss_continous.A, ss_continous.B, ss_continous.C, ss_continous.D), Ts, 'zoh')

@@ -9,5 +9,5 @@ addpath(data_dir);
 load('merged_robot_data_k650.3_s-95.mat');
 
 % Introduce needed parameters:
-angle_shift = 95;
+angle_shift = 7.4485;
 Ts = 0.001;

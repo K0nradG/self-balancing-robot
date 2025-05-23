@@ -3,15 +3,15 @@
 #include <string.h>
 #include "regulator_utils.h"
 
-static struct lqr_parameters lqr_parameters   = {.Kx = 0.0f, .Ky = 0.0f};
-lqr_params_updated_cb_t new_lqr_parameters_cb = NULL;
+static struct lqr_parameters g_lqr_parameters   = {.Kx = 0.0f, .Ky = 0.0f};
+lqr_params_updated_cb_t g_new_lqr_parameters_cb = NULL;
 
 void
-new_lqr_parameters_cb_register(lqr_params_updated_cb_t _new_lqr_parameters_cb)
+new_lqr_parameters_cb_register(lqr_params_updated_cb_t new_lqr_parameters_cb)
 {
-    if(_new_lqr_parameters_cb)
+    if(new_lqr_parameters_cb)
     {
-        new_lqr_parameters_cb = _new_lqr_parameters_cb;
+        g_new_lqr_parameters_cb = new_lqr_parameters_cb;
     }
 }
 
@@ -19,7 +19,7 @@ float
 calculate_regulator_output(float angle, float angle_dt)
 {
     float const output =
-        -(lqr_parameters.Kx * angle + lqr_parameters.Ky * angle_dt);  // u = -Kx control law (x - state vector).
+        -(g_lqr_parameters.Kx * angle + g_lqr_parameters.Ky * angle_dt);  // u = -Kx control law (x - state vector).
 
     return limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
 }
@@ -27,7 +27,7 @@ calculate_regulator_output(float angle, float angle_dt)
 float
 get_setpoint(void)
 {
-    return lqr_parameters.setpoint;
+    return g_lqr_parameters.setpoint;
 }
 
 #ifdef CONFIG_LOG_OVER_BLE
@@ -53,18 +53,18 @@ parse_regulator_data(const char* data)
             switch(key)
             {
                 case 'x':
-                    lqr_parameters.Kx = value;
+                    g_lqr_parameters.Kx = value;
                     break;
                 case 'y':
-                    lqr_parameters.Ky = value;
+                    g_lqr_parameters.Ky = value;
                     break;
                 case 's':
-                    lqr_parameters.setpoint = value;
+                    g_lqr_parameters.setpoint = value;
                     break;
             }
-            if(new_lqr_parameters_cb)
+            if(g_new_lqr_parameters_cb)
             {
-                new_lqr_parameters_cb(lqr_parameters);
+                g_new_lqr_parameters_cb(g_lqr_parameters);
             }
         }
         else

@@ -8,21 +8,14 @@
 extern "C" {
 #endif
 
-#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
 
-struct identification_data
+typedef struct imu_data
 {
     float angle;
     float angle_dt;
-};
+} imu_data;
 
-typedef void (*imu_updated_cb_t)(struct identification_data data);
-
-#else
-
-typedef void (*imu_updated_cb_t)(float angle);
-
-#endif /* CONFIG_MODEL_IDENTIFICATION_DRV || CONFIG_PID_ENABLED */
+typedef void (*imu_updated_cb_t)(imu_data data);
 
 void
 new_imu_cb_register(imu_updated_cb_t _new_imu_cb);

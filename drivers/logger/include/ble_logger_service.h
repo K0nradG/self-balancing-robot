@@ -21,7 +21,7 @@ bool
 get_notif_status();
 
 void
-set_notif_status(bool value);
+set_notif_status(bool nus_notification_enabled);
 
 #ifdef __cplusplus
 }

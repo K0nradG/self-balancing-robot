@@ -15,7 +15,6 @@ extern "C" {
     //        N_dt)  // Alpha coefficients to be used directly by the low-pass filter: alpha = (N * dt) / (1 + N * dt)
 
 #define DEG_TO_RAD (M_PI / 180.0f)
-#define ANGLE_OFFSET 95.0f
 
 float
 limit(float input, float lower_bound, float upper_bound);

@@ -4,8 +4,7 @@
 #include "logger.h"
 #include "model_identification.h"
 
-float buffer[BUFFER_SIZE];
-
+float g_buffer[BUFFER_SIZE] = {0};
 static struct k_work_delayable identification_data_sending_work;
 
 static void
@@ -13,9 +12,9 @@ identification_data_sending_work_handler(struct k_work* work)
 {
     platform_log("MODEL", LOG_LEVEL_INF, "model data sending start\n");
 
-    for(uint8_t i = 0; i < BUFFER_COUNT; i++)
+    for(uint8_t i = 0u; i < BUFFER_COUNT; i++)
     {
-        uint16_t len = buffer_get(i, buffer, BUFFER_SIZE);
+        uint16_t len = buffer_get(i, g_buffer, BUFFER_SIZE);
 
         platform_log("MODEL", LOG_LEVEL_INF, "buffor data: %d\n", i);
 
@@ -24,7 +23,7 @@ identification_data_sending_work_handler(struct k_work* work)
             for(uint16_t j = 0; j < len; j++)
             {
                 char data_str[16];
-                snprintf(data_str, sizeof(data_str), "%.3f\n", (double)buffer[j]);
+                snprintf(data_str, sizeof(data_str), "%.3f\n", (double)g_buffer[j]);
 
                 platform_log("MODEL", LOG_LEVEL_INF, "%s\n", data_str);
 

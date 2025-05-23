@@ -10,12 +10,12 @@
 #include "logger.h"
 #endif  // CONFIG_MOTOR_CONTROLLER_LOG
 
-#define N_GPIO_PINS 5
-#define DIRECTION_CONTROL_PINS_BEGIN_IDX 1
+#define N_GPIO_PINS 5u
+#define DIRECTION_CONTROL_PINS_BEGIN_IDX 1u
 #define PWM_PERIOD_NS PWM_USEC(CONFIG_PWM_PERIOD_US)
 
-static bool controller_enabled = false;
-static MOTORS_DATA motors_data = {.direction = POSITIVE, .duty_cycle_percent = 0, .start = false};
+static bool g_controller_enabled = false;
+static MOTORS_DATA g_motors_data = {.direction = POSITIVE, .duty_cycle_percent = 0u, .start = false};
 static struct k_work_delayable motor_controller_work;
 
 static struct gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
@@ -30,21 +30,21 @@ static const struct pwm_dt_spec pwm_dc_1 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_1));
 static const struct pwm_dt_spec pwm_dc_2 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_2));
 
 void
-set_enable_controller(bool enable)
+set_enable_controller(bool controller_enabled)
 {
-    controller_enabled = enable;
+    g_controller_enabled = controller_enabled;
 }
 
 void
 set_start_motors(bool start)
 {
-    motors_data.start = start;
+    g_motors_data.start = start;
 }
 
 void
 set_direction(DIRECTION direction)
 {
-    motors_data.direction = direction;
+    g_motors_data.direction = direction;
 }
 
 void
@@ -60,7 +60,7 @@ set_duty_cycle_value(uint8_t duty_cycle_percent)
         duty_cycle_percent = 0;
     }
 
-    motors_data.duty_cycle_percent = duty_cycle_percent;
+    g_motors_data.duty_cycle_percent = duty_cycle_percent;
 }
 
 static int
@@ -98,11 +98,9 @@ SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 void
 stop_motors(void)
 {
-    int ret = 0;
-
     for(uint8_t i = DIRECTION_CONTROL_PINS_BEGIN_IDX; i < N_GPIO_PINS; i++)
     {
-        ret = gpio_pin_set_dt(gpio_pins[i], 0);
+        int const ret = gpio_pin_set_dt(gpio_pins[i], 0);
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
         if(ret)
         {
@@ -115,9 +113,7 @@ stop_motors(void)
 static void
 disable_controller(void)
 {
-    int ret = 0;
-
-    ret = gpio_pin_set_dt(&h_b_en, 0);
+    int const ret = gpio_pin_set_dt(&h_b_en, 0);
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
     if(ret)
     {
@@ -130,7 +126,7 @@ disable_controller(void)
 static void
 enable_controller(void)
 {
-    int ret = gpio_pin_set_dt(&h_b_en, 1);
+    int const ret = gpio_pin_set_dt(&h_b_en, 1);
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
     if(ret)
     {
@@ -202,14 +198,14 @@ set_new_duty_cycle_value(uint8_t duty_cycle_percent)
 static void
 update_motors_control(void)
 {
-    if(!motors_data.start)
+    if(!g_motors_data.start)
     {
         stop_motors();
     }
     else
     {
-        run_motors_in_direction(motors_data.direction);
-        set_new_duty_cycle_value(motors_data.duty_cycle_percent);
+        run_motors_in_direction(g_motors_data.direction);
+        set_new_duty_cycle_value(g_motors_data.duty_cycle_percent);
     }
 }
 
@@ -218,7 +214,7 @@ motor_controller_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
 
-    if(!controller_enabled)
+    if(!g_controller_enabled)
     {
         disable_controller();
     }

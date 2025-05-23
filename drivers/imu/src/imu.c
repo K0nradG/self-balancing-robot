@@ -10,39 +10,34 @@
 #include "logger.h"
 #endif  // CONFIG_IMU_LOG
 
+#define GYRO_CALIBRATION_SAMPLES 10000
+
 #define ALPHA 0.997f
 #define M_PI 3.14159265358979323846f
 #define MICRO_PARTS_CONVERT 1e-06f
 
-static int reset_cnt;
-#define RESET_INTERVAL 100
-
-struct device const* imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
-imu_updated_cb_t new_imu_cb  = NULL;
-
-// volatile float gyro_angle =
-//     NAN;  // it is set to NAN because the first value of gyro_rate should be set from accelerometer to
-//           // prevent the situation where the regulator setpoint depends on inital position of the robot (imu).
-
-volatile float angle = 0;
-
-static float gyro_offset_x = 0.0f;
-static float gyro_offset_y = 0.0f;
-static float gyro_offset_z = 0.0f;
-static int sample_count    = 0;
-#define GYRO_CALIBRATION_SAMPLES 10000
-
 #define ANGLE_OFFSET 90.0f
 #define DEG_TO_RAD (M_PI / 180.0f)
-
 #define OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
+
+typedef struct gyro_calibration_data
+{
+    int sample_count;
+    float gyro_offset_x;
+    float gyro_offset_y;
+    float gyro_offset_z;
+} gyro_calibration_data;
+
+static gyro_calibration_data g_calibration_data = {0};
+struct device const* imu_dev                    = DEVICE_DT_GET_ONE(invensense_mpu6050);
+imu_updated_cb_t g_new_imu_cb                   = NULL;
 
 static int
 process_imu(struct device const* dev);
 
 #ifdef CONFIG_MPU6050_TRIGGER
 
-static struct sensor_trigger trigger;
+static struct sensor_trigger trigger = {0};
 
 // Interrupt handler:
 static void
@@ -62,33 +57,34 @@ handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 #endif  // CONFIG_MPU6050_TRIGGER
 
 void
-new_imu_cb_register(imu_updated_cb_t _new_imu_cb);
-
-int cnt = 0;
+new_imu_cb_register(imu_updated_cb_t new_imu_cb);
 
 void
 calibrate_gyro(struct sensor_value* gyro_data)
 {
-    if(sample_count < GYRO_CALIBRATION_SAMPLES)
+    if(g_calibration_data.sample_count < GYRO_CALIBRATION_SAMPLES)
     {
-        gyro_offset_x += (float)sensor_value_to_double(&gyro_data[0]);
-        gyro_offset_y += (float)sensor_value_to_double(&gyro_data[1]);
-        gyro_offset_z += (float)sensor_value_to_double(&gyro_data[2]);
-        sample_count++;
+        g_calibration_data.gyro_offset_x += (float)sensor_value_to_double(&gyro_data[0]);
+        g_calibration_data.gyro_offset_y += (float)sensor_value_to_double(&gyro_data[1]);
+        g_calibration_data.gyro_offset_z += (float)sensor_value_to_double(&gyro_data[2]);
+        g_calibration_data.sample_count++;
     }
     else
     {
-        gyro_offset_x /= GYRO_CALIBRATION_SAMPLES;
-        gyro_offset_y /= GYRO_CALIBRATION_SAMPLES;
-        gyro_offset_z /= GYRO_CALIBRATION_SAMPLES;
+        g_calibration_data.gyro_offset_x /= GYRO_CALIBRATION_SAMPLES;
+        g_calibration_data.gyro_offset_y /= GYRO_CALIBRATION_SAMPLES;
+        g_calibration_data.gyro_offset_z /= GYRO_CALIBRATION_SAMPLES;
 
-        if(cnt == 0)
+#ifdef CONFIG_IMU_LOG
+        static bool log_offsets = true;
+        if(log_offsets)
         {
+            log_offsets = false;
             platform_log(
-                "IMU", LOG_LEVEL_INF, "Gyro calibration complete: X = %f, Y = %f, Z = %f", gyro_offset_x, gyro_offset_y,
-                gyro_offset_z);
-            cnt++;
+                "IMU", LOG_LEVEL_INF, "Gyro calibration complete: X = %f, Y = %f, Z = %f",
+                g_calibration_data.gyro_offset_x, g_calibration_data.gyro_offset_y, g_calibration_data.gyro_offset_z);
         }
+#endif  // CONFIG_IMU_LOG
     }
 }
 
@@ -142,44 +138,23 @@ init(void)
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
-#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
-static struct identification_data
-#else
-static float
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-calculate_angle(
-    struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)
+static struct imu_data
+get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)
 {
     ARG_UNUSED(temperature);
 
+    static float angle         = 0.0f;
     static int64_t last_time   = 0;
     int64_t const current_time = k_uptime_get();
 
-    // Compute dynamic DT in seconds
+    // Compute dynamic DT in seconds:
     float const dt = (last_time > 0) ? (current_time - last_time) / 1000.0 : 0.01;  // Default DT if first run
 
     float const ay = (float)sensor_value_to_double(&accelerometer_data[1]);
     float const az = (float)sensor_value_to_double(&accelerometer_data[2]);
 
-    float gyro_rate_x = (float)sensor_value_to_double(&gyro_data[0]) + 0.032657f;  // Gyro calibration
-
-    float const accel_angle = (float)atan2f(ay, az) + OFFSET;  // [radians]
-
-    // float gyro_rate = gyro_rate_x;  // [rad/s]
-
-    // if(isnan(gyro_angle))
-    //{
-    //     gyro_angle = accel_angle;  // Set gyro initial value
-    // }
-
-    // gyro_angle += gyro_rate_x * dt;
-
-    // reset_cnt++;
-    // if(cnt >= RESET_INTERVAL)
-    //{
-    // gyro_angle = accel_angle;  // Angle Reset
-    // reset_cnt  = 0;
-    //}
+    float gyro_rate_x       = (float)sensor_value_to_double(&gyro_data[0]) + 0.032657f;  // Gyro calibration
+    float const accel_angle = (float)atan2f(ay, az) + OFFSET;                            // [radians]
 
     if(dt > 0.01)
     {
@@ -189,26 +164,10 @@ calculate_angle(
     {
         angle = ALPHA * (angle + gyro_rate_x * dt) + (1 - ALPHA) * accel_angle;
     }
-
-    // angle = ALPHA * (gyro_angle) + (1.0f - ALPHA) * accel_angle;
-
-    // platform_log("IMU", LOG_LEVEL_ERR, "accel_angle: %f", accel_angle * (1 / DEG_TO_RAD));
-    // platform_log("IMU", LOG_LEVEL_ERR, "gryo rate raw: %f", gyro_rate_x * (1 / DEG_TO_RAD));
-    // platform_log("IMU", LOG_LEVEL_ERR, "integrated gyro: %f", gyro_rate_x * dt * (1 / DEG_TO_RAD));
-    // platform_log("IMU", LOG_LEVEL_ERR, "angle filtr: %f", angle * (1 / DEG_TO_RAD));
     last_time = current_time;
 
-#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
-
-    struct identification_data data;
-
-    data.angle    = angle;
-    data.angle_dt = gyro_rate_x;
-
+    imu_data data = {.angle = angle, .angle_dt = gyro_rate_x};
     return data;
-#else
-    return angle;
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }
 
 static int
@@ -234,30 +193,20 @@ process_imu(struct device const* dev)
         return -ENODEV;
     }
 
-#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
-
-    struct identification_data data = calculate_angle(accelerometer_data, gyro_data, &temperature);
-#else
-    float const angle_ = calculate_angle(accelerometer_data, gyro_data, &temperature);
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
-    if(new_imu_cb)
+    imu_data const imu_data = get_data(accelerometer_data, gyro_data, &temperature);
+    if(g_new_imu_cb)
     {
-#if defined(CONFIG_MODEL_IDENTIFICATION_DRV) || defined(CONFIG_PID_ENABLED)
-        new_imu_cb(data);
-#else
-        new_imu_cb(angle_);
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+        g_new_imu_cb(imu_data);
     }
 
     return ret;
 }
 
 void
-new_imu_cb_register(imu_updated_cb_t _new_imu_cb)
+new_imu_cb_register(imu_updated_cb_t new_imu_cb)
 {
-    if(_new_imu_cb)
+    if(new_imu_cb)
     {
-        new_imu_cb = _new_imu_cb;
+        g_new_imu_cb = new_imu_cb;
     }
 }

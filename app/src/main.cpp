@@ -103,13 +103,13 @@ main(void)
 #endif  // CONFIG_LOG_OVER_BLE
 
 #ifdef CONFIG_REGULATOR_DRV
-    new_imu_cb_register(new_imu_angle_for_regulator);  // IMU callback is different when identification is ON or OFF.
+    new_imu_cb_register(new_imu_data_for_regulator); 
     new_calculate_regulator_output_cb_register(
         calculate_regulator_output);             // Regulator output calculation callback depends on the regulator type.
     new_get_setpoint_cb_register(get_setpoint);  // Setpoint getter callback depends on the regulator type
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    new_pwm_cb_register(new_regulator_data_for_identification);
+    new_send_identification_data_cb_register(new_regulator_data_for_identification);
 
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Model identification driver is enabled.");

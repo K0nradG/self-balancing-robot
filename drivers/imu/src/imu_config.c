@@ -42,7 +42,7 @@ set_sensor_settings(uint8_t reg, uint8_t _configuration)
 static int
 get_sensor_settings(uint8_t reg, uint8_t* value)
 {
-    int ret;
+    int ret          = 0;
     uint8_t reg_addr = reg;
 
     ret = i2c_write_dt(&dev_i2c, &reg_addr, sizeof(reg_addr));
@@ -54,7 +54,7 @@ get_sensor_settings(uint8_t reg, uint8_t* value)
         return ret;
     }
 
-    // Odczytujemy wartość z rejestru
+    // Read register value:
     ret = i2c_read_dt(&dev_i2c, value, sizeof(*value));
     if(ret != 0)
     {
@@ -74,7 +74,7 @@ get_sensor_settings(uint8_t reg, uint8_t* value)
 void
 mpu_reset(uint8_t conf)
 {
-    uint8_t tmp;
+    uint8_t tmp = 0u;
     get_sensor_settings(PWR_MGMT_1, &tmp);
     tmp &= ~(1 << 7);
     tmp |= ((conf & 0x1) << 7);
@@ -84,7 +84,7 @@ mpu_reset(uint8_t conf)
 void
 set_dlpf(void)
 {
-    uint8_t tmp;
+    uint8_t tmp = 0u;
     get_sensor_settings(DLPF_REG_ADDR, &tmp);
     tmp |= DLPF_44_HZ_REG_VAL & 0x7;
     set_sensor_settings(DLPF_REG_ADDR, tmp);

@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 void
-led_start_periodic_blinking(uint16_t interval_ms);
+led_start_periodic_blinking(uint16_t blinking_interval);
 
 void
 led_stop_periodic_blinking(void);

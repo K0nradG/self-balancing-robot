@@ -11,13 +11,13 @@
 #include "logger.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_LOG
 
-static const struct gpio_dt_spec button = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
-static struct gpio_callback button_cb_data;
+static const struct gpio_dt_spec button      = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+static struct gpio_callback g_button_data_cb = {0};
 
-static struct ring_buf buffers[BUFFER_COUNT];
-static uint8_t buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)];
-static uint16_t buffer_index[BUFFER_COUNT] = {0};
-static bool is_full[BUFFER_COUNT];
+static struct ring_buf g_buffers[BUFFER_COUNT]                          = {0};
+static uint8_t g_buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)] = {0};
+static uint16_t g_buffer_index[BUFFER_COUNT]                            = {0};
+static bool g_is_full[BUFFER_COUNT]                                     = {0};
 
 static struct k_work_delayable model_identification_work;
 
@@ -44,16 +44,18 @@ typedef enum identification_state
 
 static identification_state state = IDENTIFICATION_STOPPED;
 
-static struct identification_regulator_data identification_data;
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
+static struct identification_data identification_data = {0};
 
 void
-new_regulator_data_for_identification(struct identification_regulator_data data)
+new_regulator_data_for_identification(struct identification_data data)
 {
     identification_data.dt       = data.dt;
     identification_data.pwm      = data.pwm;
     identification_data.angle    = data.angle;
     identification_data.angle_dt = data.angle_dt;
 }
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 void
 button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins);
@@ -73,14 +75,14 @@ init(void)
     }
 
     ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
-    gpio_init_callback(&button_cb_data, button_pressed, BIT(button.pin));
-    gpio_add_callback(button.port, &button_cb_data);
+    gpio_init_callback(&g_button_data_cb, button_pressed, BIT(button.pin));
+    gpio_add_callback(button.port, &g_button_data_cb);
 
     for(int i = 0; i < BUFFER_COUNT; i++)
     {
-        ring_buf_init(&buffers[i], BUFFER_SIZE * sizeof(float), buffer_data[i]);
-        buffer_index[i] = 0;
-        is_full[i]      = false;
+        ring_buf_init(&g_buffers[i], BUFFER_SIZE * sizeof(float), g_buffer_data[i]);
+        g_buffer_index[i] = 0;
+        g_is_full[i]      = false;
     }
 
     return 0;
@@ -104,10 +106,12 @@ model_identification_work_handler(struct k_work* work)
 
     if(!buffer_all_full())
     {
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
         buffer_put(ANGLE_BUFFER_ID, identification_data.angle);
         buffer_put(ANGLE_DT_BUFFER_ID, identification_data.angle_dt);
         buffer_put(U_BUFFER_ID, identification_data.pwm);
         buffer_put(TIME_BUFFER_ID, identification_data.dt);
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
     }
     else
     {
@@ -150,16 +154,16 @@ buffer_put(uint8_t buffer_id, float data)
     if(buffer_id >= BUFFER_COUNT)
         return false;
 
-    if(is_full[buffer_id])
+    if(g_is_full[buffer_id])
         return false;
 
-    int ret = ring_buf_put(&buffers[buffer_id], (uint8_t*)&data, sizeof(float));
+    int ret = ring_buf_put(&g_buffers[buffer_id], (uint8_t*)&data, sizeof(float));
     if(ret == sizeof(float))
     {
-        buffer_index[buffer_id]++;
-        if(buffer_index[buffer_id] >= BUFFER_SIZE)
+        g_buffer_index[buffer_id]++;
+        if(g_buffer_index[buffer_id] >= BUFFER_SIZE)
         {
-            is_full[buffer_id] = true;
+            g_is_full[buffer_id] = true;
         }
         return true;
     }
@@ -172,13 +176,13 @@ buffer_get(uint8_t buffer_id, float* data, uint16_t max_len)
     if(buffer_id >= BUFFER_COUNT)
         return 0;
 
-    uint16_t len = (buffer_index[buffer_id] < max_len) ? buffer_index[buffer_id] : max_len;
+    uint16_t len = (g_buffer_index[buffer_id] < max_len) ? g_buffer_index[buffer_id] : max_len;
     for(uint16_t i = 0; i < len; i++)
     {
-        ring_buf_get(&buffers[buffer_id], (uint8_t*)&data[i], sizeof(float));
+        ring_buf_get(&g_buffers[buffer_id], (uint8_t*)&data[i], sizeof(float));
     }
 
-    buffer_index[buffer_id] -= len;
+    g_buffer_index[buffer_id] -= len;
     return len;
 }
 
@@ -187,7 +191,7 @@ buffer_all_full(void)
 {
     for(int i = 0; i < BUFFER_COUNT; i++)
     {
-        if(!is_full[i])
+        if(!g_is_full[i])
         {
             return false;
         }
@@ -246,8 +250,8 @@ buffers_reset(void)
 {
     for(int i = 0; i < BUFFER_COUNT; i++)
     {
-        ring_buf_reset(&buffers[i]);
-        buffer_index[i] = 0;
-        is_full[i]      = false;
+        ring_buf_reset(&g_buffers[i]);
+        g_buffer_index[i] = 0;
+        g_is_full[i]      = false;
     }
 }

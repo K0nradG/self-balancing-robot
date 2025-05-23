@@ -2,8 +2,6 @@
 #define MODEL_IDENTIFICATION_H
 
 #include <stdint.h>
-#include "imu.h"
-#include "regulator.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,14 +10,18 @@ extern "C" {
 #define RECORD_TIME_MS 10000
 #define BUFFER_SIZE (RECORD_TIME_MS / CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME)
 
-#define BUFFER_COUNT 4  // Independent buffers number. One buffer is 4kB (1000 floats), 4 buffers - 16kB
-#define ANGLE_BUFFER_ID 0
-#define ANGLE_DT_BUFFER_ID 1
-#define U_BUFFER_ID 2
-#define TIME_BUFFER_ID 3
+#define BUFFER_COUNT 4u  // Independent buffers number. One buffer is 4kB (1000 floats), 4 buffers - 16kB
+#define ANGLE_BUFFER_ID 0u
+#define ANGLE_DT_BUFFER_ID 1u
+#define U_BUFFER_ID 2u
+#define TIME_BUFFER_ID 3u
+
+#if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
+#include "regulator.h"
 
 void
-new_regulator_data_for_identification(struct identification_regulator_data data);
+new_regulator_data_for_identification(struct identification_data data);
+#endif // CONFIG_MODEL_IDENTIFICATION_DRV
 
 uint16_t
 buffer_get(uint8_t buffer_id, float* data, uint16_t max_len);

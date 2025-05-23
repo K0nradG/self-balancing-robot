@@ -17,13 +17,14 @@ platform_log(const char* module, int level, const char* fmt, ...)
 {
 #if defined(CONFIG_LOG_OVER_SERIAL) || defined(CONFIG_LOG_OVER_BLE)
 
-    char log_msg[LOG_MSG_MAX_SIZE];
-    va_list args;
+    char log_msg[LOG_MSG_MAX_SIZE] = {0};
+    va_list args                   = {0};
+
     va_start(args, fmt);
     vsnprintf(log_msg, sizeof(log_msg), fmt, args);
     va_end(args);
 
-    const char* level_str;
+    char* level_str = NULL;
     switch(level)
     {
         case LOG_LEVEL_ERR:

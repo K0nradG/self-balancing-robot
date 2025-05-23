@@ -12,14 +12,14 @@ static const struct gpio_dt_spec led_dev = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpio
 
 static struct k_work_delayable led_toggle_work;
 
-static uint16_t blinking_interval;
-static bool periodic_blinking_started;
+static uint16_t g_blinking_interval     = 0u;
+static bool g_periodic_blinking_started = false;
 
 static void
 led_toggle_work_handler(struct k_work* work)
 {
     gpio_pin_toggle_dt(&led_dev);
-    reschedule_work(&led_toggle_work, K_MSEC(blinking_interval), "led blink");
+    reschedule_work(&led_toggle_work, K_MSEC(g_blinking_interval), "led blink");
 }
 
 static K_WORK_DELAYABLE_DEFINE(led_toggle_work, led_toggle_work_handler);
@@ -53,18 +53,18 @@ init(void)
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 void
-led_start_periodic_blinking(uint16_t interval_ms)
+led_start_periodic_blinking(uint16_t blinking_interval)
 {
 #ifdef CONFIG_INTERFACE_LOG
-    if(periodic_blinking_started)
+    if(g_periodic_blinking_started)
     {
         platform_log("INTERFACE", LOG_LEVEL_ERR, "led worker already started");
     }
 #endif  // CONFIG_INTERFACE_LOG
 
-    periodic_blinking_started = true;
+    g_periodic_blinking_started = true;
 
-    blinking_interval = interval_ms;
+    g_blinking_interval = blinking_interval;
     reschedule_work(&led_toggle_work, K_NO_WAIT, "led blink");
 }
 
@@ -72,15 +72,15 @@ void
 led_stop_periodic_blinking(void)
 {
 #ifdef CONFIG_INTERFACE_LOG
-    if(!periodic_blinking_started)
+    if(!g_periodic_blinking_started)
     {
         platform_log("INTERFACE", LOG_LEVEL_ERR, "led worker not started");
     }
 #endif  // CONFIG_INTERFACE_LOG
 
-    periodic_blinking_started = false;
+    g_periodic_blinking_started = false;
 
-    const int ret = k_work_cancel_delayable(&led_toggle_work);
+    int const ret = k_work_cancel_delayable(&led_toggle_work);
 
 #ifdef CONFIG_INTERFACE_LOG
     if(ret)

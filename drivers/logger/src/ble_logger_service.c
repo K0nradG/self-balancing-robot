@@ -10,20 +10,19 @@
 
 LOG_MODULE_REGISTER(ble_logger_nus, CONFIG_LOGGER_LOG_LEVEL);
 
-static bool nus_notification_enabled = false;
-
-static regulator_parameters_parser_cb_t regulator_parameters_parser_cb = NULL;
+static bool g_nus_notification_enabled                                   = false;
+static regulator_parameters_parser_cb_t g_regulator_parameters_parser_cb = NULL;
 
 bool
 get_notif_status()
 {
-    return nus_notification_enabled;
+    return g_nus_notification_enabled;
 }
 
 void
-set_notif_status(bool value)
+set_notif_status(bool nus_notification_enabled)
 {
-    nus_notification_enabled = value;
+    g_nus_notification_enabled = nus_notification_enabled;
 }
 
 static void
@@ -102,18 +101,18 @@ new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
     LOG_INF("Received NUS data: %s", received_data);
 #endif  // CONFIG_REGULATOR_LOG
 
-    if(regulator_parameters_parser_cb)
+    if(g_regulator_parameters_parser_cb)
     {
-        regulator_parameters_parser_cb(data);
+        g_regulator_parameters_parser_cb(data);
     }
 }
 
 void
-new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _regulator_parameters_parser_cb)
+new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t regulator_parameters_parser_cb)
 {
-    if(_regulator_parameters_parser_cb)
+    if(regulator_parameters_parser_cb)
     {
-        regulator_parameters_parser_cb = _regulator_parameters_parser_cb;
+        g_regulator_parameters_parser_cb = regulator_parameters_parser_cb;
     }
 }
 

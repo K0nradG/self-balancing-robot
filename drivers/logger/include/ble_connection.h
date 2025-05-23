@@ -8,7 +8,7 @@ bool
 get_con_status();
 
 void
-set_con_status(bool value);
+set_con_status(bool connected_flag);
 
 #endif /*BLE_CONNECTION_H*/
 #endif /*CONFIG_LOG_OVER_BLE*/

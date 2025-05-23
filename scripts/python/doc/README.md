@@ -17,31 +17,3 @@ Whenever compilation warnings/errors occur, try running `get_compile_commands.py
 ## Parsing to valid .mat file
 
 MATLAB scripts created to **identify object model** based on the data gathered from Dongle accept only a **specific** data format. After receiving the serial data (e.g. running `receive_serial_data.py`) run `parse_to_mat_with_merge.py`. The script will take the specified data and combine them into one `.mat` format accepted by the `.m` scripts. After that, MATLAB scripts can be run to perform identification and/or regulators tuning.
-
-## Model Identification
-
-To identify the model, first run the **`receive_serial_data.py`** script to gather data from the Dongle. Then, run the **`estimate_model.py`** script.
-
-The result will be the estimated model parameters $ \alpha_1 $, $ \alpha_2 $, and $ \alpha_3 $, where:
-
-- $ \alpha_1 = -\frac{b}{I} $ (damping coefficient over moment of inertia),
-- $ \alpha_2 = \frac{m \cdot g \cdot l}{I} $ (gravitational term, based on the pendulum's mass, length, and gravitational acceleration),
-- $ \alpha_3 = \frac{1}{I} $ (inverse of moment of inertia, affecting the control input).
-
-These parameters are used in the state-space model of the inverted pendulum:
-
-$$
-\dot{x_1} = x_2
-$$
-
-$$
-\dot{x_2} = \alpha_1 \cdot x_2 + \alpha_2 \cdot \sin(x_1) + \alpha_3 \cdot u
-$$
-
-Where:
-- $ x_1 = \theta $ (the angle of deviation),
-- $ x_2 = \dot{\theta} $ (the angular velocity),
-- $ u $ (control input, the torque applied by the motor).
-
-Using these parameters, you can further analyze or design a controller for the balancing robot.
-

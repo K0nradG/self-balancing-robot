@@ -1,16 +1,16 @@
 #include "ble_connection.h"
 #include <stdbool.h>
 
-static bool connected_flag;
+static bool g_connected_flag = false;
 
 bool
 get_con_status()
 {
-    return connected_flag;
+    return g_connected_flag;
 }
 
 void
-set_con_status(bool value)
+set_con_status(bool connected_flag)
 {
-    connected_flag = value;
+    g_connected_flag = connected_flag;
 }

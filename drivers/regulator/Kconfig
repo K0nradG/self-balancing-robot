@@ -14,7 +14,7 @@ config REGULATOR_LOG
     depends on LOGGER_DRV
 
 config ALPHA
-    int "Error filter coefficient unscaled"
+    int "Angle filter coefficient unscaled"
     default 10
 
 config ALPHA_SCALER

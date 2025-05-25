@@ -62,7 +62,7 @@ static void
 regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
-    float error = 0.0f - g_angle;  // low_pass_filter(g_angle);
+    float error = 0.0f - input_low_pass_filter(g_angle);
 
     if(g_new_get_setpoint_cb)
     {

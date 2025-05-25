@@ -13,9 +13,13 @@ config REGULATOR_LOG
     bool "Enable logging from motors driver"
     depends on LOGGER_DRV
 
-config FILTER_CUTOFF_FREQUENCY
-    int "Filter cut-off frequency in Hz"
-    default 40
+config ALPHA
+    int "Error filter coefficient unscaled"
+    default 10
+
+config ALPHA_SCALER
+    int "Alpha coefficient scaler"
+    default 100
 
 config PID_ENABLED
     bool "PID controller enabled, else enable LQR"

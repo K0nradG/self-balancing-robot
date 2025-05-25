@@ -8,11 +8,7 @@
 
 // PID tuner with a little hand tuning (lowering I part and increasing D):
 static struct pid_regulator_parameters g_pid_regulator_parameters = {
-    .Kp = 886.52735495982f,
-    .Ki = 10000.0f,
-    .Kd = 1.0f,
-    // N = 3097.63192969837
-    .setpoint = -7.4485f};
+    .Kp = 886.52735495982f, .Ki = 10000.0f, .Kd = 1.0f, /*.N = 3097.63192969837,*/ .setpoint = -7.4485f};
 
 // Hand tuned.
 // static struct pid_regulator_parameters g_pid_regulator_parameters = {
@@ -56,10 +52,10 @@ calculate_regulator_output(float error)
         integral += g_pid_regulator_parameters.Ki * error * dt;
     }
 
-    static float last_error               = 0;
-    float const error_difference_filtered = error - last_error;  // low_pass_filter(error - last_error);
-    float const derivative                = g_pid_regulator_parameters.Kd * (error_difference_filtered / dt);
-    last_error                            = error;
+    static float last_error      = 0;
+    float const error_difference = error - last_error;
+    float const derivative       = g_pid_regulator_parameters.Kd * (error_difference / dt);
+    last_error                   = error;
 
     float output = proportional + integral + derivative;
 

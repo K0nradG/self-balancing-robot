@@ -20,7 +20,7 @@ compare(data, sys_closed_loop);
 title('Identified Model Fit Comparison');
 
 % Calculating model parameters based on identification results:
-Kp = 1500;
+Kp = 1200.0;
 
 b0 = num_closed(1);
 b1 = den_closed(3);

@@ -6,8 +6,9 @@ addpath(functions_dir); % Adding functions directory path allows to call them di
 addpath(data_dir);
 
 % Load the desired data:
-load('merged_robot_data_k650.3_s-95.mat');
+load('merged_robot_data_k1200.0_s-8.5.mat');
 
 % Introduce needed parameters:
-angle_shift = 7.4485;
+angle_shift = 8.5;
 Ts = 0.001;
+Torque_max = 0.2943;

@@ -13,12 +13,12 @@ def merge_serial_data_to_mat() -> None:
     if not os.path.exists(matlab_dir):
         os.makedirs(matlab_dir)
 
-    output_mat_file: str = os.path.join(matlab_dir, "merged_robot_data_k650.3_s-95.mat")
+    output_mat_file: str = os.path.join(matlab_dir, "merged_robot_data_k1200.0_s-8.5.mat")
     files_to_merge = [
-        "minicom.txt",
-        # "k650.3s-95-v2.txt",
-        # "k650.3s-95-v3.txt",
-        # "k650.3s-95-v4.txt"
+        "minicom1.txt",
+        "minicom2.txt",
+        "minicom3.txt",
+        "minicom4.txt",
     ]
 
     buffer_pattern: str = re.compile(r"MODEL:\s*buffor data:\s*(\d+)")

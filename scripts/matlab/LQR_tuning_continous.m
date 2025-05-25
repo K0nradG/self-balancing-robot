@@ -1,6 +1,6 @@
 % Weight matrices:
-Q = diag([(1 / rad2deg(0.5)^2), (1 / 0.05)^2]);
-R = 1 / (0.2943)^2;
+Q = diag([1 / (deg2rad(2.0))^2, 1 / (0.05)^2]);
+R = 1 / (Torque_max)^2;
 
 K = lqr(ss_continous.A, ss_continous.B, Q, R);
 

@@ -1,25 +1,21 @@
 clc; clearvars; close
 init
 
-% Adjust input signals:
 theta = theta + deg2rad(angle_shift); % To check if theta is by default in radians and needs shifting.
 pwm = pwm * -1; % May need inverting to account for improper signs of angle/pwm.
 pwm = pwm / 100; % Scale PWM to be from -1 to 1.
 
 % Optimization inputs:
-from_cm_to_kg = 1 / 100;
-Torque_max = 0.2943; % [kg * m]
 u = pwm * Torque_max;
 xr = theta;
 tf_ = (1:length(u)) * Ts;
 x0 = [xr(1); 0];
 
-% [2.8023, 44.0931, 0.0369] % Best params so far for no torque scaling.
 % Initial guess for parameters [a, b, c]:
-initial_guess = [1, 1, 1]; % For Torque scaling start like this, or select some other point.
+initial_guess = [0.1, 0.1, 0.1]; % For Torque scaling start like this, or select some other point.
 
 % Run optimization:
-options = optimset('MaxFunEvals', 5000, 'MaxIter', 5000); 
+options = optimset('MaxFunEvals', 5000, 'MaxIter', 5000);
 best_params = fminsearch(@(params) objective_function(params, x0, u, tf_(end), xr), initial_guess, options);
 
 % Display results:
@@ -41,9 +37,9 @@ b1 = best_params(2);
 a2_reg = best_params(1);
 
 % Calculating model parameters based on identification results:
-Kp = 1500;
+Kp = 1200.0;
 
-a1 = b0 / Kp 
+a1 = b0 / Kp
 a2 = a2_reg
 a3 = b1 - b0
 

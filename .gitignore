@@ -7,3 +7,4 @@ build_*
 compile_commands.json
 slprj
 *.asv
+*.slxc

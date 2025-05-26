@@ -40,6 +40,7 @@ def parse_serial_data(port, log_file_name, baudrate=115200, timeout=1):
 
 if __name__ == "__main__":
     port = "COM4"
-    parse_serial_data(port, "minicom.txt")
+    log_file = "minicom.txt" 
+    parse_serial_data(port, log_file)
 
-    print("Data logged to data/minicom.txt.")
+    print(f"Data logged to data/{log_file}.")

@@ -4,17 +4,22 @@
 #include "regulator_utils.h"
 #include "zephyr/kernel.h"
 
-// the best
-//     .Kp = 256.2f, .Ki = 1001.0f, .Kd = 8.22f, .setpoint = 0.0f
+// For identification apply K = 1200.0f and setpoint set to -8.5f.
 
-// great
-//.Kp = 180.7f, .Ki = 1145.0f, .Kd = 4.24f, .setpoint = 0.0f}
-
+// PID tuner with a little hand tuning (lowering I part and increasing D):
 static struct pid_regulator_parameters g_pid_regulator_parameters = {
-    .Kp       = 1500.0f,
-    .Ki       = 1000.0f,
-    .Kd       = 0.1f,
-    .setpoint = -7.4485f};  // k450 i0 d10  s2.3   //Kp = 550.0f, .Ki = 500.0f, .Kd = 5.0f, .setpoint = -7.4485f}
+    .Kp = 886.52735495982f, .Ki = 10000.0f, .Kd = 1.0f, /*.N = 3097.63192969837,*/ .setpoint = -7.4485f};
+
+// Hand tuned.
+// static struct pid_regulator_parameters g_pid_regulator_parameters = {
+//     .Kp = 1200.0f, .Ki = 1000.0f, .Kd = 0.1f, .setpoint = -7.4485f};
+
+// A little to aggressive (maybe hand tune?)
+// static struct pid_regulator_parameters g_pid_regulator_parameters = {
+//     .Kp       = 479.901562064471f,
+//     .Ki       = 33282.2230885236f,
+//     .Kd       = 0.304399729736007f,
+//     .setpoint = -7.4485f};}
 pid_params_updated_cb_t g_new_pid_parameters_cb = NULL;
 
 void
@@ -47,10 +52,10 @@ calculate_regulator_output(float error)
         integral += g_pid_regulator_parameters.Ki * error * dt;
     }
 
-    static float last_error               = 0;
-    float const error_difference_filtered = error - last_error;  // low_pass_filter(error - last_error);
-    float const derivative                = g_pid_regulator_parameters.Kd * (error_difference_filtered / dt);
-    last_error                            = error;
+    static float last_error      = 0;
+    float const error_difference = error - last_error;
+    float const derivative       = g_pid_regulator_parameters.Kd * (error_difference / dt);
+    last_error                   = error;
 
     float output = proportional + integral + derivative;
 

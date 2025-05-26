@@ -6,7 +6,7 @@ function dx = rhs(~, x, u, params)
     theta = x(1);
     theta_dot = x(2);
 
-    theta_dot_dot = -a * theta_dot -b * theta + c * u;
+    theta_dot_dot = -a * theta_dot  + b * theta + c * u;
     dx = [theta_dot; theta_dot_dot];
 end
 

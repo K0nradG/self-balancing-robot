@@ -1,6 +1,4 @@
-% Weight matrices:
-Q = diag([100, 1]);
-R = 1;
+init;
 
 K = dlqr(ss_object_discrete.A, ss_object_discrete.B, Q, R);
 

@@ -15,10 +15,12 @@ limit(float input, float lower_bound, float upper_bound)
 }
 
 float
-low_pass_filter(float input)
+input_low_pass_filter(float input)
 {
+    static float const alpha = (float)CONFIG_ALPHA / (float)CONFIG_ALPHA_SCALER;
     static float last_output = 0.0f;
-    float const output       = ALPHA * input + (1 - ALPHA) * last_output;
-    last_output              = output;
+
+    float const output = alpha * input + (1 - alpha) * last_output;
+    last_output        = output;
     return output;
 }

@@ -1,6 +1,4 @@
-% Weight matrices:
-Q = diag([1 / (deg2rad(2.0))^2, 1 / (0.5)^2]);
-R = 1 / (Torque_max)^2;
+init;
 
 K = dlqr(ss_object_discrete.A, ss_object_discrete.B, Q, R);
 

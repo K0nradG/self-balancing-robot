@@ -1,5 +1,7 @@
 clc; clearvars; close
-init
+init;
+
+load('merged_robot_data_k1200.0_s-8.5.mat');
 
 theta = theta + deg2rad(angle_shift); % To check if theta is by default in radians and needs shifting.
 pwm = pwm * -1; % May need inverting to account for improper signs of angle/pwm.
@@ -50,17 +52,4 @@ tf_continous = tf([0, 0, a1], [1, a2, -a3])
 [A, B, C, D] = tf2ss(tf_continous.Numerator{1}, tf_continous.Denominator{1});
 ss_continous = ss(A, B, C, D);
 
-%Ac = ss_controllable.A';
-%Bc = ss_controllable.C';
-%Cc = ss_controllable.B';
-%Dc = ss_controllable.D';
-
-% Discretization using Forward-Euler method:
-%A_d = eye(size(Ac)) + Ts * Ac;
-%B_d = Ts * Bc;
-%C_d = Cc;
-%D_d = Dc;
-
-%ss_object_discrete = ss(A_d, B_d, C_d, D_d, Ts)
-%ss_object_discrete = c2d(ss(Ac, Bc, Cc, Dc), Ts, 'zoh')
 ss_object_discrete = c2d(ss(ss_continous.A, ss_continous.B, ss_continous.C, ss_continous.D), Ts, 'zoh');

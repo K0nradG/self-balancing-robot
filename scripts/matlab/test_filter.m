@@ -1,12 +1,10 @@
-current_dir = pwd;
-functions_dir = sprintf('%s\\matlab_functions', current_dir); 
-data_dir = sprintf('%s\\matlab_data', current_dir); 
+clc; clearvars; close
+init;
 
 pid_filter = load('pid_filter_0.1.mat');
 pid_no_filter =  load('pid_no_filter.mat');
 
 time = (0:length(pid_filter.theta) - 1) * Ts;
-offset = 7.4485; % degrees
 
 figure;
 plot(time, pid_filter.theta + deg2rad(offset))

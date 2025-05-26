@@ -14,8 +14,9 @@
 #endif  // CONFIG_LOG_OVER_BLE
 
 static bool g_automatic_control_started = false;
-static float g_angle                    = 0.0f;
-static float g_angle_dt                 = 0.0f;
+static float g_angle_balance            = 0.0f;
+static float g_angle_balance_dt         = 0.0f;
+static float g_angle_rotation           = 0.0f;
 
 static struct k_work_delayable regulator_work;
 calculate_regulator_output_cb_t g_new_calculate_regulator_output_cb = NULL;
@@ -30,8 +31,9 @@ send_identification_data_cb_t g_send_identification_data_cb = NULL;
 void
 new_imu_data_for_regulator(imu_data imu_data)
 {
-    g_angle    = imu_data.angle;
-    g_angle_dt = imu_data.angle_dt;
+    g_angle_balance    = imu_data.angle_balance;
+    g_angle_balance_dt = imu_data.angle_balance_dt;
+    g_angle_rotation   = imu_data.angle_rotation;
 }
 
 static int
@@ -62,11 +64,11 @@ static void
 regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
-    float error = 0.0f - input_low_pass_filter(g_angle);
+    float error = 0.0f - input_low_pass_filter(g_angle_balance);
 
     if(g_new_get_setpoint_cb)
     {
-        error = g_new_get_setpoint_cb() * DEG_TO_RAD - (g_angle);
+        error = g_new_get_setpoint_cb() * DEG_TO_RAD - (g_angle_balance);
     }
 
     float output = 0.0f;
@@ -75,13 +77,14 @@ regulator_work_handler(struct k_work* work)
 #ifdef CONFIG_PID_ENABLED
         output = g_new_calculate_regulator_output_cb(error);
 #else
-        output = g_new_calculate_regulator_output_cb(g_angle, g_angle_dt);
+        output = g_new_calculate_regulator_output_cb(g_angle_balance, g_angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
     }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
-    struct identification_data data = {.dt = k_uptime_get(), .pwm = output, .angle = g_angle, g_angle_dt = g_angle_dt};
+    struct identification_data data = {
+        .dt = k_uptime_get(), .pwm = output, .angle = g_angle_balance, g_angle_balance_dt = g_angle_balance_dt};
 
     if(g_send_identification_data_cb)
     {
@@ -90,7 +93,8 @@ regulator_work_handler(struct k_work* work)
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_REGULATOR_LOG
-    platform_log("REGULATOR", LOG_LEVEL_ERR, "error %f out: %f", (double)error, (double)output);
+    // platform_log("REGULATOR", LOG_LEVEL_ERR, "error %f out: %f", (double)error, (double)output);
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "rot: %f [deg]", (double)g_angle_rotation * (double)RAD_TO_DEG);
 #endif  // CONFIG_REGULATOR_LOG
 
     int pwm = (int)fabsf(output);

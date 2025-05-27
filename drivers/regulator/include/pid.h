@@ -20,11 +20,17 @@ typedef void (*pid_params_updated_cb_t)(struct pid_regulator_parameters _pid_reg
 void
 new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb);
 
-float
-calculate_regulator_output(float error);
+float 
+calculate_balance_regulator_output(float error);
 
 float
-get_setpoint(void);
+calculate_rotation_regulator_output(float error);
+
+float
+get_balance_setpoint(void);
+
+float
+get_rotation_setpoint(void);
 
 #ifdef CONFIG_LOG_OVER_BLE
 void

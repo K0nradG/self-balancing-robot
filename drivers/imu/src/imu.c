@@ -20,6 +20,10 @@
 #define DEG_TO_RAD (M_PI / 180.0f)
 #define OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
 
+#define GYRO_X_OFFSET 0.032657f
+#define GYRO_Y_OFFSET 0.006859f
+#define GYRO_Z_OFFSET -0.001628f
+
 typedef struct gyro_calibration_data
 {
     int sample_count;
@@ -143,9 +147,10 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
 {
     ARG_UNUSED(temperature);
 
-    static float angle         = 0.0f;
-    static int64_t last_time   = 0;
-    int64_t const current_time = k_uptime_get();
+    static float angle_balance  = 0.0f;
+    static float angle_rotation = 0.0f;
+    static int64_t last_time    = 0;
+    int64_t const current_time  = k_uptime_get();
 
     // Compute dynamic DT in seconds:
     float const dt = (last_time > 0) ? (current_time - last_time) / 1000.0 : 0.01;  // Default DT if first run
@@ -153,20 +158,28 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     float const ay = (float)sensor_value_to_double(&accelerometer_data[1]);
     float const az = (float)sensor_value_to_double(&accelerometer_data[2]);
 
-    float gyro_rate_x       = (float)sensor_value_to_double(&gyro_data[0]) + 0.032657f;  // Gyro calibration
-    float const accel_angle = (float)atan2f(ay, az) + OFFSET;                            // [radians]
+    float const accel_angle = (float)atan2f(ay, az) + OFFSET;  // [radians]
+    float gyro_rate_x       = (float)sensor_value_to_double(&gyro_data[0]) + GYRO_X_OFFSET;
+    float gyro_rate_y       = (float)sensor_value_to_double(&gyro_data[1]) + GYRO_Y_OFFSET;
 
     if(dt > 0.01)
     {
-        angle = accel_angle;
+        angle_balance = accel_angle;
     }
     else
     {
-        angle = ALPHA * (angle + gyro_rate_x * dt) + (1 - ALPHA) * accel_angle;
+        angle_balance = ALPHA * (angle_balance + gyro_rate_x * dt) + (1 - ALPHA) * accel_angle;
     }
-    last_time = current_time;
 
-    imu_data data = {.angle = angle, .angle_dt = gyro_rate_x};
+    angle_rotation += gyro_rate_y * dt;
+
+    // TODO: Maybe wrap around not needed, but setting direction directly by the user.
+    angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
+
+    last_time           = current_time;
+    imu_data const data = {
+        .angle_balance = angle_balance, .angle_balance_dt = gyro_rate_x, .angle_rotation = angle_rotation};
+
     return data;
 }
 
@@ -183,7 +196,7 @@ process_imu(struct device const* dev)
     ret |= sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
     ret |= sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
 
-    // calibrate_gyro(gyro_data); //TODO: make Calibration on Kconfig
+    // calibrate_gyro(gyro_data);  // TODO: make Calibration on Kconfig
 
     if(ret)
     {

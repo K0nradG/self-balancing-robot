@@ -7,8 +7,8 @@
 // For identification apply K = 1200.0f and setpoint set to -8.5f.
 
 // PID tuner with a little hand tuning (lowering I part and increasing D):
-static struct pid_regulator_parameters g_pid_regulator_parameters = {
-    .Kp = 886.52735495982f, .Ki = 10000.0f, .Kd = 1.0f, /*.N = 3097.63192969837,*/ .setpoint = -7.4485f};
+// static struct pid_regulator_parameters g_pid_regulator_parameters = {
+//     .Kp = 886.52735495982f, .Ki = 10000.0f, .Kd = 1.0f, /*.N = 3097.63192969837,*/ .setpoint = -7.4485f};
 
 // Hand tuned.
 // static struct pid_regulator_parameters g_pid_regulator_parameters = {
@@ -20,6 +20,28 @@ static struct pid_regulator_parameters g_pid_regulator_parameters = {
 //     .Ki       = 33282.2230885236f,
 //     .Kd       = 0.304399729736007f,
 //     .setpoint = -7.4485f};}
+
+typedef struct
+{
+    int64_t last_time;
+    float integral;
+    float last_error;
+    struct pid_regulator_parameters parameters;
+} pid_regulator;
+
+static pid_regulator g_balance_regulator = {
+    .last_time  = 0,
+    .integral   = 0.0f,
+    .last_error = 0.0f,
+    .parameters = {.Kp = 886.52735495982f, .Ki = 10000.0f, .Kd = 1.0f, .setpoint = -7.4485f}};
+
+// TODO: Setpoint not larger than += 45 degrees from previous point works.
+static pid_regulator g_rotation_regulator = {
+    .last_time  = 0,
+    .integral   = 0.0f,
+    .last_error = 0.0f,
+    .parameters = {.Kp = 100.0f, .Ki = 0.0f, .Kd = 0.0f, .setpoint = 0.0f}};
+
 pid_params_updated_cb_t g_new_pid_parameters_cb = NULL;
 
 void
@@ -31,39 +53,43 @@ new_pid_parameters_cb_register(pid_params_updated_cb_t new_pid_parameters_cb)
     }
 }
 
-float
-calculate_regulator_output(float error)
+static float
+calculate_pid_output(float error, pid_regulator* pid_regulator)
 {
-    static int64_t last_time   = 0;
+    if(pid_regulator == NULL)
+    {
+        return 0.0f;
+    }
+
     int64_t const current_time = k_uptime_get();
 
-    float const dt = (last_time > 0) ? (current_time - last_time) / 1000.0f : 0.01f;
-    last_time      = current_time;
+    float const dt = (pid_regulator->last_time > 0) ? (current_time - pid_regulator->last_time) / 1000.0f : 0.01f;
+    pid_regulator->last_time = current_time;
 
-    float const proportional = g_pid_regulator_parameters.Kp * error;
+    float const proportional = pid_regulator->parameters.Kp * error;
 
-    static float integral = 0.0f;
-    if(fabsf(g_pid_regulator_parameters.Ki) < 1e-3f)
+    if(fabsf(pid_regulator->parameters.Ki) < 1e-3f)
     {
-        integral = 0.0f;
+        pid_regulator->integral = 0.0f;
     }
     else
     {
-        integral += g_pid_regulator_parameters.Ki * error * dt;
+        pid_regulator->integral += pid_regulator->parameters.Ki * error * dt;
     }
 
     static float last_error      = 0;
     float const error_difference = error - last_error;
-    float const derivative       = g_pid_regulator_parameters.Kd * (error_difference / dt);
+    float const derivative       = pid_regulator->parameters.Kd * (error_difference / dt);
     last_error                   = error;
 
-    float output = proportional + integral + derivative;
+    float output = proportional + pid_regulator->integral + derivative;
 
     if(fabsf(output) > (float)CONFIG_PWM_LIMIT)
     {
         if((output * error) > 0)
         {
-            integral -= g_pid_regulator_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
+            pid_regulator->integral -=
+                pid_regulator->parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
         }
         output = limit(output, -(float)CONFIG_PWM_LIMIT, (float)CONFIG_PWM_LIMIT);
     }
@@ -72,16 +98,35 @@ calculate_regulator_output(float error)
 }
 
 float
-get_setpoint(void)
+calculate_balance_regulator_output(float error)
 {
-    return g_pid_regulator_parameters.setpoint;
+    return calculate_pid_output(error, &g_balance_regulator);
+}
+
+float
+calculate_rotation_regulator_output(float error)
+{
+    return calculate_pid_output(error, &g_rotation_regulator);
+}
+
+float
+get_balance_setpoint(void)
+{
+    return g_balance_regulator.parameters.setpoint;
+}
+
+float
+get_rotation_setpoint(void)
+{
+    return g_rotation_regulator.parameters.setpoint;
 }
 
 #ifdef CONFIG_LOG_OVER_BLE
-void
-parse_regulator_data(const char* data)
+
+static void
+parse_pid_params(pid_regulator* pid_regulator, const char* ptr)
 {
-    const char* ptr = data;
+    ptr++;
     while(*ptr)
     {
         if(*ptr == 'k' || *ptr == 'i' || *ptr == 'd' || *ptr == 's')
@@ -100,21 +145,21 @@ parse_regulator_data(const char* data)
             switch(key)
             {
                 case 'k':
-                    g_pid_regulator_parameters.Kp = value;
+                    pid_regulator->parameters.Kp = value;
                     break;
                 case 'i':
-                    g_pid_regulator_parameters.Ki = value;
+                    pid_regulator->parameters.Ki = value;
                     break;
                 case 'd':
-                    g_pid_regulator_parameters.Kd = value;
+                    pid_regulator->parameters.Kd = value;
                     break;
                 case 's':
-                    g_pid_regulator_parameters.setpoint = value;
+                    pid_regulator->parameters.setpoint = value;
                     break;
             }
             if(g_new_pid_parameters_cb)
             {
-                g_new_pid_parameters_cb(g_pid_regulator_parameters);
+                g_new_pid_parameters_cb(pid_regulator->parameters);
             }
         }
         else
@@ -124,5 +169,19 @@ parse_regulator_data(const char* data)
     }
     /*dont try logging data here!!! it causes dongle crash due to to big amount of time taken when nuc data received
     callback*/
+}
+
+void
+parse_regulator_data(const char* data)
+{
+    const char* ptr = data;
+    if(*ptr == 'b')
+    {
+        parse_pid_params(&g_balance_regulator, ptr);
+    }
+    else if(*ptr == 'r')
+    {
+        parse_pid_params(&g_rotation_regulator, ptr);
+    }
 }
 #endif  // CONFIG_LOG_OVER_BLE

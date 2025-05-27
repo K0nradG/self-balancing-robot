@@ -104,10 +104,13 @@ main(void)
 
 #ifdef CONFIG_REGULATOR_DRV
     new_imu_cb_register(new_imu_data_for_regulator); 
-    new_calculate_regulator_output_cb_register(
-        calculate_regulator_output);             // Regulator output calculation callback depends on the regulator type.
-    new_get_setpoint_cb_register(get_setpoint);  // Setpoint getter callback depends on the regulator type
-
+    
+    new_calculate_balance_regulator_output_cb_register(
+        calculate_balance_regulator_output);         // Regulator output calculation callbacks depend on the regulator type.
+    new_calculate_rotation_regulator_output_cb_register(calculate_rotation_regulator_output);
+    
+    new_get_balance_setpoint_cb_register(get_balance_setpoint);   // Setpoint getter callbacks depend on the regulator type
+    new_get_rotation_setpoint_cb_register(get_rotation_setpoint);
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     new_send_identification_data_cb_register(new_regulator_data_for_identification);
 

@@ -33,12 +33,18 @@ typedef float (*calculate_regulator_output_cb_t)(float angle, float angle_dt);
 #endif  // CONFIG_PID_ENABLED
 
 void
-new_calculate_regulator_output_cb_register(calculate_regulator_output_cb_t _new_calculate_regulator_output_cb);
+new_calculate_balance_regulator_output_cb_register(calculate_regulator_output_cb_t new_calculate_regulator_output_cb);
+
+void
+new_calculate_rotation_regulator_output_cb_register(calculate_regulator_output_cb_t new_calculate_regulator_output_cb);
 
 typedef float (*get_setpoint_cb_t)(void);
 
 void
-new_get_setpoint_cb_register(get_setpoint_cb_t _new_get_setpoint_cb);
+new_get_balance_setpoint_cb_register(get_setpoint_cb_t new_get_setpoint_cb);
+
+void
+new_get_rotation_setpoint_cb_register(get_setpoint_cb_t new_get_setpoint_cb);
 
 void
 regulator_start_automatic_control(void);

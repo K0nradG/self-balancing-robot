@@ -35,11 +35,12 @@ static pid_regulator g_balance_regulator = {
     .last_error = 0.0f,
     .parameters = {.Kp = 886.52735495982f, .Ki = 10000.0f, .Kd = 1.0f, .setpoint = -7.4485f}};
 
+// TODO: Setpoint not larger than += 45 degrees from previous point works.
 static pid_regulator g_rotation_regulator = {
     .last_time  = 0,
     .integral   = 0.0f,
     .last_error = 0.0f,
-    .parameters = {.Kp = 10.0f, .Ki = 0.0f, .Kd = 0.0f, .setpoint = 0.0f}};
+    .parameters = {.Kp = 100.0f, .Ki = 0.0f, .Kd = 0.0f, .setpoint = 0.0f}};
 
 pid_params_updated_cb_t g_new_pid_parameters_cb = NULL;
 
@@ -121,10 +122,11 @@ get_rotation_setpoint(void)
 }
 
 #ifdef CONFIG_LOG_OVER_BLE
-void
-parse_regulator_data(const char* data)
+
+static void
+parse_pid_params(pid_regulator* pid_regulator, const char* ptr)
 {
-    const char* ptr = data;
+    ptr++;
     while(*ptr)
     {
         if(*ptr == 'k' || *ptr == 'i' || *ptr == 'd' || *ptr == 's')
@@ -143,21 +145,21 @@ parse_regulator_data(const char* data)
             switch(key)
             {
                 case 'k':
-                    g_balance_regulator.parameters.Kp = value;
+                    pid_regulator->parameters.Kp = value;
                     break;
                 case 'i':
-                    g_balance_regulator.parameters.Ki = value;
+                    pid_regulator->parameters.Ki = value;
                     break;
                 case 'd':
-                    g_balance_regulator.parameters.Kd = value;
+                    pid_regulator->parameters.Kd = value;
                     break;
                 case 's':
-                    g_balance_regulator.parameters.setpoint = value;
+                    pid_regulator->parameters.setpoint = value;
                     break;
             }
             if(g_new_pid_parameters_cb)
             {
-                g_new_pid_parameters_cb(g_balance_regulator.parameters);
+                g_new_pid_parameters_cb(pid_regulator->parameters);
             }
         }
         else
@@ -167,5 +169,19 @@ parse_regulator_data(const char* data)
     }
     /*dont try logging data here!!! it causes dongle crash due to to big amount of time taken when nuc data received
     callback*/
+}
+
+void
+parse_regulator_data(const char* data)
+{
+    const char* ptr = data;
+    if(*ptr == 'b')
+    {
+        parse_pid_params(&g_balance_regulator, ptr);
+    }
+    else if(*ptr == 'r')
+    {
+        parse_pid_params(&g_rotation_regulator, ptr);
+    }
 }
 #endif  // CONFIG_LOG_OVER_BLE

@@ -15,7 +15,8 @@
 #define PWM_PERIOD_NS PWM_USEC(CONFIG_PWM_PERIOD_US)
 
 static bool g_controller_enabled = false;
-static MOTORS_DATA g_motors_data = {.direction = POSITIVE, .duty_cycle_percent = 0u, .start = false};
+static MOTORS_DATA g_motors_data = {
+    .direction = POSITIVE, .source = BALANCE_REGULATOR, .duty_cycle_percent = 0u, .start = false};
 static struct k_work_delayable motor_controller_work;
 
 static struct gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
@@ -42,9 +43,10 @@ set_start_motors(bool start)
 }
 
 void
-set_direction(DIRECTION direction)
+set_direction(DIRECTION direction, SOURCE source)
 {
     g_motors_data.direction = direction;
+    g_motors_data.source    = source;
 }
 
 void
@@ -179,6 +181,55 @@ run_motors_in_direction(DIRECTION direction)
 }
 
 static void
+rotate(DIRECTION direction)
+{
+    /*
+Positive direction -> A1 and B1 - set, A2 and B2 - cleared.
+Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
+*/
+    int ret = 0;
+
+    switch(direction)
+    {
+        case NEGATIVE:
+            ret |= gpio_pin_set_dt(&a_in1, 1);
+            ret |= gpio_pin_set_dt(&a_in2, 0);
+            ret |= gpio_pin_set_dt(&b_in1, 0);
+            ret |= gpio_pin_set_dt(&b_in2, 1);
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+            if(ret)
+            {
+                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set POSITIVE failed");
+            }
+#endif  // CONFIG_MOTOR_CONTROLLER_LOG
+            break;
+
+        case POSITIVE:
+            ret |= gpio_pin_set_dt(&a_in1, 0);
+            ret |= gpio_pin_set_dt(&a_in2, 1);
+            ret |= gpio_pin_set_dt(&b_in1, 1);
+            ret |= gpio_pin_set_dt(&b_in2, 0);
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+            if(ret)
+            {
+                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set NEGATIVE failed");
+            }
+#endif  // CONFIG_MOTOR_CONTROLLER_LOG
+            break;
+
+        default:
+            stop_motors();
+            break;
+    }
+
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+
+    platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "direction: %d", direction);
+
+#endif  // CONFIG_MOTOR_CONTROLLER_LOG
+}
+
+static void
 set_new_duty_cycle_value(uint8_t duty_cycle_percent)
 {
     uint32_t duty_cycle_ns = (PWM_PERIOD_NS * duty_cycle_percent) / CONFIG_PWM_LIMIT;
@@ -204,7 +255,14 @@ update_motors_control(void)
     }
     else
     {
-        run_motors_in_direction(g_motors_data.direction);
+        if(g_motors_data.source == BALANCE_REGULATOR)
+        {
+            run_motors_in_direction(g_motors_data.direction);
+        }
+        else
+        {
+            rotate(g_motors_data.direction);
+        }
         set_new_duty_cycle_value(g_motors_data.duty_cycle_percent);
     }
 }

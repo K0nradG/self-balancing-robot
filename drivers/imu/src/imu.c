@@ -172,12 +172,9 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     }
 
     angle_rotation += gyro_rate_y * dt;
-    angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
 
-    // #ifdef CONFIG_IMU_LOG
-    //     platform_log("IMU", LOG_LEVEL_ERR, "rate_z: %f [rad/s], angle: %f [rad]", (double)gyro_rate_y,
-    //     angle_rotation);
-    // #endif  // CONFIG_IMU_LOG
+    // TODO: Maybe wrap around not needed, but setting direction directly by the user.
+    angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
 
     last_time           = current_time;
     imu_data const data = {

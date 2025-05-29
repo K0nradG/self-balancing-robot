@@ -12,6 +12,10 @@
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/printk.h>
 
+#define UART_DEVICE_NODE DT_CHOSEN(zephyr_console)
+
+const struct device* uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
+
 #define LOG_MODULE_NAME central_uart
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
@@ -19,21 +23,6 @@ K_SEM_DEFINE(nus_write_sem, 0, 1);
 
 static struct bt_conn* default_conn;
 static struct bt_nus_client nus_client;
-
-static void
-ble_data_sent(struct bt_nus_client* nus, uint8_t err, const uint8_t* const data, uint16_t len)
-{
-    ARG_UNUSED(nus);
-    ARG_UNUSED(data);
-    ARG_UNUSED(len);
-
-    k_sem_give(&nus_write_sem);
-
-    if(err)
-    {
-        LOG_WRN("ATT error code: 0x%02X", err);
-    }
-}
 
 static void
 send_nus_message(const char* message)
@@ -54,6 +43,33 @@ send_nus_message(const char* message)
     else
     {
         LOG_INF("Sent: %s", message);
+    }
+}
+
+static void
+uart_cb(const struct device* dev, void* user_data)
+{
+    uint8_t c;
+
+    while(uart_fifo_read(dev, &c, 1))
+    {
+        LOG_INF("Received from UART: %c", c);
+        send_nus_message("d");
+    }
+}
+
+static void
+ble_data_sent(struct bt_nus_client* nus, uint8_t err, const uint8_t* const data, uint16_t len)
+{
+    ARG_UNUSED(nus);
+    ARG_UNUSED(data);
+    ARG_UNUSED(len);
+
+    k_sem_give(&nus_write_sem);
+
+    if(err)
+    {
+        LOG_WRN("ATT error code: 0x%02X", err);
     }
 }
 
@@ -323,6 +339,15 @@ scan_init(void)
 int
 main(void)
 {
+    if(!device_is_ready(uart_dev))
+    {
+        LOG_ERR("UART device not ready");
+        return 0;
+    }
+
+    uart_irq_callback_user_data_set(uart_dev, uart_cb, NULL);
+    uart_irq_rx_enable(uart_dev);
+
     int err;
 
     err = dk_buttons_init(button_handler);

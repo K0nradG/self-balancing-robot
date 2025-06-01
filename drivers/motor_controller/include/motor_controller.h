@@ -14,17 +14,18 @@ typedef enum DIRECTION
     NEGATIVE = 0,
 } DIRECTION;
 
-typedef enum 
+typedef enum
 {
-    BALANCE_REGULATOR = 0,
+    BALANCE_REGULATOR  = 0,
     ROTATION_REGULATOR = 1,
 } SOURCE;
 
 typedef struct MOTORS_DATA
 {
-    DIRECTION direction;
-    SOURCE source;
-    uint8_t duty_cycle_percent;
+    // DIRECTION direction;
+    // SOURCE source;
+    int8_t duty_cycle_percent_motor0;
+    int8_t duty_cycle_percent_motor1;
     bool start;
 } MOTORS_DATA;
 
@@ -38,7 +39,7 @@ void
 set_direction(DIRECTION direction, SOURCE source);
 
 void
-set_duty_cycle_value(uint8_t duty_cycle_percent);
+set_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_percent_motor1);
 
 void
 trigger_motors_update(void);

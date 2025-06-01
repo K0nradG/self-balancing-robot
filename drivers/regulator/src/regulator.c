@@ -68,11 +68,11 @@ new_send_identification_data_cb_register(send_identification_data_cb_t new_send_
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 static void
-send_motors_data(int pwm, DIRECTION direction, SOURCE source)
+send_motors_data(int pwm_motor1, int pwm_motor2)
 {
     set_start_motors(true);
-    set_duty_cycle_value(pwm);
-    set_direction(direction, source);
+    set_duty_cycle_value(pwm_motor1, pwm_motor2);
+    // set_direction(direction, source);
 }
 
 static void
@@ -120,6 +120,12 @@ balance_regulator_work_handler(struct k_work* work)
     float const error  = out[0];
     float const output = out[1];
 
+    float out_rotate[2] = {0};
+    common_regulator_work_handler(&g_rotation_regulator_context, out_rotate);
+
+    float const error_rotate  = out_rotate[0];
+    float const output_rotate = out_rotate[1];
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
     struct identification_data data = {
@@ -134,9 +140,20 @@ balance_regulator_work_handler(struct k_work* work)
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-    int pwm = (int)fabsf(output);
+    // int right_output = 90;
 
-    send_motors_data(pwm, (error > 0) ? POSITIVE : NEGATIVE, BALANCE_REGULATOR);
+    // int pwm = (int)fabsf(output);
+    int pmw_balance = (int)output;
+    int pwm_rotate  = 0.2 * (int)output_rotate;
+
+    int motor0_pwm = pmw_balance - pwm_rotate;
+    int motor1_pwm = pmw_balance + pwm_rotate;
+
+    // send_motors_data(pwm, (error > 0) ? POSITIVE : NEGATIVE, BALANCE_REGULATOR);
+
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "pwm0 %d   pwm1 %d\n", motor0_pwm, motor1_pwm);
+
+    send_motors_data(motor0_pwm, motor1_pwm);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     trigger_collecting_identification_data();
@@ -171,7 +188,7 @@ rotation_regulator_work_handler(struct k_work* work)
 #endif  // CONFIG_REGULATOR_LOG
 
     int pwm = (int)fabsf(output);
-    send_motors_data(pwm, (error > 0) ? POSITIVE : NEGATIVE, ROTATION_REGULATOR);
+    // send_motors_data(pwm, (error > 0) ? POSITIVE : NEGATIVE, ROTATION_REGULATOR);
 
     trigger_motors_update();
     reschedule_work(&rotation_regulator_work, K_MSEC(CONFIG_ROTATION_REGULATOR_SAMPLE_TIME), "rotation control");
@@ -191,7 +208,7 @@ regulator_start_automatic_control(void)
     g_automatic_control_started = true;
 
     reschedule_work(&balance_regulator_work, K_NO_WAIT, "balance control");
-    reschedule_work(&rotation_regulator_work, K_NO_WAIT, "rotation control");
+    // reschedule_work(&rotation_regulator_work, K_NO_WAIT, "rotation control");
 }
 
 void

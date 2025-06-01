@@ -1,6 +1,7 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 #include "motor_controller.h"
+#include <math.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/init.h>
@@ -15,8 +16,7 @@
 #define PWM_PERIOD_NS PWM_USEC(CONFIG_PWM_PERIOD_US)
 
 static bool g_controller_enabled = false;
-static MOTORS_DATA g_motors_data = {
-    .direction = POSITIVE, .source = BALANCE_REGULATOR, .duty_cycle_percent = 0u, .start = false};
+static MOTORS_DATA g_motors_data = {.duty_cycle_percent_motor0 = 0, .duty_cycle_percent_motor1 = 0, .start = false};
 static struct k_work_delayable motor_controller_work;
 
 static struct gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
@@ -42,27 +42,39 @@ set_start_motors(bool start)
     g_motors_data.start = start;
 }
 
-void
-set_direction(DIRECTION direction, SOURCE source)
-{
-    g_motors_data.direction = direction;
-    g_motors_data.source    = source;
-}
+// void
+// set_direction(DIRECTION direction, SOURCE source)
+// {
+//     g_motors_data.direction = direction;
+//     g_motors_data.source    = source;
+// }
 
 void
-set_duty_cycle_value(uint8_t duty_cycle_percent)
+set_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_percent_motor1)
 {
-    if(duty_cycle_percent > CONFIG_PWM_LIMIT)
+    if(duty_cycle_percent_motor0 > 100)
     {
-        duty_cycle_percent = CONFIG_PWM_LIMIT;
+        duty_cycle_percent_motor0 = 100;
     }
 
-    if(duty_cycle_percent < 0)
+    if(duty_cycle_percent_motor0 < -100)
     {
-        duty_cycle_percent = 0;
+        duty_cycle_percent_motor0 = -100;
     }
 
-    g_motors_data.duty_cycle_percent = duty_cycle_percent;
+    if(duty_cycle_percent_motor1 > 100)
+    {
+        duty_cycle_percent_motor1 = 100;
+    }
+
+    if(duty_cycle_percent_motor1 < -100)
+    {
+        duty_cycle_percent_motor1 = -100;
+    }
+
+    g_motors_data.duty_cycle_percent_motor0 = duty_cycle_percent_motor0;
+
+    g_motors_data.duty_cycle_percent_motor1 = duty_cycle_percent_motor1;
 }
 
 static int
@@ -137,104 +149,164 @@ enable_controller(void)
 #endif  // CONFIG_MOTOR_CONTROLLER_LOG
 }
 
+// void
+// run_motors_in_direction(DIRECTION direction)
+// {
+//     /*
+//     Positive direction -> A1 and B1 - set, A2 and B2 - cleared.
+//     Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
+//     */
+//     int ret = 0;
+
+//     switch(direction)
+//     {
+//         case POSITIVE:
+//             ret |= gpio_pin_set_dt(&a_in1, 1);
+//             ret |= gpio_pin_set_dt(&a_in2, 0);
+//             ret |= gpio_pin_set_dt(&b_in1, 1);
+//             ret |= gpio_pin_set_dt(&b_in2, 0);
+// #ifdef CONFIG_MOTOR_CONTROLLER_LOG
+//             if(ret)
+//             {
+//                 platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set POSITIVE failed");
+//             }
+// #endif  // CONFIG_MOTOR_CONTROLLER_LOG
+//             break;
+
+//         case NEGATIVE:
+//             ret |= gpio_pin_set_dt(&a_in1, 0);
+//             ret |= gpio_pin_set_dt(&a_in2, 1);
+//             ret |= gpio_pin_set_dt(&b_in1, 0);
+//             ret |= gpio_pin_set_dt(&b_in2, 1);
+// #ifdef CONFIG_MOTOR_CONTROLLER_LOG
+//             if(ret)
+//             {
+//                 platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set NEGATIVE failed");
+//             }
+// #endif  // CONFIG_MOTOR_CONTROLLER_LOG
+//             break;
+
+//         default:
+//             stop_motors();
+//             break;
+//     }
+// }
+
 void
-run_motors_in_direction(DIRECTION direction)
+run_backward_motor0()
 {
-    /*
-    Positive direction -> A1 and B1 - set, A2 and B2 - cleared.
-    Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
-    */
-    int ret = 0;
-
-    switch(direction)
-    {
-        case POSITIVE:
-            ret |= gpio_pin_set_dt(&a_in1, 1);
-            ret |= gpio_pin_set_dt(&a_in2, 0);
-            ret |= gpio_pin_set_dt(&b_in1, 1);
-            ret |= gpio_pin_set_dt(&b_in2, 0);
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-            if(ret)
-            {
-                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set POSITIVE failed");
-            }
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
-            break;
-
-        case NEGATIVE:
-            ret |= gpio_pin_set_dt(&a_in1, 0);
-            ret |= gpio_pin_set_dt(&a_in2, 1);
-            ret |= gpio_pin_set_dt(&b_in1, 0);
-            ret |= gpio_pin_set_dt(&b_in2, 1);
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-            if(ret)
-            {
-                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set NEGATIVE failed");
-            }
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
-            break;
-
-        default:
-            stop_motors();
-            break;
-    }
+    gpio_pin_set_dt(&a_in1, 0);
+    gpio_pin_set_dt(&a_in2, 1);
 }
 
-static void
-rotate(DIRECTION direction)
+void
+run_forward_motor0()
 {
-    /*
-Positive direction -> A1 and B1 - set, A2 and B2 - cleared.
-Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
-*/
-    int ret = 0;
-
-    switch(direction)
-    {
-        case NEGATIVE:
-            ret |= gpio_pin_set_dt(&a_in1, 1);
-            ret |= gpio_pin_set_dt(&a_in2, 0);
-            ret |= gpio_pin_set_dt(&b_in1, 0);
-            ret |= gpio_pin_set_dt(&b_in2, 1);
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-            if(ret)
-            {
-                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set POSITIVE failed");
-            }
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
-            break;
-
-        case POSITIVE:
-            ret |= gpio_pin_set_dt(&a_in1, 0);
-            ret |= gpio_pin_set_dt(&a_in2, 1);
-            ret |= gpio_pin_set_dt(&b_in1, 1);
-            ret |= gpio_pin_set_dt(&b_in2, 0);
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-            if(ret)
-            {
-                platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set NEGATIVE failed");
-            }
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
-            break;
-
-        default:
-            stop_motors();
-            break;
-    }
-
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-
-    platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "direction: %d", direction);
-
-#endif  // CONFIG_MOTOR_CONTROLLER_LOG
+    gpio_pin_set_dt(&a_in1, 1);
+    gpio_pin_set_dt(&a_in2, 0);
 }
 
-static void
-set_new_duty_cycle_value(uint8_t duty_cycle_percent)
+void
+run_backward_motor1()
 {
-    uint32_t duty_cycle_ns = (PWM_PERIOD_NS * duty_cycle_percent) / CONFIG_PWM_LIMIT;
-    int err                = pwm_set_dt(&pwm_dc_1, PWM_PERIOD_NS, duty_cycle_ns);
-    err                    = pwm_set_dt(&pwm_dc_2, PWM_PERIOD_NS, duty_cycle_ns);
+    gpio_pin_set_dt(&b_in1, 0);
+    gpio_pin_set_dt(&b_in2, 1);
+}
+
+void
+run_forward_motor1()
+{
+    gpio_pin_set_dt(&b_in1, 1);
+    gpio_pin_set_dt(&b_in2, 0);
+}
+
+// static void
+// rotate(DIRECTION direction)
+// {
+//     /*
+// Positive direction -> A1 and B1 - set, A2 and B2 - cleared.
+// Negative direction -> A2 and B2 - set, A1 and B1 - cleared.
+// */
+//     int ret = 0;
+
+//     switch(direction)
+//     {
+//         case NEGATIVE:
+//             ret |= gpio_pin_set_dt(&a_in1, 1);
+//             ret |= gpio_pin_set_dt(&a_in2, 0);
+//             ret |= gpio_pin_set_dt(&b_in1, 0);
+//             ret |= gpio_pin_set_dt(&b_in2, 1);
+// #ifdef CONFIG_MOTOR_CONTROLLER_LOG
+//             if(ret)
+//             {
+//                 platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set POSITIVE failed");
+//             }
+// #endif  // CONFIG_MOTOR_CONTROLLER_LOG
+//             break;
+
+//         case POSITIVE:
+//             ret |= gpio_pin_set_dt(&a_in1, 0);
+//             ret |= gpio_pin_set_dt(&a_in2, 1);
+//             ret |= gpio_pin_set_dt(&b_in1, 1);
+//             ret |= gpio_pin_set_dt(&b_in2, 0);
+// #ifdef CONFIG_MOTOR_CONTROLLER_LOG
+//             if(ret)
+//             {
+//                 platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set NEGATIVE failed");
+//             }
+// #endif  // CONFIG_MOTOR_CONTROLLER_LOG
+//             break;
+
+//         default:
+//             stop_motors();
+//             break;
+//     }
+
+// #ifdef CONFIG_MOTOR_CONTROLLER_LOG
+
+//         // platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "direction: %d", direction);
+
+// #endif  // CONFIG_MOTOR_CONTROLLER_LOG
+// }
+
+static void
+set_new_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_percent_motor1)
+{
+    if(duty_cycle_percent_motor0 < 0)
+    {
+        run_backward_motor0();
+        // g_motors_data.direction = direction;
+    }
+    if(duty_cycle_percent_motor0 >= 0)
+    {
+        run_forward_motor0();
+    }
+
+    if(duty_cycle_percent_motor1 < 0)
+    {
+        run_backward_motor1();
+        // g_motors_data.direction = direction;
+    }
+    if(duty_cycle_percent_motor1 >= 0)
+    {
+        run_forward_motor1();
+    }
+
+    uint8_t duty_cycle_percent_motor0_scaled = (int)fabs(duty_cycle_percent_motor0);
+    uint8_t duty_cycle_percent_motor1_scaled = (int)fabs(duty_cycle_percent_motor1);
+
+    uint32_t duty_cycle_ns_motor0 = (PWM_PERIOD_NS * duty_cycle_percent_motor0_scaled) / CONFIG_PWM_LIMIT;
+    uint32_t duty_cycle_ns_motor1 = (PWM_PERIOD_NS * duty_cycle_percent_motor1_scaled) / CONFIG_PWM_LIMIT;
+
+    int err = pwm_set_dt(&pwm_dc_1, PWM_PERIOD_NS, duty_cycle_ns_motor0);
+
+    err = pwm_set_dt(&pwm_dc_2, PWM_PERIOD_NS, duty_cycle_ns_motor1);
+
+    // else if(motor == 2)
+    // {
+    //     int err = pwm_set_dt(&pwm_dc_1, PWM_PERIOD_NS, duty_cycle_ns);
+    //     err     = pwm_set_dt(&pwm_dc_2, PWM_PERIOD_NS, duty_cycle_ns);
+    // }
 
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
     if(err)
@@ -255,15 +327,15 @@ update_motors_control(void)
     }
     else
     {
-        if(g_motors_data.source == BALANCE_REGULATOR)
-        {
-            run_motors_in_direction(g_motors_data.direction);
-        }
-        else
-        {
-            rotate(g_motors_data.direction);
-        }
-        set_new_duty_cycle_value(g_motors_data.duty_cycle_percent);
+        // if(g_motors_data.source == BALANCE_REGULATOR)
+        // {
+        //     run_motors_in_direction(g_motors_data.direction);
+        // }
+        // else
+        // {
+        //     rotate(g_motors_data.direction);
+        // }
+        set_new_duty_cycle_value(g_motors_data.duty_cycle_percent_motor0, g_motors_data.duty_cycle_percent_motor1);
     }
 }
 

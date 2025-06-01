@@ -27,7 +27,7 @@ static uint8_t uart_buffer[UART_BUFFER_SIZE];
 static struct bt_conn* default_conn;
 static struct bt_nus_client nus_client;
 
-static uint16_t rotate_step = 40;
+static uint16_t rotate_step = 0;
 
 static void
 send_nus_message(const char* message)
@@ -55,14 +55,31 @@ static void
 uart_ble_work_handler(struct k_work* work)
 {
     uint8_t c = uart_buffer[0];
+    char message[8];
+
     switch(c)
     {
         case 'r':
-            send_nus_message(CONFIG_ROTATE_RIGHT_COMMAND);
+            rotate_step += 40;
+            if(rotate_step > 320)
+            {
+                rotate_step = 320;
+            }
+            snprintf(message, sizeof(message), "rs%d", rotate_step);
+            send_nus_message(message);
             break;
 
         case 'l':
-            send_nus_message(CONFIG_ROTATE_LEFT_COMMAND);
+            if(rotate_step <= 40)
+            {
+                rotate_step = 40;
+            }
+            else
+            {
+                rotate_step -= 40;
+            }
+            snprintf(message, sizeof(message), "rs%d", rotate_step);
+            send_nus_message(message);
             break;
 
         case 'f':
@@ -117,7 +134,7 @@ button_handler(uint32_t button_state, uint32_t has_changed)
             rotate_step += 40;
             if(rotate_step > 320)
             {
-                rotate_step = 40;
+                rotate_step = 320;
             }
         }
     }
@@ -126,7 +143,15 @@ button_handler(uint32_t button_state, uint32_t has_changed)
     {
         if(button_state & DK_BTN2_MSK)
         {
-            send_nus_message(CONFIG_ROTATE_LEFT_COMMAND);
+            rotate_step -= 40;
+            if(rotate_step < 40)
+            {
+                rotate_step = 40;
+            }
+
+            char message[8];
+            snprintf(message, sizeof(message), "rs%d", rotate_step);
+            send_nus_message(message);
         }
     }
 }

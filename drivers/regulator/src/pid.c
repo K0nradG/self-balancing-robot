@@ -33,7 +33,7 @@ static pid_regulator g_balance_regulator = {
     .last_time  = 0,
     .integral   = 0.0f,
     .last_error = 0.0f,
-    .parameters = {.Kp = 1500.0, .Ki = 800.0f, .Kd = 0.1f, .setpoint = -6.8f}};  //-7.4485
+    .parameters = {.Kp = 1300.0, .Ki = 800.0f, .Kd = 0.1f, .setpoint = -7.0f}};  //-6.8 , -7.4485
 
 // TODO: Setpoint not larger than += 45 degrees from previous point works.
 static pid_regulator g_rotation_regulator = {

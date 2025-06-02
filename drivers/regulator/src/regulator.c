@@ -13,7 +13,7 @@
 #define BLE_NUS_MAX_DATA_LEN 251
 #endif  // CONFIG_LOG_OVER_BLE
 
-#define ROTATE_FACTOR 0.2
+#define ROTATE_FACTOR 0.2f
 
 static bool g_automatic_control_started = false;
 
@@ -75,12 +75,12 @@ send_motors_data(int pwm_motor0, int pwm_motor1)
     set_duty_cycle_value(pwm_motor0, pwm_motor1);
 }
 
-static void
-common_regulator_work_handler(regulator_context_t* regulator_context, float* out)
+static float
+common_regulator_work_handler(regulator_context_t* regulator_context)
 {
-    if(regulator_context == NULL || out == NULL)
+    if(regulator_context == NULL)
     {
-        return;
+        return 0.0f;
     }
 
     float error = 0.0f - input_low_pass_filter(regulator_context->angle);
@@ -105,8 +105,7 @@ common_regulator_work_handler(regulator_context_t* regulator_context, float* out
     // platform_log("REGULATOR", LOG_LEVEL_ERR, "error %f out: %f", (double)error, (double)output);
 #endif  // CONFIG_REGULATOR_LOG
 
-    out[0] = error;
-    out[1] = output;
+    return output;
 }
 
 static void
@@ -114,17 +113,8 @@ balance_regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
 
-    float balance_out[2] = {0};
-    common_regulator_work_handler(&g_balance_regulator_context, balance_out);
-
-    float const balance_error  = balance_out[0];
-    float const balance_output = balance_out[1];
-
-    float rotate_out[2] = {0};
-    common_regulator_work_handler(&g_rotation_regulator_context, rotate_out);
-
-    float const rotate_error  = rotate_out[0];
-    float const rotate_output = rotate_out[1];
+    float const balance_output = common_regulator_work_handler(&g_balance_regulator_context);
+    float const rotate_output  = common_regulator_work_handler(&g_rotation_regulator_context);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
@@ -140,11 +130,11 @@ balance_regulator_work_handler(struct k_work* work)
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-    int balance_pmw = (int)balance_output;
-    int rotate_pwm  = (int)(ROTATE_FACTOR * (int)rotate_output);
+    int const balance_pwm = (int)balance_output;
+    int const rotate_pwm  = (int)(ROTATE_FACTOR * rotate_output);
 
-    int motor0_pwm = balance_pmw - rotate_pwm;
-    int motor1_pwm = balance_pmw + rotate_pwm;
+    int const motor0_pwm = balance_pwm - rotate_pwm;
+    int const motor1_pwm = balance_pwm + rotate_pwm;
 
 #ifdef CONFIG_REGULATOR_LOG
     platform_log("REGULATOR", LOG_LEVEL_ERR, "pwm0 %d   pwm1 %d\n", motor0_pwm, motor1_pwm);

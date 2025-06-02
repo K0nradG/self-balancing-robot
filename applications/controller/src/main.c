@@ -19,7 +19,7 @@ const struct device* uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
 #define LOG_MODULE_NAME central_uart
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-#define UART_BUFFER_SIZE 1
+#define UART_BUFFER_SIZE 1u
 
 static struct k_work_delayable uart_ble_work;
 static uint8_t uart_buffer[UART_BUFFER_SIZE];
@@ -27,7 +27,7 @@ static uint8_t uart_buffer[UART_BUFFER_SIZE];
 static struct bt_conn* default_conn;
 static struct bt_nus_client nus_client;
 
-static uint16_t rotate_step = 0;
+static uint16_t rotate_step = 0u;
 
 static void
 send_nus_message(const char* message)
@@ -131,10 +131,10 @@ button_handler(uint32_t button_state, uint32_t has_changed)
             snprintf(message, sizeof(message), "rs%d", rotate_step);
             send_nus_message(message);
 
-            rotate_step += 40;
-            if(rotate_step > 320)
+            rotate_step += 40u;
+            if(rotate_step > 320u)
             {
-                rotate_step = 320;
+                rotate_step = 320u;
             }
         }
     }
@@ -143,10 +143,13 @@ button_handler(uint32_t button_state, uint32_t has_changed)
     {
         if(button_state & DK_BTN2_MSK)
         {
-            rotate_step -= 40;
-            if(rotate_step < 40)
+            if(rotate_step < 40u)
             {
-                rotate_step = 40;
+                rotate_step = 40u;
+            }
+            else
+            {
+                rotate_step -= 40u;
             }
 
             char message[8];

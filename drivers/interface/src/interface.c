@@ -6,6 +6,8 @@
 
 #ifdef CONFIG_INTERFACE_LOG
 #include "logger.h"
+#else
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #endif  // CONFIG_INTERFACE_LOG
 
 static const struct gpio_dt_spec led_dev = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);

@@ -1,7 +1,7 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 #include "motor_controller.h"
-#include <math.h>
+#include <stdlib.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/init.h>
@@ -16,7 +16,7 @@
 #define PWM_PERIOD_NS PWM_USEC(CONFIG_PWM_PERIOD_US)
 
 static bool g_controller_enabled = false;
-static MOTORS_DATA g_motors_data = {.duty_cycle_percent_motor0 = 0, .duty_cycle_percent_motor1 = 0, .start = false};
+static MOTORS_DATA g_motors_data = {.duty_cycle_percent_motor0 = 0u, .duty_cycle_percent_motor1 = 0u, .start = false};
 static struct k_work_delayable motor_controller_work;
 
 static struct gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
@@ -142,32 +142,18 @@ enable_controller(void)
 #endif  // CONFIG_MOTOR_CONTROLLER_LOG
 }
 
-void
-run_backward_motor0()
+static void
+run_backward_motor(struct gpio_dt_spec* in1, struct gpio_dt_spec* in2)
 {
-    gpio_pin_set_dt(&a_in1, 0);
-    gpio_pin_set_dt(&a_in2, 1);
+    gpio_pin_set_dt(in1, 0);
+    gpio_pin_set_dt(in2, 1);
 }
 
-void
-run_forward_motor0()
+static void
+run_forward_motor(struct gpio_dt_spec* in1, struct gpio_dt_spec* in2)
 {
-    gpio_pin_set_dt(&a_in1, 1);
-    gpio_pin_set_dt(&a_in2, 0);
-}
-
-void
-run_backward_motor1()
-{
-    gpio_pin_set_dt(&b_in1, 0);
-    gpio_pin_set_dt(&b_in2, 1);
-}
-
-void
-run_forward_motor1()
-{
-    gpio_pin_set_dt(&b_in1, 1);
-    gpio_pin_set_dt(&b_in2, 0);
+    gpio_pin_set_dt(in1, 1);
+    gpio_pin_set_dt(in2, 0);
 }
 
 static void
@@ -175,24 +161,24 @@ set_new_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_per
 {
     if(duty_cycle_percent_motor0 < 0)
     {
-        run_backward_motor0();
+        run_backward_motor(&a_in1, &a_in2);
     }
     if(duty_cycle_percent_motor0 >= 0)
     {
-        run_forward_motor0();
+        run_forward_motor(&a_in1, &a_in2);
     }
 
     if(duty_cycle_percent_motor1 < 0)
     {
-        run_backward_motor1();
+        run_backward_motor(&b_in1, &b_in2);
     }
     if(duty_cycle_percent_motor1 >= 0)
     {
-        run_forward_motor1();
+        run_forward_motor(&b_in1, &b_in2);
     }
 
-    uint8_t duty_cycle_percent_motor0_scaled = (int)fabs(duty_cycle_percent_motor0);
-    uint8_t duty_cycle_percent_motor1_scaled = (int)fabs(duty_cycle_percent_motor1);
+    uint8_t duty_cycle_percent_motor0_scaled = (int)abs(duty_cycle_percent_motor0);
+    uint8_t duty_cycle_percent_motor1_scaled = (int)abs(duty_cycle_percent_motor1);
 
     uint32_t duty_cycle_ns_motor0 = (PWM_PERIOD_NS * duty_cycle_percent_motor0_scaled) / CONFIG_PWM_LIMIT;
     uint32_t duty_cycle_ns_motor1 = (PWM_PERIOD_NS * duty_cycle_percent_motor1_scaled) / CONFIG_PWM_LIMIT;

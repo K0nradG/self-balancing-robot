@@ -13,10 +13,11 @@
 #define BLE_NUS_MAX_DATA_LEN 251
 #endif  // CONFIG_LOG_OVER_BLE
 
+#define ROTATE_FACTOR 0.2f
+
 static bool g_automatic_control_started = false;
 
 static struct k_work_delayable balance_regulator_work;
-static struct k_work_delayable rotation_regulator_work;
 
 typedef struct
 {
@@ -68,19 +69,18 @@ new_send_identification_data_cb_register(send_identification_data_cb_t new_send_
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 static void
-send_motors_data(int pwm, DIRECTION direction, SOURCE source)
+send_motors_data(int pwm_motor0, int pwm_motor1)
 {
     set_start_motors(true);
-    set_duty_cycle_value(pwm);
-    set_direction(direction, source);
+    set_duty_cycle_value(pwm_motor0, pwm_motor1);
 }
 
-static void
-common_regulator_work_handler(regulator_context_t* regulator_context, float* out)
+static float
+common_regulator_work_handler(regulator_context_t* regulator_context)
 {
-    if(regulator_context == NULL || out == NULL)
+    if(regulator_context == NULL)
     {
-        return;
+        return 0.0f;
     }
 
     float error = 0.0f - input_low_pass_filter(regulator_context->angle);
@@ -105,8 +105,7 @@ common_regulator_work_handler(regulator_context_t* regulator_context, float* out
     // platform_log("REGULATOR", LOG_LEVEL_ERR, "error %f out: %f", (double)error, (double)output);
 #endif  // CONFIG_REGULATOR_LOG
 
-    out[0] = error;
-    out[1] = output;
+    return output;
 }
 
 static void
@@ -114,11 +113,8 @@ balance_regulator_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
 
-    float out[2] = {0};
-    common_regulator_work_handler(&g_balance_regulator_context, out);
-
-    float const error  = out[0];
-    float const output = out[1];
+    float const balance_output = common_regulator_work_handler(&g_balance_regulator_context);
+    float const rotate_output  = common_regulator_work_handler(&g_rotation_regulator_context);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 
@@ -134,9 +130,17 @@ balance_regulator_work_handler(struct k_work* work)
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-    int pwm = (int)fabsf(output);
+    int const balance_pwm = (int)balance_output;
+    int const rotate_pwm  = (int)(ROTATE_FACTOR * rotate_output);
 
-    send_motors_data(pwm, (error > 0) ? POSITIVE : NEGATIVE, BALANCE_REGULATOR);
+    int const motor0_pwm = balance_pwm - rotate_pwm;
+    int const motor1_pwm = balance_pwm + rotate_pwm;
+
+#ifdef CONFIG_REGULATOR_LOG
+    platform_log("REGULATOR", LOG_LEVEL_ERR, "pwm0 %d   pwm1 %d\n", motor0_pwm, motor1_pwm);
+#endif
+
+    send_motors_data(motor0_pwm, motor1_pwm);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     trigger_collecting_identification_data();
@@ -147,37 +151,6 @@ balance_regulator_work_handler(struct k_work* work)
 }
 
 static K_WORK_DELAYABLE_DEFINE(balance_regulator_work, balance_regulator_work_handler);
-
-static void
-rotation_regulator_work_handler(struct k_work* work)
-{
-    ARG_UNUSED(work);
-
-    float out[2] = {0};
-    common_regulator_work_handler(&g_rotation_regulator_context, out);
-
-    float const error  = out[0];
-    float const output = out[1];
-
-#ifdef CONFIG_REGULATOR_LOG
-    if(g_rotation_regulator_context.get_setpoint_cb)
-    {
-        platform_log(
-            "REGULATOR", LOG_LEVEL_ERR, "setpoint: %f [deg], rot: %f [deg], error: %f",
-            (double)g_rotation_regulator_context.get_setpoint_cb(),
-            (double)g_rotation_regulator_context.angle * (double)RAD_TO_DEG, (double)error);
-    }
-
-#endif  // CONFIG_REGULATOR_LOG
-
-    int pwm = (int)fabsf(output);
-    send_motors_data(pwm, (error > 0) ? POSITIVE : NEGATIVE, ROTATION_REGULATOR);
-
-    trigger_motors_update();
-    reschedule_work(&rotation_regulator_work, K_MSEC(CONFIG_ROTATION_REGULATOR_SAMPLE_TIME), "rotation control");
-}
-
-static K_WORK_DELAYABLE_DEFINE(rotation_regulator_work, rotation_regulator_work_handler);
 
 void
 regulator_start_automatic_control(void)
@@ -191,7 +164,6 @@ regulator_start_automatic_control(void)
     g_automatic_control_started = true;
 
     reschedule_work(&balance_regulator_work, K_NO_WAIT, "balance control");
-    reschedule_work(&rotation_regulator_work, K_NO_WAIT, "rotation control");
 }
 
 void
@@ -208,7 +180,6 @@ regulator_stop_automatic_control(void)
     set_start_motors(false);
 
     int ret = k_work_cancel_delayable(&balance_regulator_work);
-    ret     = k_work_cancel_delayable(&rotation_regulator_work);
     if(ret)
     {
 #ifdef CONFIG_REGULATOR_LOG

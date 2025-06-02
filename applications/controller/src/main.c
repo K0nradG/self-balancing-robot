@@ -19,10 +19,15 @@ const struct device* uart_dev = DEVICE_DT_GET(UART_DEVICE_NODE);
 #define LOG_MODULE_NAME central_uart
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
-K_SEM_DEFINE(nus_write_sem, 0, 1);
+#define UART_BUFFER_SIZE 1u
+
+static struct k_work_delayable uart_ble_work;
+static uint8_t uart_buffer[UART_BUFFER_SIZE];
 
 static struct bt_conn* default_conn;
 static struct bt_nus_client nus_client;
+
+static uint16_t rotate_step = 0u;
 
 static void
 send_nus_message(const char* message)
@@ -47,6 +52,49 @@ send_nus_message(const char* message)
 }
 
 static void
+uart_ble_work_handler(struct k_work* work)
+{
+    uint8_t c = uart_buffer[0];
+    char message[8];
+
+    switch(c)
+    {
+        case 'r':
+            rotate_step += 40;
+            if(rotate_step > 320)
+            {
+                rotate_step = 320;
+            }
+            snprintf(message, sizeof(message), "rs%d", rotate_step);
+            send_nus_message(message);
+            break;
+
+        case 'l':
+            if(rotate_step <= 40)
+            {
+                rotate_step = 40;
+            }
+            else
+            {
+                rotate_step -= 40;
+            }
+            snprintf(message, sizeof(message), "rs%d", rotate_step);
+            send_nus_message(message);
+            break;
+
+        case 'f':
+            send_nus_message(CONFIG_DRIVE_FORWARD_COMMAND);
+            break;
+
+        default:
+            LOG_WRN("Nieznany znak z UART: %c", c);
+            break;
+    }
+}
+
+static K_WORK_DELAYABLE_DEFINE(uart_ble_work, uart_ble_work_handler);
+
+static void
 uart_cb(const struct device* dev, void* user_data)
 {
     uint8_t c;
@@ -54,7 +102,8 @@ uart_cb(const struct device* dev, void* user_data)
     while(uart_fifo_read(dev, &c, 1))
     {
         LOG_INF("Received from UART: %c", c);
-        send_nus_message("d");
+        uart_buffer[0] = c;
+        k_work_submit(&uart_ble_work.work);
     }
 }
 
@@ -64,8 +113,6 @@ ble_data_sent(struct bt_nus_client* nus, uint8_t err, const uint8_t* const data,
     ARG_UNUSED(nus);
     ARG_UNUSED(data);
     ARG_UNUSED(len);
-
-    k_sem_give(&nus_write_sem);
 
     if(err)
     {
@@ -80,7 +127,15 @@ button_handler(uint32_t button_state, uint32_t has_changed)
     {
         if(button_state & DK_BTN1_MSK)
         {
-            send_nus_message(CONFIG_ROTATE_RIGHT_COMMAND);
+            char message[8];
+            snprintf(message, sizeof(message), "rs%d", rotate_step);
+            send_nus_message(message);
+
+            rotate_step += 40u;
+            if(rotate_step > 320u)
+            {
+                rotate_step = 320u;
+            }
         }
     }
 
@@ -88,7 +143,18 @@ button_handler(uint32_t button_state, uint32_t has_changed)
     {
         if(button_state & DK_BTN2_MSK)
         {
-            send_nus_message(CONFIG_ROTATE_LEFT_COMMAND);
+            if(rotate_step < 40u)
+            {
+                rotate_step = 40u;
+            }
+            else
+            {
+                rotate_step -= 40u;
+            }
+
+            char message[8];
+            snprintf(message, sizeof(message), "rs%d", rotate_step);
+            send_nus_message(message);
         }
     }
 }

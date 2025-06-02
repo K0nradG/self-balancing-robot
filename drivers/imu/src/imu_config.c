@@ -5,7 +5,9 @@
 
 #ifdef CONFIG_IMU_LOG
 #include "logger.h"
-#endif
+#else
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif  // CONFIG_IMU_LOG
 
 #define MPU6050_I2C_ADDR 0x68
 

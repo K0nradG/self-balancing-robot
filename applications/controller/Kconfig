@@ -6,12 +6,15 @@ config TARGET_BLE_DEVICE_NAME
 	string "BLE device name which controller should connect"
 	default "SELF_BALANCING_ROBOT"
 
-# TO DO:
-# allign logic in self balance robot logic which enable to rotate +40 and -40 degres
+# TODO: align logic in self balance robot logic which enable to rotate +40 and -40 degrees
 config ROTATE_RIGHT_COMMAND
-	string "Messeage which should be send to robot in case to rotate +40 degrees"
-	default "rs40"
+	string "Message which should be send to robot in case to rotate +40 degrees"
+	default "rs60"
 
 config ROTATE_LEFT_COMMAND
-	string "Messeage which should be send to robot in case to rotate -40 degrees"
+	string "Message which should be send to robot in case to rotate -40 degrees"
 	default "rs5"
+
+config DRIVE_FORWARD_COMMAND
+	string "Message which should be send to robot in case to drive forward"
+	default "d"	

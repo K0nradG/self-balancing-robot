@@ -2,6 +2,8 @@
 
 #ifdef CONFIG_UTILS_LOG
 #include "logger.h"
+#else
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #endif  // CONFIG_UTILS_LOG
 
 void

@@ -7,10 +7,27 @@
 #include <zephyr/bluetooth/conn.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/hci.h>
+#include <zephyr/drivers/adc.h>
 #include <zephyr/drivers/uart.h>
+#include <zephyr/init.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/sys/printk.h>
+#include "utils.h"
+
+static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
+
+static int16_t adc_battery_buffer;
+
+static struct adc_sequence sequence = {
+    .buffer      = &adc_battery_buffer,
+    .buffer_size = sizeof(adc_battery_buffer),
+};
+
+static struct k_work_delayable rotate_joystick_measurement_work;
+
+static uint16_t measurement_interval;
+static bool periodic_measurement_started;
 
 #define UART_DEVICE_NODE DT_CHOSEN(zephyr_console)
 
@@ -28,6 +45,121 @@ static struct bt_conn* default_conn;
 static struct bt_nus_client nus_client;
 
 static uint16_t rotate_step = 0u;
+
+static int
+init(void)
+{
+    int ret;
+
+    if(!adc_is_ready_dt(&adc_channel))
+    {
+        LOG_ERR("ADC Error");
+        return -1;
+    }
+
+    ret = adc_channel_setup_dt(&adc_channel);
+    if(ret < 0)
+    {
+        LOG_ERR("ADC Error");
+        return ret;
+    }
+
+    ret = adc_sequence_init_dt(&adc_channel, &sequence);
+    if(ret < 0)
+    {
+        LOG_ERR("ADC Error");
+        return ret;
+    }
+
+    if(!sequence.buffer || sequence.buffer_size == 0)
+    {
+        LOG_ERR("ADC Error");
+        return -1;
+    }
+
+    LOG_ERR("ADC init finished");
+
+    return 0;
+}
+
+SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
+
+static int64_t
+adc_get_sample(void)
+{
+    int ret = adc_sequence_init_dt(&adc_channel, &sequence);
+    if(ret < 0)
+    {
+        LOG_ERR("init get sample err");
+        return ret;
+    }
+
+    ret = adc_read(adc_channel.dev, &sequence);
+    if(ret < 0)
+    {
+        LOG_ERR("read sample err");
+        return ret;
+    }
+
+    int32_t battery_level_mv = adc_battery_buffer;
+
+    ret = adc_raw_to_millivolts_dt(&adc_channel, &battery_level_mv);
+    if(ret < 0)
+    {
+        LOG_ERR("convert sample err");
+        return ret;
+    }
+
+    if(battery_level_mv > INT16_MAX)
+    {
+        LOG_ERR("range sample err");
+        return -1;
+    }
+    const int64_t corrected_battery_level_mv = (int64_t)battery_level_mv;
+
+    return corrected_battery_level_mv;
+}
+
+static uint16_t
+voltage_to_angle(int64_t voltage_mv)
+{
+    return (uint16_t)((voltage_mv * 350) / 1795);
+}
+
+static void
+send_nus_message(const char* message);
+
+static void
+joystick_measurement_work_handler(struct k_work* work)
+{
+    ARG_UNUSED(work);
+
+    int64_t joystick_voltage = adc_get_sample();
+    uint16_t angle           = voltage_to_angle(joystick_voltage);
+
+    LOG_INF("Voltage: %lld mV -> Angle: %u deg", joystick_voltage, angle);
+
+    char angle_msg[8];
+    snprintf(angle_msg, sizeof(angle_msg), "rs%u", angle);
+    send_nus_message(angle_msg);
+
+    reschedule_work(&rotate_joystick_measurement_work, K_MSEC(measurement_interval), "Battery level measurement");
+}
+
+static K_WORK_DELAYABLE_DEFINE(rotate_joystick_measurement_work, joystick_measurement_work_handler);
+
+void
+joystick_start_periodic_measurement(uint16_t interval_ms)
+{
+    if(periodic_measurement_started)
+    {
+        LOG_INF("worker started");
+    }
+    periodic_measurement_started = true;
+
+    measurement_interval = interval_ms;
+    reschedule_work(&rotate_joystick_measurement_work, K_NO_WAIT, "battery_level_measurement");
+}
 
 static void
 send_nus_message(const char* message)
@@ -457,6 +589,8 @@ main(void)
     }
 
     LOG_INF("Scanning successfully started");
+
+    joystick_start_periodic_measurement(500);
 
     while(true)
     {

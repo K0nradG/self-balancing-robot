@@ -18,3 +18,17 @@ config ROTATE_LEFT_COMMAND
 config DRIVE_FORWARD_COMMAND
 	string "Message which should be send to robot in case to drive forward"
 	default "d"	
+
+config JOYSTICK_SAMPLE_TIME
+	int "ADC sample time"
+	default 100
+
+config RAMP_RATE
+	int "Ramp rate"
+	default 50
+
+config CONTROLLER_APP
+	bool "Dummy Kconfig for getting utils.h"
+	default y
+
+

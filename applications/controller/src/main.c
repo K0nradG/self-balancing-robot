@@ -46,6 +46,9 @@ static struct bt_nus_client nus_client;
 
 static uint16_t rotate_step = 0u;
 
+#define MS_TO_S 1000.0f
+#define MAX_RAMP_STEP (float)((float)CONFIG_RAMP_RATE * ((float)CONFIG_JOYSTICK_SAMPLE_TIME / MS_TO_S))
+
 static int
 init(void)
 {
@@ -120,14 +123,16 @@ adc_get_sample(void)
     return corrected_battery_level_mv;
 }
 
-static uint16_t
+static float
 voltage_to_angle(int64_t voltage_mv)
 {
-    return (uint16_t)((voltage_mv * 350) / 1795);
+    return (((float)voltage_mv * 350.0f) / 1795.0f);
 }
 
 static void
 send_nus_message(const char* message);
+
+#define MAX_ANGLE_STEP_PER_CYCLE 1.0f
 
 static void
 joystick_measurement_work_handler(struct k_work* work)
@@ -135,13 +140,29 @@ joystick_measurement_work_handler(struct k_work* work)
     ARG_UNUSED(work);
 
     int64_t joystick_voltage = adc_get_sample();
-    uint16_t angle           = voltage_to_angle(joystick_voltage);
+    float target_angle       = voltage_to_angle(joystick_voltage);
 
-    LOG_INF("Voltage: %lld mV -> Angle: %u deg", joystick_voltage, angle);
+    static float sum_angle;
 
-    char angle_msg[8];
-    snprintf(angle_msg, sizeof(angle_msg), "rs%u", angle);
-    send_nus_message(angle_msg);
+    float diff = target_angle - sum_angle;
+
+    if(fabsf(diff) > MAX_ANGLE_STEP_PER_CYCLE)
+    {
+        if(diff > 0)
+        {
+            sum_angle += MAX_RAMP_STEP;
+        }
+        else
+        {
+            sum_angle -= MAX_RAMP_STEP;
+        }
+
+        char angle_msg[16];
+        snprintf(angle_msg, sizeof(angle_msg), "rs%.1f", sum_angle);
+        send_nus_message(angle_msg);
+    }
+
+    LOG_INF("Voltage: %lld mV -> Target: %.2f deg, Output: %.2f deg", joystick_voltage, target_angle, sum_angle);
 
     reschedule_work(&rotate_joystick_measurement_work, K_MSEC(measurement_interval), "Battery level measurement");
 }
@@ -590,7 +611,7 @@ main(void)
 
     LOG_INF("Scanning successfully started");
 
-    joystick_start_periodic_measurement(500);
+    joystick_start_periodic_measurement(CONFIG_JOYSTICK_SAMPLE_TIME);
 
     while(true)
     {

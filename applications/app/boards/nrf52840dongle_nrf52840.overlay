@@ -68,6 +68,20 @@
     };
 };
 
+/ {
+    encoder_0: encoder_0 {
+        compatible = "inc-enc";
+        channel-a-gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+        channel-b-gpios = <&gpio0 10 GPIO_ACTIVE_HIGH>;
+    };
+
+    encoder_1: encoder_1 {
+        compatible = "inc-enc";
+        channel-a-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+        channel-b-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+    };
+};
+
 &pwm0 {
     status = "okay";
     pinctrl-0 = <&pwm0_custom_motor>;
@@ -120,7 +134,7 @@
 
     i2c0_sleep: i2c0_sleep {
         group1 {
-            psels = <NRF_PSEL(TWIM_SDA, 0, 13)>,  
+            psels = <NRF_PSEL(TWIM_SDA, 0, 13)>,
                     <NRF_PSEL(TWIM_SCL, 0, 15)>;
         };
     };

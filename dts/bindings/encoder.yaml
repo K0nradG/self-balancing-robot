@@ -1,0 +1,15 @@
+description: |
+  Incremental encoder
+
+compatible: "inc-enc"
+
+properties:
+  channel-a-gpios:
+    type: phandle-array
+    required: true
+    description: GPIO specifier for encoder channel A
+
+  channel-b-gpios:
+    type: phandle-array
+    required: true
+    description: GPIO specifier for encoder channel B

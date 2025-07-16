@@ -8,3 +8,5 @@ compile_commands.json
 slprj
 *.asv
 *.slxc
+
+*.zip

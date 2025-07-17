@@ -60,9 +60,6 @@ encoder_0_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint
 
     int8_t delta = transition_table[transition];
     data.encoder_0.impulse_count += delta;
-    data.encoder_0.shaft_rotate_count = data.encoder_0.impulse_count / (float)CONFIG_IMPULSE_TO_SHAFT_ROTATION;
-    data.encoder_0.shaft_angle_rad    = data.encoder_0.impulse_count * WRAP_TO_2PI;
-    data.encoder_0.distance_m         = data.encoder_0.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
 
     prev_state = curr_state;
 }
@@ -80,9 +77,6 @@ encoder_1_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint
 
     int8_t delta = transition_table[transition];
     data.encoder_1.impulse_count += delta;
-    data.encoder_1.shaft_rotate_count = data.encoder_1.impulse_count / (float)CONFIG_IMPULSE_TO_SHAFT_ROTATION;
-    data.encoder_1.shaft_angle_rad    = data.encoder_1.impulse_count * WRAP_TO_2PI;
-    data.encoder_1.distance_m         = data.encoder_1.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
 
     prev_state = curr_state;
 }
@@ -139,8 +133,33 @@ encoder_data_update_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
 
+    static float prev_angle_rad_encoder_0;
+    static float prev_angle_rad_encoder_1;
+
     if(encoder_data_updated_cb)
     {
+        data.encoder_0.shaft_rotate_count = data.encoder_0.impulse_count / (float)CONFIG_IMPULSE_TO_SHAFT_ROTATION;
+        data.encoder_0.shaft_angle_rad    = data.encoder_0.impulse_count * WRAP_TO_2PI;
+        data.encoder_0.distance_m = data.encoder_0.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
+
+        float delta_angle_0                   = data.encoder_0.shaft_angle_rad - prev_angle_rad_encoder_0;
+        data.encoder_0.angular_velocity_rad_s = delta_angle_0 / (CONFIG_ENCODER_DATA_UPDATE_MS / 1000.0f);
+        data.encoder_0.linear_velocity_m_s =
+            data.encoder_0.angular_velocity_rad_s * (CONFIG_WHEEL_DIAMETER_MM / 2.0f) * MM_TO_M;
+
+        prev_angle_rad_encoder_0 = data.encoder_0.shaft_angle_rad;
+
+        data.encoder_1.shaft_rotate_count = data.encoder_1.impulse_count / (float)CONFIG_IMPULSE_TO_SHAFT_ROTATION;
+        data.encoder_1.shaft_angle_rad    = data.encoder_1.impulse_count * WRAP_TO_2PI;
+        data.encoder_1.distance_m = data.encoder_1.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
+
+        float delta_angle_1                   = data.encoder_1.shaft_angle_rad - prev_angle_rad_encoder_1;
+        data.encoder_1.angular_velocity_rad_s = delta_angle_1 / (CONFIG_ENCODER_DATA_UPDATE_MS / 1000.0f);
+        data.encoder_1.linear_velocity_m_s =
+            data.encoder_1.angular_velocity_rad_s * (CONFIG_WHEEL_DIAMETER_MM / 2.0f) * MM_TO_M;
+
+        prev_angle_rad_encoder_1 = data.encoder_1.shaft_angle_rad;
+
         encoder_data_updated_cb(data);
     }
 

@@ -36,8 +36,9 @@ void
 new_encoder_data_callback(encoder_data data)
 {
     platform_log(
-        "APP", LOG_LEVEL_INF, "enc0 cnt %d:  rotate: %f angle: %f distance: %f", data.encoder_0.impulse_count,
-        data.encoder_0.shaft_rotate_count, data.encoder_0.shaft_angle_rad, data.encoder_0.distance_m);
+        "APP", LOG_LEVEL_INF, "c%d r%f a%f d%f rs%f ms%f", data.encoder_0.impulse_count,
+        data.encoder_0.shaft_rotate_count, data.encoder_0.shaft_angle_rad, data.encoder_0.distance_m,
+        data.encoder_0.angular_velocity_rad_s, data.encoder_0.linear_velocity_m_s);
 }
 #endif  // CONFIG_ENCODER_DRV
 

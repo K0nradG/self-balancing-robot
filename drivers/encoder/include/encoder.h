@@ -14,6 +14,8 @@ struct _encoder
     float shaft_rotate_count;
     float shaft_angle_rad;
     float distance_m;
+    float angular_velocity_rad_s;
+    float linear_velocity_m_s;
 };
 
 struct encoder_data

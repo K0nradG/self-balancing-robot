@@ -77,8 +77,8 @@
 
     encoder_1: encoder_1 {
         compatible = "inc-enc";
-        channel-a-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-        channel-b-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+        channel-a-gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+        channel-b-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
     };
 };
 

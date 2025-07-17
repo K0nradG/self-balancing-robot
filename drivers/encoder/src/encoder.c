@@ -4,6 +4,11 @@
 #include <zephyr/kernel.h>
 #include "utils.h"
 
+#define M_PI 3.14159265358979323846f
+#define WRAP_TO_2PI (2.0f * M_PI / CONFIG_IMPULSE_TO_SHAFT_ROTATION)
+
+#define MM_TO_M 1 / 1000
+
 static const struct gpio_dt_spec encoder_0_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_a_gpios);
 static const struct gpio_dt_spec encoder_0_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_b_gpios);
 static const struct gpio_dt_spec encoder_1_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_a_gpios);
@@ -56,6 +61,8 @@ encoder_0_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint
     int8_t delta = transition_table[transition];
     data.encoder_0.impulse_count += delta;
     data.encoder_0.shaft_rotate_count = data.encoder_0.impulse_count / (float)CONFIG_IMPULSE_TO_SHAFT_ROTATION;
+    data.encoder_0.shaft_angle_rad    = data.encoder_0.impulse_count * WRAP_TO_2PI;
+    data.encoder_0.distance_m         = data.encoder_0.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
 
     prev_state = curr_state;
 }
@@ -74,6 +81,8 @@ encoder_1_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint
     int8_t delta = transition_table[transition];
     data.encoder_1.impulse_count += delta;
     data.encoder_1.shaft_rotate_count = data.encoder_1.impulse_count / (float)CONFIG_IMPULSE_TO_SHAFT_ROTATION;
+    data.encoder_1.shaft_angle_rad    = data.encoder_1.impulse_count * WRAP_TO_2PI;
+    data.encoder_1.distance_m         = data.encoder_1.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
 
     prev_state = curr_state;
 }

@@ -12,8 +12,8 @@ struct _encoder
     /*800 impulses per motor shaft rotate*/
     int32_t impulse_count;
     float shaft_rotate_count;
-    /*TO DO: calcualte direction*/
-    uint8_t direction;
+    float shaft_angle_rad;
+    float distance_m;
 };
 
 struct encoder_data

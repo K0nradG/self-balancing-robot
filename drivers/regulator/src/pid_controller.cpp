@@ -1,0 +1,91 @@
+#include "pid_controller.h"
+#include <cmath>
+#include "regulator_utils.h"
+#include "zephyr/kernel.h"
+
+float
+PID::calculate_output(float error)
+{
+    int64_t const current_time = k_uptime_get();
+    float const dt             = (m_last_time > 0) ? (current_time - m_last_time) / 1000.0f : 0.01f;
+    m_last_time                = current_time;
+
+    if(std::abs(m_parameters.Ki) < 1e-3f)
+    {
+        m_integral = 0.0f;
+    }
+    else
+    {
+        m_integral += m_parameters.Ki * error * dt;
+    }
+
+    float const error_difference = error - m_prev_error;
+    float const derivative       = m_parameters.Kd * (error_difference / dt);
+    m_prev_error                 = error;
+
+    float output = m_parameters.Kp * error + m_integral + derivative;
+
+    if(std::abs(output) > static_cast<float>(CONFIG_PWM_LIMIT))
+    {
+        if((output * error) > 0)
+        {
+            m_integral -= m_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
+        }
+        output = limit(output, -static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT));
+    }
+
+    return output;
+}
+
+void
+PID::parse_nus_parameters(char const* data)
+{
+    if(data == nullptr)
+    {
+        return;
+    }
+
+    data++;
+    while(*data)
+    {
+        if(*data == 'k' || *data == 'i' || *data == 'd' || *data == 's')
+        {
+            char key = *data;
+            data++;
+            char* next_data = nullptr;
+            float value     = strtof(data, &next_data);
+
+            if(data == next_data)
+            {
+                break;
+            }
+            data = next_data;
+
+            switch(key)
+            {
+                case 'k':
+                    m_parameters.Kp = value;
+                    break;
+                case 'i':
+                    m_parameters.Ki = value;
+                    break;
+                case 'd':
+                    m_parameters.Kd = value;
+                    break;
+                // case 's':
+                //     m_parameters.setpoint = value;
+                //     break;
+                default:
+                    break;
+            }
+            // if(g_new_pid_parameters_cb)
+            // {
+            //     g_new_pid_parameters_cb(pid_regulator->parameters);
+            // }
+        }
+        else
+        {
+            data++;
+        }
+    }
+}

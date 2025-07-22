@@ -24,6 +24,9 @@ new_imu_cb_register(imu_updated_cb_t _new_imu_cb);
 void
 mpu_reset(uint8_t conf);
 
+imu_data
+get_imu_data(void);
+
 #ifdef __cplusplus
 }
 #endif

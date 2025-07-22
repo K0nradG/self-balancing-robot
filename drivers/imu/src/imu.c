@@ -36,6 +36,8 @@ static gyro_calibration_data g_calibration_data = {0};
 struct device const* imu_dev                    = DEVICE_DT_GET_ONE(invensense_mpu6050);
 imu_updated_cb_t g_new_imu_cb                   = NULL;
 
+imu_data s_imu_data = {0};
+
 static int
 process_imu(struct device const* dev);
 
@@ -206,10 +208,10 @@ process_imu(struct device const* dev)
         return -ENODEV;
     }
 
-    imu_data const imu_data = get_data(accelerometer_data, gyro_data, &temperature);
+    s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
     if(g_new_imu_cb)
     {
-        g_new_imu_cb(imu_data);
+        g_new_imu_cb(s_imu_data);
     }
 
     return ret;
@@ -222,4 +224,10 @@ new_imu_cb_register(imu_updated_cb_t new_imu_cb)
     {
         g_new_imu_cb = new_imu_cb;
     }
+}
+
+imu_data
+get_imu_data(void)
+{
+    return s_imu_data;
 }

@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Robot_Control
+{
+
 class LQR
 {
 public:
@@ -26,3 +29,5 @@ private:
     Parameters m_parameters;
     float m_output_saturation;
 };
+
+} // namespace Robot_Control

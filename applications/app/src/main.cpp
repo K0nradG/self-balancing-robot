@@ -42,10 +42,10 @@ new_encoder_data_callback(encoder_data data)
 }
 #endif  // CONFIG_ENCODER_DRV
 
-#ifdef CONFIG_REGULATOR_DRV
+#ifdef CONFIG_ROBOT_CONTROL
 #include "control_loop.h"
 
-#endif  // CONFIG_REGULATOR_DRV
+#endif  // CONFIG_ROBOT_CONTROL
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
@@ -84,25 +84,16 @@ main(void)
     platform_log("APP", LOG_LEVEL_INF, "Receiving regulator parameters through NUS.");
 #endif  // CONFIG_APP_LOG
 
-#ifdef CONFIG_REGULATOR_DRV
+#ifdef CONFIG_ROBOT_CONTROL
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
 
-#endif  // CONFIG_REGULATOR_DRV
+#endif  // CONFIG_ROBOT_CONTROL
 #endif  // CONFIG_LOG_OVER_BLE
 
-#ifdef CONFIG_REGULATOR_DRV
-    // new_imu_cb_register(new_imu_data_for_regulator);
-
-    // new_calculate_balance_regulator_output_cb_register(
-    //     calculate_balance_regulator_output);  // Regulator output calculation callbacks depend on the regulator type.
-    // new_calculate_rotation_regulator_output_cb_register(calculate_rotation_regulator_output);
-
-    // new_get_balance_setpoint_cb_register(
-    //     get_balance_setpoint);  // Setpoint getter callbacks depend on the regulator type
-    // new_get_rotation_setpoint_cb_register(get_rotation_setpoint);
+#ifdef CONFIG_ROBOT_CONTROL
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     new_send_identification_data_cb_register(new_regulator_data_for_identification);
-
+    
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Model identification driver is enabled.");
 #endif  // CONFIG_APP_LOG
@@ -110,5 +101,5 @@ main(void)
 #else
     start_control_loop();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-#endif  // CONFIG_REGULATOR_DRV
+#endif  // CONFIG_ROBOT_CONTROL
 }

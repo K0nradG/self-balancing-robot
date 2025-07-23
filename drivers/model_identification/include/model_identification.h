@@ -17,16 +17,16 @@ extern "C" {
 #define TIME_BUFFER_ID 3u
 
 #if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
-struct identification_data
+typedef struct 
 {
     float dt;
     float pwm;
     float angle;
     float angle_dt;
-};
+} identification_data;
 
 void
-new_regulator_data_for_identification(struct identification_data data);
+new_regulator_data_for_identification(identification_data data);
 #endif // CONFIG_MODEL_IDENTIFICATION_DRV
 
 uint16_t

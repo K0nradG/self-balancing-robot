@@ -45,15 +45,15 @@ typedef enum identification_state
 static identification_state state = IDENTIFICATION_STOPPED;
 
 #if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
-static struct identification_data identification_data = {0};
+static identification_data g_identification_data = {0};
 
 void
-new_regulator_data_for_identification(struct identification_data data)
+new_regulator_data_for_identification(identification_data data)
 {
-    identification_data.dt       = data.dt;
-    identification_data.pwm      = data.pwm;
-    identification_data.angle    = data.angle;
-    identification_data.angle_dt = data.angle_dt;
+    g_identification_data.dt       = data.dt;
+    g_identification_data.pwm      = data.pwm;
+    g_identification_data.angle    = data.angle;
+    g_identification_data.angle_dt = data.angle_dt;
 }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
@@ -107,10 +107,10 @@ model_identification_work_handler(struct k_work* work)
     if(!buffer_all_full())
     {
 #if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
-        buffer_put(ANGLE_BUFFER_ID, identification_data.angle);
-        buffer_put(ANGLE_DT_BUFFER_ID, identification_data.angle_dt);
-        buffer_put(U_BUFFER_ID, identification_data.pwm);
-        buffer_put(TIME_BUFFER_ID, identification_data.dt);
+        buffer_put(ANGLE_BUFFER_ID, g_identification_data.angle);
+        buffer_put(ANGLE_DT_BUFFER_ID, g_identification_data.angle_dt);
+        buffer_put(U_BUFFER_ID, g_identification_data.pwm);
+        buffer_put(TIME_BUFFER_ID, g_identification_data.dt);
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
     }
     else
@@ -124,7 +124,7 @@ model_identification_work_handler(struct k_work* work)
     }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-    platform_log("IDENTIFICATION", LOG_LEVEL_INF, "PWM %d", (int)identification_data.pwm);
+    platform_log("IDENTIFICATION", LOG_LEVEL_INF, "PWM %d", (int)g_identification_data.pwm);
 #endif  // CONFIG_MODEL_IDENTIFICATION_LOG
 }
 

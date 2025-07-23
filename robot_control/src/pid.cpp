@@ -3,6 +3,9 @@
 #include <cmath>
 #include "zephyr/kernel.h"
 
+namespace Robot_Control
+{
+
 float
 PID::calculate_output(float setpoint, float feedback)
 {
@@ -86,3 +89,5 @@ PID::parse_nus_parameters(char const* data)
     }
 }
 #endif  // CONFIG_LOG_OVER_BLE
+
+} // namespace Robot_Control

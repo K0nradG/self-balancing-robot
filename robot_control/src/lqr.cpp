@@ -1,6 +1,9 @@
 #include "lqr.h"
-#include <stdlib.h>
 #include <cmath>
+#include <stdlib.h>
+
+namespace Robot_Control
+{
 
 float
 LQR::calculate_output(float x, float y)
@@ -55,3 +58,5 @@ LQR::parse_nus_parameters(char const* data)
     }
 }
 #endif  // CONFIG_LOG_OVER_BLE
+
+} // namespace Robot_Control

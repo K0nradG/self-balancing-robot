@@ -1,5 +1,8 @@
 #include "low_pass_filter.h"
 
+namespace Robot_Control
+{
+
 float
 Low_Pass_Filter::filter(float input)
 {
@@ -8,3 +11,5 @@ Low_Pass_Filter::filter(float input)
 
     return output;
 }
+
+} // namespace Robot_Control

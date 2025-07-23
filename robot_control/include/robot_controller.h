@@ -10,6 +10,9 @@
 #include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+namespace Robot_Control
+{
+
 class Robot_Controller
 {
     static constexpr float pi               = 3.14159265358979323846f;
@@ -35,7 +38,7 @@ public:
 #endif  // CONFIG_LOG_OVER_BLE
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    struct identification_data
+    identification_data
     get_identification_data() const;
 
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
@@ -50,9 +53,11 @@ private:
 #endif  // CONFIG_PID_ENABLED
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    struct identification_data m_identification_data = {0};
+    identification_data m_identification_data {};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
     void
     send_motors_data(int pwm_motor0, int pwm_motor1);
 };
+
+} // namespace Robot_Control

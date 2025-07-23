@@ -2,6 +2,9 @@
 #include "imu.h"
 #include "motor_controller.h"
 
+namespace Robot_Control
+{
+
 Robot_Controller::Robot_Controller()
     : m_balance_setpoint(balance_setpoint),
 #ifdef CONFIG_PID_ENABLED
@@ -81,3 +84,5 @@ Robot_Controller::get_identification_data() const
     return m_identification_data;
 }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
+} // namespace Robot_Control

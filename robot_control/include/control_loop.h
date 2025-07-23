@@ -24,7 +24,7 @@ nus_data_parse_callback(char const* data);
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
 
-typedef void (*send_identification_data_cb_t)(struct identification_data data);
+typedef void (*send_identification_data_cb_t)(identification_data data);
 
 void
 new_send_identification_data_cb_register(send_identification_data_cb_t new_send_identification_data_cb);

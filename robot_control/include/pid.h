@@ -2,6 +2,9 @@
 #include <cstdint>
 #include "low_pass_filter.h"
 
+namespace Robot_Control
+{
+
 class PID
 {
 public:
@@ -33,3 +36,5 @@ private:
     float m_output_saturation;
     Low_Pass_Filter m_filter;
 };
+
+} // namespace Robot_Control

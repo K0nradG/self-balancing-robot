@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Robot_Control
+{
+
 class Low_Pass_Filter
 {
 public:
@@ -12,3 +15,5 @@ private:
     float m_alpha;
     float m_last_output {};
 };
+
+} // namespace Robot_Control

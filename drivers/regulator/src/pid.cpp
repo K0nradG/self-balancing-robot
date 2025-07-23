@@ -1,11 +1,13 @@
-#include "pid_controller.h"
+#include "pid.h"
+#include <stdlib.h>
 #include <cmath>
-#include "regulator_utils.h"
 #include "zephyr/kernel.h"
 
 float
-PID::calculate_output(float error)
+PID::calculate_output(float setpoint, float feedback)
 {
+    float const error = setpoint - m_filter.filter(feedback);
+
     int64_t const current_time = k_uptime_get();
     float const dt             = (m_last_time > 0) ? (current_time - m_last_time) / 1000.0f : 0.01f;
     m_last_time                = current_time;
@@ -25,18 +27,20 @@ PID::calculate_output(float error)
 
     float output = m_parameters.Kp * error + m_integral + derivative;
 
-    if(std::abs(output) > static_cast<float>(CONFIG_PWM_LIMIT))
+    if(std::abs(output) > m_output_saturation)
     {
         if((output * error) > 0)
         {
             m_integral -= m_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
         }
-        output = limit(output, -static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT));
+        output = std::min(output, -m_output_saturation);
+        output = std::max(output, m_output_saturation);
     }
 
     return output;
 }
 
+#ifdef CONFIG_LOG_OVER_BLE
 void
 PID::parse_nus_parameters(char const* data)
 {
@@ -47,7 +51,7 @@ PID::parse_nus_parameters(char const* data)
 
     while(*data)
     {
-        if(*data == 'k' || *data == 'i' || *data == 'd' || *data == 's')
+        if(*data == 'k' || *data == 'i' || *data == 'd')
         {
             char key = *data;
             data++;
@@ -81,3 +85,4 @@ PID::parse_nus_parameters(char const* data)
         }
     }
 }
+#endif  // CONFIG_LOG_OVER_BLE

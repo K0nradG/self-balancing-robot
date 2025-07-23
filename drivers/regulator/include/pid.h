@@ -1,44 +1,35 @@
-#ifndef PID_H_
-#define PID_H_
+#pragma once
+#include <cstdint>
+#include "low_pass_filter.h"
 
-#include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct pid_regulator_parameters
+class PID
 {
-    float Kp;
-    float Ki;
-    float Kd;
-    float setpoint;
-};
+public:
+    struct Parameters
+    {
+        float Kp = 0.0f;
+        float Ki = 0.0f;
+        float Kd = 0.0f;
+    };
 
-typedef void (*pid_params_updated_cb_t)(struct pid_regulator_parameters _pid_regulator_parameters);
+    PID(Parameters parameters, float output_saturation, float alpha)
+        : m_parameters(parameters), m_output_saturation(output_saturation), m_filter(alpha)
+    {
+    }
 
-void
-new_pid_parameters_cb_register(pid_params_updated_cb_t _new_pid_parameters_cb);
-
-float 
-calculate_balance_regulator_output(float error);
-
-float
-calculate_rotation_regulator_output(float error);
-
-float
-get_balance_setpoint(void);
-
-float
-get_rotation_setpoint(void);
+    float
+    calculate_output(float setpoint, float feedback);
 
 #ifdef CONFIG_LOG_OVER_BLE
-void
-parse_regulator_data(const char* data);
+    void
+    parse_nus_parameters(char const* data);
 #endif  // CONFIG_LOG_OVER_BLE
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* PID_H_ */
+private:
+    std::int64_t m_last_time {};
+    float m_integral {};
+    float m_prev_error {};
+    Parameters m_parameters;
+    float m_output_saturation;
+    Low_Pass_Filter m_filter;
+};

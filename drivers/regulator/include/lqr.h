@@ -1,37 +1,28 @@
-#ifndef LQR_H_
-#define LQR_H_
+#pragma once
 
-#include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct lqr_parameters
+class LQR
 {
-    float Kx;
-    float Ky;
-    float setpoint;
-};
+public:
+    struct Parameters
+    {
+        float Kx = 0.0f;
+        float Ky = 0.0f;
+    };
 
-typedef void (*lqr_params_updated_cb_t)(struct lqr_parameters _lqr_regulator_parameters);
+    LQR(Parameters parameters, float output_saturation)
+        : m_parameters(parameters), m_output_saturation(output_saturation)
+    {
+    }
 
-void
-new_lqr_parameters_cb_register(lqr_params_updated_cb_t _new_lqr_parameters_cb);
-
-float
-calculate_regulator_output(float angle, float angle_dt);
-
-float
-get_setpoint(void);
+    float
+    calculate_output(float x, float y);
 
 #ifdef CONFIG_LOG_OVER_BLE
-void
-parse_regulator_data(const char* data);
+    void
+    parse_nus_parameters(char const* data);
 #endif  // CONFIG_LOG_OVER_BLE
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* LQR_H_ */
+private:
+    Parameters m_parameters;
+    float m_output_saturation;
+};

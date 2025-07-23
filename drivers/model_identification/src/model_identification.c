@@ -4,8 +4,8 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
+#include "control_loop.h"
 #include "identification_data_send.h"
-#include "regulator.h"
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_LOG
 #include "logger.h"
@@ -139,13 +139,13 @@ trigger_collecting_identification_data()
 void
 model_identification_start(void)
 {
-    regulator_start_automatic_control();
+    start_control_loop();
 }
 
 static void
 model_identification_stop(void)
 {
-    regulator_stop_automatic_control();
+    stop_control_loop();
 }
 
 static bool

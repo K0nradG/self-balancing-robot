@@ -43,25 +43,7 @@ new_encoder_data_callback(encoder_data data)
 #endif  // CONFIG_ENCODER_DRV
 
 #ifdef CONFIG_REGULATOR_DRV
-// #include "imu.h"
-// #include "regulator.h"
 #include "control_loop.h"
-
-#ifdef CONFIG_PID_ENABLED
-// #include "pid.h"
-
-#else
-#include "lqr.h"
-
-void
-new_lqr_parameters(lqr_parameters data)
-{
-#ifdef CONFIG_APP_LOG
-    // More than two ints can't be printed with print.
-    platform_log("APP", LOG_LEVEL_INF, "K1: %f, K2: %f, Setpoint: %f", data.Kx, data.Ky, data.setpoint);
-#endif  // CONFIG_APP_LOG
-}
-#endif  // CONFIG_PID_ENABLED
 
 #endif  // CONFIG_REGULATOR_DRV
 

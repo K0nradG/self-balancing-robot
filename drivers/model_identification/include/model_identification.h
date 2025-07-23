@@ -17,7 +17,13 @@ extern "C" {
 #define TIME_BUFFER_ID 3u
 
 #if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
-#include "regulator.h"
+struct identification_data
+{
+    float dt;
+    float pwm;
+    float angle;
+    float angle_dt;
+};
 
 void
 new_regulator_data_for_identification(struct identification_data data);

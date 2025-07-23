@@ -1,5 +1,4 @@
 #pragma once
-#include "imu.h"
 #include "pid_controller.h"
 #include "regulator_utils.h"
 
@@ -12,17 +11,12 @@ public:
     Robot_Controller() : m_balance_setpoint(balance_setpoint), m_balance_pid(balance_pid_parameters) {}
 
     void
-    update_imu_data();
-
-    void
     control_motors();
 
     void
-    parse_pid_params(char const* data);  // Will be registered as callback for NUS.
+    parse_nus_data(char const* data);
 
 private:
-    imu_data m_imu_data = {0};
-
     float m_balance_setpoint;
     // Here will be defines determining PID or LQR for balance. There will also be more regulators e.g. for rotation.
     PID m_balance_pid;

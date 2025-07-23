@@ -43,21 +43,13 @@ new_encoder_data_callback(encoder_data data)
 #endif  // CONFIG_ENCODER_DRV
 
 #ifdef CONFIG_REGULATOR_DRV
-#include "imu.h"
-#include "regulator.h"
+// #include "imu.h"
+// #include "regulator.h"
+#include "control_loop.h"
 
 #ifdef CONFIG_PID_ENABLED
-#include "pid.h"
+// #include "pid.h"
 
-void
-new_pid_regulator_parameters(pid_regulator_parameters data)
-{
-#ifdef CONFIG_APP_LOG
-    // More than two ints can't be printed with print.
-    platform_log(
-        "APP", LOG_LEVEL_INF, "Kp: %f, Ki: %f, Kd: %f, Setpoint: %f", data.Kp, data.Ki, data.Kd, data.setpoint);
-#endif  // CONFIG_APP_LOG
-}
 #else
 #include "lqr.h"
 
@@ -111,27 +103,21 @@ main(void)
 #endif  // CONFIG_APP_LOG
 
 #ifdef CONFIG_REGULATOR_DRV
-    new_regulator_parameters_parser_cb_register(
-        parse_regulator_data);  // Parser callback definition depends on the regulator type.
+    new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
 
-#ifdef CONFIG_PID_ENABLED
-    new_pid_parameters_cb_register(new_pid_regulator_parameters);
-#else
-    new_lqr_parameters_cb_register(new_lqr_parameters);
-#endif  // CONFIG_PID_ENABLED
 #endif  // CONFIG_REGULATOR_DRV
 #endif  // CONFIG_LOG_OVER_BLE
 
 #ifdef CONFIG_REGULATOR_DRV
-    new_imu_cb_register(new_imu_data_for_regulator);
+    // new_imu_cb_register(new_imu_data_for_regulator);
 
-    new_calculate_balance_regulator_output_cb_register(
-        calculate_balance_regulator_output);  // Regulator output calculation callbacks depend on the regulator type.
-    new_calculate_rotation_regulator_output_cb_register(calculate_rotation_regulator_output);
+    // new_calculate_balance_regulator_output_cb_register(
+    //     calculate_balance_regulator_output);  // Regulator output calculation callbacks depend on the regulator type.
+    // new_calculate_rotation_regulator_output_cb_register(calculate_rotation_regulator_output);
 
-    new_get_balance_setpoint_cb_register(
-        get_balance_setpoint);  // Setpoint getter callbacks depend on the regulator type
-    new_get_rotation_setpoint_cb_register(get_rotation_setpoint);
+    // new_get_balance_setpoint_cb_register(
+    //     get_balance_setpoint);  // Setpoint getter callbacks depend on the regulator type
+    // new_get_rotation_setpoint_cb_register(get_rotation_setpoint);
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     new_send_identification_data_cb_register(new_regulator_data_for_identification);
 
@@ -140,7 +126,7 @@ main(void)
 #endif  // CONFIG_APP_LOG
 
 #else
-    regulator_start_automatic_control();
+    start_control_loop();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 #endif  // CONFIG_REGULATOR_DRV
 }

@@ -45,7 +45,6 @@ PID::parse_nus_parameters(char const* data)
         return;
     }
 
-    data++;
     while(*data)
     {
         if(*data == 'k' || *data == 'i' || *data == 'd' || *data == 's')
@@ -72,16 +71,9 @@ PID::parse_nus_parameters(char const* data)
                 case 'd':
                     m_parameters.Kd = value;
                     break;
-                // case 's':
-                //     m_parameters.setpoint = value;
-                //     break;
                 default:
                     break;
             }
-            // if(g_new_pid_parameters_cb)
-            // {
-            //     g_new_pid_parameters_cb(pid_regulator->parameters);
-            // }
         }
         else
         {

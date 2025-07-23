@@ -1,10 +1,10 @@
 #pragma once
 
-#ifdef CONFIG_PID_ENABLED
 #include "pid.h"
-#else
+
+#ifndef CONFIG_PID_ENABLED
 #include "lqr.h"
-#endif  // CONFIG_PID_ENABLED
+#endif  // not CONFIG_PID_ENABLED
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
@@ -21,10 +21,13 @@ class Robot_Controller
 
 #ifdef CONFIG_PID_ENABLED
     static constexpr PID::Parameters balance_pid_parameters = {.Kp = 300.0, .Ki = 0.0f, .Kd = 0.0f};
-    static constexpr float balance_pid_filter_alpha         = 0.1f;
+    static constexpr float balance_pid_filter_alpha         = 0.9f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED
+
+    static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 0.7f, .Ki = 0.1f, .Kd = 0.05f};
+    static constexpr float speed_pid_filter_alpha               = 1.0f;  // No filtering.
 
 public:
     Robot_Controller();
@@ -52,6 +55,9 @@ private:
     LQR m_balance_lqr;
 #endif  // CONFIG_PID_ENABLED
 
+    PID m_wheel0_speed_pid;
+    PID m_wheel1_speed_pid;
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data m_identification_data {};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
@@ -60,4 +66,4 @@ private:
     send_motors_data(int pwm_motor0, int pwm_motor1);
 };
 
-} // namespace Robot_Control
+}  // namespace Robot_Control

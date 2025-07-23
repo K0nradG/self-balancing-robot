@@ -28,6 +28,12 @@ public:
     parse_nus_parameters(char const* data);
 #endif  // CONFIG_LOG_OVER_BLE
 
+    Parameters
+    get_parameters() const;
+
+    void
+    set_parameters(Parameters parameters);
+
 private:
     std::int64_t m_last_time {};
     float m_integral {};
@@ -37,4 +43,4 @@ private:
     Low_Pass_Filter m_filter;
 };
 
-} // namespace Robot_Control
+}  // namespace Robot_Control

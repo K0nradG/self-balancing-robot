@@ -90,4 +90,16 @@ PID::parse_nus_parameters(char const* data)
 }
 #endif  // CONFIG_LOG_OVER_BLE
 
-} // namespace Robot_Control
+PID::Parameters
+PID::get_parameters() const
+{
+    return m_parameters;
+}
+
+void
+PID::set_parameters(Parameters parameters)
+{
+    m_parameters = parameters;
+}
+
+}  // namespace Robot_Control

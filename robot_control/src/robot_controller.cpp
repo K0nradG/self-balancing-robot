@@ -1,4 +1,5 @@
 #include "robot_controller.h"
+#include "encoder.h"
 #include "imu.h"
 #include "motor_controller.h"
 
@@ -8,32 +9,42 @@ namespace Robot_Control
 Robot_Controller::Robot_Controller()
     : m_balance_setpoint(balance_setpoint),
 #ifdef CONFIG_PID_ENABLED
-      m_balance_pid(balance_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), balance_pid_filter_alpha)
+      m_balance_pid(
+          balance_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT),
+          balance_pid_filter_alpha),  // Some other limit if it doesn't produce PWM directly?
 #else
-      m_balance_lqr(balance_lqr_parameters, static_cast<float>(CONFIG_PWM_LIMIT))
+      m_balance_lqr(balance_lqr_parameters, static_cast<float>(CONFIG_PWM_LIMIT)),
 #endif
+      m_wheel0_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha),
+      m_wheel1_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha)
 {
 }
 
 void
 Robot_Controller::control_motors()
 {
-    imu_data const imu_data = get_imu_data();
+    imu_data const imu_data           = get_imu_data();
+    encoders_data const encoders_data = get_encoders_data();
 
 #ifdef CONFIG_PID_ENABLED
-    float const pwm = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
+    float const target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
 #else
-    float const pwm = m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
+    float const target_speed = m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif
+
+    float const pwm0 =
+        m_wheel0_speed_pid.calculate_output(target_speed, encoders_data.encoder_0.angular_velocity_rad_s);
+    float const pwm1 =
+        m_wheel1_speed_pid.calculate_output(target_speed, encoders_data.encoder_1.angular_velocity_rad_s);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     m_identification_data = {
         .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
-        .pwm      = pwm,
+        .pwm      = (pwm0 + pwm1) / 2.0f,
         .angle    = imu_data.angle_balance,
         .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-    send_motors_data(static_cast<int>(pwm), static_cast<int>(pwm));
+    send_motors_data(pwm0, pwm1);
     trigger_motors_update();
 }
 
@@ -46,27 +57,35 @@ Robot_Controller::parse_nus_data(char const* data)
         return;
     }
 
-    if(*data == 'b')
+    char const key = *data;
+    switch(key)
     {
-        data++;
-        if(*data == 's')
-        {
+        case 'b':
             data++;
-            m_balance_setpoint = strtof(data, nullptr);
-        }
-        else
-        {
+            if(*data == 's')
+            {
+                data++;
+                m_balance_setpoint = strtof(data, nullptr);
+            }
+            else
+            {
 #ifdef CONFIG_PID_ENABLED
-            m_balance_pid.parse_nus_parameters(data);
+                m_balance_pid.parse_nus_parameters(data);
 #else
-            m_balance_lqr.parse_nus_parameters(data);
+                m_balance_lqr.parse_nus_parameters(data);
 #endif  // CONFIG_PID_ENABLED
-        }
+            }
+            break;
+        case 's':
+            data++;
+            m_wheel0_speed_pid.parse_nus_parameters(data);
+            m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
+            break;
+        // case 'r':
+        //     break;
+        default:
+            break;
     }
-    // else if(*data == 'r')
-    // {
-    //     parse_pid_params(&g_rotation_regulator, ptr);
-    // }
 }
 #endif  // CONFIG_LOG_OVER_BLE
 
@@ -85,4 +104,4 @@ Robot_Controller::get_identification_data() const
 }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-} // namespace Robot_Control
+}  // namespace Robot_Control

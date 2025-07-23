@@ -9,8 +9,8 @@ float
 LQR::calculate_output(float x, float y)
 {
     float output = -(m_parameters.Kx * x + m_parameters.Ky * y);  // u = -Kx control law (x - state vector).
-    output       = std::min(output, -m_output_saturation);
-    output       = std::max(output, m_output_saturation);
+    output       = std::max(output, -m_output_saturation);
+    output       = std::min(output, m_output_saturation);
 
     return output;
 }

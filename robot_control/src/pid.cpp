@@ -36,8 +36,8 @@ PID::calculate_output(float setpoint, float feedback)
         {
             m_integral -= m_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
         }
-        output = std::min(output, -m_output_saturation);
-        output = std::max(output, m_output_saturation);
+        output = std::max(output, -m_output_saturation);
+        output = std::min(output, m_output_saturation);
     }
 
     return output;

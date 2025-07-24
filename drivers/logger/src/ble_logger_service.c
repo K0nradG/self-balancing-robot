@@ -86,9 +86,9 @@ new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
 {
     if(len > BLE_NUS_MAX_DATA_LEN)
     {
-#ifdef CONFIG_REGULATOR_LOG
+#ifdef CONFIG_ROBOT_CONTROL_LOG
         LOG_ERR("Data length exceeds buffer size!");
-#endif  // CONFIG_REGULATOR_LOG
+#endif  // CONFIG_ROBOT_CONTROL_LOG
         return;
     }
 
@@ -97,9 +97,9 @@ new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
 
     memcpy(received_data, data, len);
     received_data[len] = '\0';
-#ifdef CONFIG_REGULATOR_LOG
+#ifdef CONFIG_ROBOT_CONTROL_LOG
     LOG_INF("Received NUS data: %s", received_data);
-#endif  // CONFIG_REGULATOR_LOG
+#endif  // CONFIG_ROBOT_CONTROL_LOG
 
     if(g_regulator_parameters_parser_cb)
     {

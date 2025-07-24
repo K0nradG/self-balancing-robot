@@ -34,7 +34,8 @@ typedef struct gyro_calibration_data
 
 static gyro_calibration_data g_calibration_data = {0};
 struct device const* imu_dev                    = DEVICE_DT_GET_ONE(invensense_mpu6050);
-imu_updated_cb_t g_new_imu_cb                   = NULL;
+
+imu_data s_imu_data = {0};
 
 static int
 process_imu(struct device const* dev);
@@ -59,9 +60,6 @@ handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 }
 
 #endif  // CONFIG_MPU6050_TRIGGER
-
-void
-new_imu_cb_register(imu_updated_cb_t new_imu_cb);
 
 void
 calibrate_gyro(struct sensor_value* gyro_data)
@@ -142,7 +140,7 @@ init(void)
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
-static struct imu_data
+static imu_data
 get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)
 {
     ARG_UNUSED(temperature);
@@ -206,20 +204,13 @@ process_imu(struct device const* dev)
         return -ENODEV;
     }
 
-    imu_data const imu_data = get_data(accelerometer_data, gyro_data, &temperature);
-    if(g_new_imu_cb)
-    {
-        g_new_imu_cb(imu_data);
-    }
+    s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
 
     return ret;
 }
 
-void
-new_imu_cb_register(imu_updated_cb_t new_imu_cb)
+imu_data
+get_imu_data(void)
 {
-    if(new_imu_cb)
-    {
-        g_new_imu_cb = new_imu_cb;
-    }
+    return s_imu_data;
 }

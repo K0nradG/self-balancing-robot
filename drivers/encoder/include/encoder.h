@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-struct _encoder
+typedef struct
 {
     /*800 impulses per motor shaft rotate*/
     int32_t impulse_count;
@@ -16,15 +16,15 @@ struct _encoder
     float distance_m;
     float angular_velocity_rad_s;
     float linear_velocity_m_s;
-};
+} encoder_data;
 
-struct encoder_data
+typedef struct
 {
-    struct _encoder encoder_0;
-    struct _encoder encoder_1;
-};
+    encoder_data encoder_0;
+    encoder_data encoder_1;
+} encoders_data;
 
-typedef void (*encoder_data_updated_cb_t)(struct encoder_data encoder_data);
+typedef void (*encoder_data_updated_cb_t)(encoders_data encoders);
 
 void
 new_encoder_data_updated_cb_register(encoder_data_updated_cb_t _new_encoder_data_cb);
@@ -34,6 +34,9 @@ encoder_start_periodic_data_update();
 
 void
 encoder_stop_periodic_data_update();
+
+encoders_data
+get_encoders_data(void);
 
 #ifdef __cplusplus
 }

@@ -1,31 +1,23 @@
-config REGULATOR_DRV
+config ROBOT_CONTROL
     bool "Regulator driver module"
     depends on IMU_DRV
     depends on MOTOR_CONTROLLER_DRV
 
-if REGULATOR_DRV
+if ROBOT_CONTROL
 
 config BALANCE_REGULATOR_SAMPLE_TIME
     int "Balance regulator sampling time in milliseconds"
     default 1
 
 config ROTATION_REGULATOR_SAMPLE_TIME
-    int "Balance regulator sampling time in milliseconds"
+    int "Rotation regulator sampling time in milliseconds"
     default 10
 
-config REGULATOR_LOG
-    bool "Enable logging from motors driver"
+config ROBOT_CONTROL_LOG
+    bool "Enable logging from robot control loop"
     depends on LOGGER_DRV
-
-config ALPHA
-    int "Angle filter coefficient unscaled"
-    default 10
-
-config ALPHA_SCALER
-    int "Alpha coefficient scaler"
-    default 100
 
 config PID_ENABLED
     bool "PID controller enabled, else enable LQR"
 
-endif #REGULATOR_DRV
+endif #ROBOT_CONTROL

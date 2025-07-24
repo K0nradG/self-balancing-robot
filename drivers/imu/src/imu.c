@@ -4,6 +4,7 @@
 #include "imu.h"
 #include <math.h>
 #include <zephyr/init.h>
+#include "control_loop.h"
 #include "imu_config.h"
 
 #ifdef CONFIG_IMU_LOG
@@ -205,6 +206,7 @@ process_imu(struct device const* dev)
     }
 
     s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
+    tigger_control_loop();
 
     return ret;
 }

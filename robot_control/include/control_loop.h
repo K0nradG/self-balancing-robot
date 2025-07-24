@@ -7,10 +7,7 @@ extern "C" {
 #endif
 
 void
-start_control_loop();
-
-void
-stop_control_loop();
+tigger_control_loop(void);
 
 #ifdef __cplusplus
 }

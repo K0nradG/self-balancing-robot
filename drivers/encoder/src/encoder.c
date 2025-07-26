@@ -24,7 +24,6 @@ encoders_data g_encoders_data = {0};
 encoder_data_updated_cb_t encoder_data_updated_cb = NULL;
 
 static struct k_work_delayable encoder_data_update_work;
-static bool periodic_data_update_started = false;
 
 // Lookup table: 16 entries for all possible transitions
 // -1 = CCW, +1 = CW, 0 = invalid/bounce
@@ -135,8 +134,13 @@ encoder_data_update_work_handler(struct k_work* work)
 
     static float prev_angle_rad_encoder_0;
     static float prev_angle_rad_encoder_1;
+    static int64_t last_timestamp_ms = 0;
 
-    if(encoder_data_updated_cb)
+    int64_t now_ms    = k_uptime_get();
+    float dt          = (last_timestamp_ms > 0) ? (now_ms - last_timestamp_ms) / 1000.0f : 0.0f;
+    last_timestamp_ms = now_ms;
+
+    if(encoder_data_updated_cb && dt > 0.0f)
     {
         g_encoders_data.encoder_0.shaft_rotate_count =
             g_encoders_data.encoder_0.impulse_count / (float)CONFIG_IMPULSE_TO_SHAFT_ROTATION;
@@ -145,7 +149,7 @@ encoder_data_update_work_handler(struct k_work* work)
             g_encoders_data.encoder_0.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
 
         float delta_angle_0 = g_encoders_data.encoder_0.shaft_angle_rad - prev_angle_rad_encoder_0;
-        g_encoders_data.encoder_0.angular_velocity_rad_s = delta_angle_0 / (CONFIG_ENCODER_DATA_UPDATE_MS / 1000.0f);
+        g_encoders_data.encoder_0.angular_velocity_rad_s = delta_angle_0 / dt;
         g_encoders_data.encoder_0.linear_velocity_m_s =
             g_encoders_data.encoder_0.angular_velocity_rad_s * (CONFIG_WHEEL_DIAMETER_MM / 2.0f) * MM_TO_M;
 
@@ -158,7 +162,7 @@ encoder_data_update_work_handler(struct k_work* work)
             g_encoders_data.encoder_1.shaft_rotate_count * (M_PI * CONFIG_WHEEL_DIAMETER_MM) * MM_TO_M;
 
         float delta_angle_1 = g_encoders_data.encoder_1.shaft_angle_rad - prev_angle_rad_encoder_1;
-        g_encoders_data.encoder_1.angular_velocity_rad_s = delta_angle_1 / (CONFIG_ENCODER_DATA_UPDATE_MS / 1000.0f);
+        g_encoders_data.encoder_1.angular_velocity_rad_s = delta_angle_1 / dt;
         g_encoders_data.encoder_1.linear_velocity_m_s =
             g_encoders_data.encoder_1.angular_velocity_rad_s * (CONFIG_WHEEL_DIAMETER_MM / 2.0f) * MM_TO_M;
 
@@ -166,50 +170,9 @@ encoder_data_update_work_handler(struct k_work* work)
 
         encoder_data_updated_cb(g_encoders_data);
     }
-
-    reschedule_work(&encoder_data_update_work, K_MSEC(CONFIG_ENCODER_DATA_UPDATE_MS), "encoder data update");
 }
 
 static K_WORK_DELAYABLE_DEFINE(encoder_data_update_work, encoder_data_update_work_handler);
-
-void
-encoder_start_periodic_data_update()
-{
-    if(periodic_data_update_started)
-    {
-#ifdef CONFIG_ENCODER_LEVEL_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "encoder worker already started");
-#endif  // CONFIG_ENCODER_LEVEL_LOG
-    }
-    periodic_data_update_started = true;
-
-    reschedule_work(&encoder_data_update_work, K_NO_WAIT, "encoder data update");
-}
-
-void
-encoder_stop_periodic_data_update()
-{
-    if(!periodic_data_update_started)
-    {
-#ifdef CONFIG_ENCODER_LEVEL_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "encoder worker not started");
-#endif  // CONFIG_ENCODER_LEVEL_LOG
-    }
-    periodic_data_update_started = false;
-
-    const int ret = k_work_cancel_delayable(&encoder_data_update_work);
-    if(ret)
-    {
-#ifdef CONFIG_ENCODER_LEVEL_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "cancel encoder work err:%d", ret);
-#endif  // CONFIG_ENCODER_LEVEL_LOG
-        return;
-    }
-
-#ifdef CONFIG_ENCODER_LEVEL_LOG
-    platform_log("ENCODER", LOG_LEVEL_DBG, "encoder work cancelled");
-#endif  // CONFIG_ENCODER_LEVEL_LOG
-}
 
 void
 new_encoder_data_updated_cb_register(encoder_data_updated_cb_t _new_encoder_data_cb)
@@ -220,8 +183,8 @@ new_encoder_data_updated_cb_register(encoder_data_updated_cb_t _new_encoder_data
     }
 }
 
-encoders_data
+void
 get_encoders_data(void)
 {
-    return g_encoders_data;
+    k_work_submit(&encoder_data_update_work.work);
 }

@@ -31,18 +31,6 @@ new_battery_level_callback(battery_level_data data)
 }
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
-#ifdef CONFIG_ENCODER_DRV
-void
-new_encoder_data_callback(encoders_data encoders_data)
-{
-    platform_log(
-        "APP", LOG_LEVEL_INF, "c%d r%f a%f d%f rs%f ms%f", encoders_data.encoder_0.impulse_count,
-        encoders_data.encoder_0.shaft_rotate_count, encoders_data.encoder_0.shaft_angle_rad,
-        encoders_data.encoder_0.distance_m, encoders_data.encoder_0.angular_velocity_rad_s,
-        encoders_data.encoder_0.linear_velocity_m_s);
-}
-#endif  // CONFIG_ENCODER_DRV
-
 #ifdef CONFIG_ROBOT_CONTROL
 #include "control_loop.h"
 
@@ -55,10 +43,6 @@ new_encoder_data_callback(encoders_data encoders_data)
 int
 main(void)
 {
-#ifdef CONFIG_ENCODER_DRV
-    new_encoder_data_updated_cb_register(new_encoder_data_callback);
-    encoder_start_periodic_data_update();
-#endif
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Application started.");
 #endif  // CONFIG_APP_LOG

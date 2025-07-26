@@ -30,12 +30,6 @@ void
 new_encoder_data_updated_cb_register(encoder_data_updated_cb_t _new_encoder_data_cb);
 
 void
-encoder_start_periodic_data_update();
-
-void
-encoder_stop_periodic_data_update();
-
-encoders_data
 get_encoders_data(void);
 
 #ifdef __cplusplus

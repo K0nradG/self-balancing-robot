@@ -103,7 +103,7 @@ new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
 
     if(g_regulator_parameters_parser_cb)
     {
-        g_regulator_parameters_parser_cb(data);
+        g_regulator_parameters_parser_cb(received_data);
     }
 }
 

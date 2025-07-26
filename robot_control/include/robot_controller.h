@@ -17,7 +17,7 @@ class Robot_Controller
 {
     static constexpr float pi               = 3.14159265358979323846f;
     static constexpr float radian_degrees   = 180.0f;
-    static constexpr float balance_setpoint = -11.7f * (pi / radian_degrees);
+    static constexpr float balance_setpoint = -10.0f * (pi / radian_degrees);  //-11.7
 
 #ifdef CONFIG_PID_ENABLED
     static constexpr PID::Parameters balance_pid_parameters = {.Kp = 300.0, .Ki = 35.0f, .Kd = 2.3f};  // kp = 270
@@ -26,7 +26,7 @@ class Robot_Controller
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED
 
-    static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 0.80f, .Ki = 0.1f, .Kd = 0.002f};
+    static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 0.80f, .Ki = 0.1f, .Kd = 0.001f};  // 0.002
     static constexpr float speed_pid_filter_alpha               = 1.0f;  // No filtering.
 
 public:

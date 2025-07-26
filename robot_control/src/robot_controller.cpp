@@ -1,4 +1,5 @@
 #include "robot_controller.h"
+#include <cmath>
 #include "encoder.h"
 #include "imu.h"
 #include "motor_controller.h"
@@ -25,11 +26,29 @@ Robot_Controller::Robot_Controller()
 void
 Robot_Controller::control_motors()
 {
-    imu_data const imu_data           = get_imu_data();
+    imu_data const imu_data = get_imu_data();
     get_encoders_data();
 
 #ifdef CONFIG_PID_ENABLED
-    float const target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
+    // float target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
+
+    // float non_linear_gain = fminf(1.0f + fabs(imu_data.angle_balance) * 0.82f, 5.0f);
+    // target_speed *= non_linear_gain;
+
+    float angle_rel = imu_data.angle_balance - m_balance_setpoint;
+
+    float target_speed = m_balance_pid.calculate_output(0.0f, angle_rel);
+    target_speed += imu_data.angle_balance_dt * 1.5f;
+
+    float non_linear_gain = fminf(1.0f + fabs(angle_rel) * 0.82f, 5.0f);
+    target_speed *= non_linear_gain;
+
+    // Ratunkowe minimum przy dużym przechyle
+    if(fabs(angle_rel) > 8.0f && fabs(target_speed) < 1.5f)
+    {
+        target_speed = copysignf(1.5f, angle_rel);
+    }
+
 #else
     float const target_speed = m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif
@@ -46,7 +65,7 @@ Robot_Controller::control_motors()
         .angle    = imu_data.angle_balance,
         .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-    send_motors_data(pwm0, pwm1);
+    send_motors_data(0, 0);
     trigger_motors_update();
 }
 
@@ -54,42 +73,48 @@ Robot_Controller::control_motors()
 void
 Robot_Controller::parse_nus_data(char const* data)
 {
-    if(data == nullptr)
+    if(data == nullptr || *data == '\0')
     {
         return;
     }
 
-    char const key = *data;
+    char key            = data[0];
+    const char* payload = data + 1;
+
     switch(key)
     {
         case 'b':
-            data++;
-            if(*data == 's')
+            if(*payload == 's')
             {
-                data++;
-                m_balance_setpoint = strtof(data, nullptr);
+                payload++;
+
+                char buffer[16];
+                snprintf(buffer, sizeof(buffer), "%s", payload);
+
+                char* endptr       = nullptr;
+                float val          = strtof(buffer, &endptr);
+                m_balance_setpoint = val;
             }
             else
             {
 #ifdef CONFIG_PID_ENABLED
-                m_balance_pid.parse_nus_parameters(data);
+                m_balance_pid.parse_nus_parameters(payload);
 #else
-                m_balance_lqr.parse_nus_parameters(data);
-#endif  // CONFIG_PID_ENABLED
+                m_balance_lqr.parse_nus_parameters(payload);
+#endif
             }
             break;
+
         case 's':
-            data++;
-            m_wheel0_speed_pid.parse_nus_parameters(data);
+            m_wheel0_speed_pid.parse_nus_parameters(payload);
             m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
             break;
-        // case 'r':
-        //     break;
+
         default:
             break;
     }
 }
-#endif  // CONFIG_LOG_OVER_BLE
+#endif
 
 void
 Robot_Controller::send_motors_data(int pwm_motor0, int pwm_motor1)

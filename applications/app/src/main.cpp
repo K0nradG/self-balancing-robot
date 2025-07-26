@@ -9,10 +9,6 @@
 #define BLINKING_INTERVAL 500
 #endif  // CONFIG_INTERFACE_DRV
 
-#ifdef CONFIG_LOG_OVER_BLE
-#include "ble_logger_service.h"
-#endif  // CONFIG_IMU_DRV
-
 #ifdef CONFIG_ENCODER_DRV
 #include "encoder.h"
 #endif  // CONFIG_ENCODER_DRV
@@ -63,17 +59,6 @@ main(void)
     new_battery_level_cb_register(new_battery_level_callback);
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
 #endif  // CONFIG_BATTERY_LEVEL_DRV
-
-#ifdef CONFIG_LOG_OVER_BLE
-#ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "Receiving regulator parameters through NUS.");
-#endif  // CONFIG_APP_LOG
-
-#ifdef CONFIG_ROBOT_CONTROL
-    new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
-
-#endif  // CONFIG_ROBOT_CONTROL
-#endif  // CONFIG_LOG_OVER_BLE
 
 #ifdef CONFIG_ROBOT_CONTROL
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV

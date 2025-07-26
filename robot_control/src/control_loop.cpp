@@ -3,15 +3,31 @@
 #include "robot_controller.h"
 #include "utils.h"
 
+#ifdef CONFIG_LOG_OVER_BLE
+#include "ble_logger_service.h"
+#endif
+
 static Robot_Control::Robot_Controller s_robot_controller {};
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 send_identification_data_cb_t g_send_identification_data_cb = nullptr;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+#ifdef CONFIG_LOG_OVER_BLE
+void
+nus_data_parse_callback(char const* data)
+{
+    s_robot_controller.parse_nus_data(data);
+}
+#endif  // CONFIG_LOG_OVER_BLE
+
 static int
 init(void)
 {
+#ifdef CONFIG_LOG_OVER_BLE
+    new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
+#endif  // CONFIG_LOG_OVER_BLE
+
     set_enable_controller(true);
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
@@ -44,14 +60,6 @@ tigger_control_loop(void)
 {
     k_work_submit(&s_control_work.work);
 }
-
-#ifdef CONFIG_LOG_OVER_BLE
-void
-nus_data_parse_callback(char const* data)
-{
-    s_robot_controller.parse_nus_data(data);
-}
-#endif  // CONFIG_LOG_OVER_BLE
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 void

@@ -188,7 +188,7 @@ new_encoder_data_updated_cb_register(encoder_data_updated_cb_t _new_encoder_data
 }
 
 void
-get_encoders_data(void)
+_get_encoders_data(void)
 {
     k_work_submit(&encoder_data_update_work.work);
 }

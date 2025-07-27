@@ -8,7 +8,6 @@
 extern "C" {
 #endif
 
-
 typedef struct
 {
     float angle_balance;
@@ -20,7 +19,7 @@ void
 mpu_reset(uint8_t conf);
 
 imu_data
-get_imu_data(void);
+_get_imu_data(void);
 
 #ifdef __cplusplus
 }

@@ -1,10 +1,7 @@
 #include "robot_controller.h"
 #include <cmath>
-#include "encoder.h"
-#include "imu.h"
+#include "data_manager.h"
 #include "motor_controller.h"
-
-encoders_data g__encoders_data = {0};
 
 namespace Robot_Control
 {
@@ -28,8 +25,12 @@ Robot_Controller::Robot_Controller()
 void
 Robot_Controller::control_motors()
 {
-    imu_data const imu_data = get_imu_data();
-    get_encoders_data();
+    // imu_data const imu_data = get_imu_data();
+    // get_encoders_data();
+
+    DataManager::instance().update();
+    imu_data imu_data           = DataManager::instance().get_imu_data();
+    encoders_data encoders_data = DataManager::instance().get_encoders_data();
 
 #ifdef CONFIG_PID_ENABLED
     float target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
@@ -44,9 +45,9 @@ Robot_Controller::control_motors()
     float const target_rotate_speed = m_rotate_pid.calculate_output(m_rotate_setpoint, imu_data.angle_rotation);
 
     float const pwm0 = m_wheel0_speed_pid.calculate_output(
-        target_speed - target_rotate_speed, g__encoders_data.encoder_0.angular_velocity_rad_s);
+        target_speed - target_rotate_speed, encoders_data.encoder_0.angular_velocity_rad_s);
     float const pwm1 = m_wheel1_speed_pid.calculate_output(
-        target_speed + target_rotate_speed, g__encoders_data.encoder_1.angular_velocity_rad_s);
+        target_speed + target_rotate_speed, encoders_data.encoder_1.angular_velocity_rad_s);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     m_identification_data = {
@@ -139,22 +140,3 @@ Robot_Controller::get_identification_data() const
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 }  // namespace Robot_Control
-
-void
-new_encoder_data_callback(encoders_data encoders_data)
-{
-    g__encoders_data = encoders_data;
-}
-
-static int
-init(void)
-{
-    new_encoder_data_updated_cb_register(new_encoder_data_callback);
-
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-    platform_log("REGULATOR", LOG_LEVEL_INF, "controller finished");
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-    return 0;
-}
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);

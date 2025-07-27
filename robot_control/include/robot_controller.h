@@ -17,7 +17,7 @@ class Robot_Controller
 {
     static constexpr float pi               = 3.14159265358979323846f;
     static constexpr float radian_degrees   = 180.0f;
-    static constexpr float balance_setpoint = -10.0f * (pi / radian_degrees);  //-10.0f
+    static constexpr float balance_setpoint = -11.5f * (pi / radian_degrees);  //-10.0f
 
     static constexpr float rotate_setpoint = 0.0f * (pi / radian_degrees);
 

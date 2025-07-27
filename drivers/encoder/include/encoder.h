@@ -31,7 +31,7 @@ void
 new_encoder_data_updated_cb_register(encoder_data_updated_cb_t _new_encoder_data_cb);
 
 void
-get_encoders_data(void);
+_get_encoders_data(void);
 
 #ifdef __cplusplus
 }

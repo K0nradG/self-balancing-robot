@@ -212,7 +212,7 @@ process_imu(struct device const* dev)
 }
 
 imu_data
-get_imu_data(void)
+_get_imu_data(void)
 {
     return s_imu_data;
 }

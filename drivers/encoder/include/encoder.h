@@ -22,6 +22,7 @@ typedef struct
 {
     encoder_data encoder_0;
     encoder_data encoder_1;
+    float robot_angle_rad;
 } encoders_data;
 
 typedef void (*encoder_data_updated_cb_t)(encoders_data encoders);

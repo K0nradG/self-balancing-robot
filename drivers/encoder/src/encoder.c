@@ -168,6 +168,10 @@ encoder_data_update_work_handler(struct k_work* work)
 
         prev_angle_rad_encoder_1 = g_encoders_data.encoder_1.shaft_angle_rad;
 
+        g_encoders_data.robot_angle_rad =
+            (g_encoders_data.encoder_1.shaft_angle_rad - g_encoders_data.encoder_0.shaft_angle_rad) *
+            ((CONFIG_WHEEL_DIAMETER_MM * MM_TO_M) / (2.0f * CONFIG_WHEEL_BASE_WIDTH_MM * MM_TO_M));
+
         encoder_data_updated_cb(g_encoders_data);
     }
 }

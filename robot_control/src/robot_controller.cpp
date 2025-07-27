@@ -11,6 +11,7 @@ namespace Robot_Control
 
 Robot_Controller::Robot_Controller()
     : m_balance_setpoint(balance_setpoint),
+      m_rotate_setpoint(rotate_setpoint),
 #ifdef CONFIG_PID_ENABLED
       m_balance_pid(
           balance_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT),
@@ -19,7 +20,8 @@ Robot_Controller::Robot_Controller()
       m_balance_lqr(balance_lqr_parameters, static_cast<float>(CONFIG_PWM_LIMIT)),
 #endif
       m_wheel0_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha),
-      m_wheel1_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha)
+      m_wheel1_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha),
+      m_rotate_pid(rotate_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), rotate_pid_filter_alpha)
 {
 }
 
@@ -30,33 +32,21 @@ Robot_Controller::control_motors()
     get_encoders_data();
 
 #ifdef CONFIG_PID_ENABLED
-    // float target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
+    float target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
 
-    // float non_linear_gain = fminf(1.0f + fabs(imu_data.angle_balance) * 0.82f, 5.0f);
-    // target_speed *= non_linear_gain;
-
-    float angle_rel = imu_data.angle_balance - m_balance_setpoint;
-
-    float target_speed = m_balance_pid.calculate_output(0.0f, angle_rel);
-    target_speed += imu_data.angle_balance_dt * 1.5f;
-
-    float non_linear_gain = fminf(1.0f + fabs(angle_rel) * 0.82f, 5.0f);
+    float non_linear_gain = fminf(1.0f + fabs(imu_data.angle_balance) * 0.82f, 5.0f);
     target_speed *= non_linear_gain;
-
-    // Ratunkowe minimum przy dużym przechyle
-    if(fabs(angle_rel) > 8.0f && fabs(target_speed) < 1.5f)
-    {
-        target_speed = copysignf(1.5f, angle_rel);
-    }
 
 #else
     float const target_speed = m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif
 
-    float const pwm0 =
-        m_wheel0_speed_pid.calculate_output(target_speed, g__encoders_data.encoder_0.angular_velocity_rad_s);
-    float const pwm1 =
-        m_wheel1_speed_pid.calculate_output(target_speed, g__encoders_data.encoder_1.angular_velocity_rad_s);
+    float const target_rotate_speed = m_rotate_pid.calculate_output(m_rotate_setpoint, imu_data.angle_rotation);
+
+    float const pwm0 = m_wheel0_speed_pid.calculate_output(
+        target_speed - target_rotate_speed, g__encoders_data.encoder_0.angular_velocity_rad_s);
+    float const pwm1 = m_wheel1_speed_pid.calculate_output(
+        target_speed + target_rotate_speed, g__encoders_data.encoder_1.angular_velocity_rad_s);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     m_identification_data = {
@@ -65,7 +55,7 @@ Robot_Controller::control_motors()
         .angle    = imu_data.angle_balance,
         .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-    send_motors_data(0, 0);
+    send_motors_data(pwm0, pwm1);
     trigger_motors_update();
 }
 
@@ -93,7 +83,7 @@ Robot_Controller::parse_nus_data(char const* data)
 
                 char* endptr       = nullptr;
                 float val          = strtof(buffer, &endptr);
-                m_balance_setpoint = val;
+                m_balance_setpoint = val * (pi / radian_degrees);
             }
             else
             {
@@ -108,6 +98,23 @@ Robot_Controller::parse_nus_data(char const* data)
         case 's':
             m_wheel0_speed_pid.parse_nus_parameters(payload);
             m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
+
+        case 'r':
+            if(*payload == 's')
+            {
+                payload++;
+
+                char buffer[16];
+                snprintf(buffer, sizeof(buffer), "%s", payload);
+
+                char* endptr      = nullptr;
+                float val         = strtof(buffer, &endptr);
+                m_rotate_setpoint = val * (pi / radian_degrees);
+            }
+            else
+            {
+                m_rotate_pid.parse_nus_parameters(payload);
+            }
             break;
 
         default:

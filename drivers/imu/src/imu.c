@@ -21,9 +21,9 @@
 #define DEG_TO_RAD (M_PI / 180.0f)
 #define OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
 
-#define GYRO_X_OFFSET 0.032657f
-#define GYRO_Y_OFFSET 0.006859f
-#define GYRO_Z_OFFSET -0.001628f
+#define GYRO_X_OFFSET 0.032657f  // -0.029123f
+#define GYRO_Y_OFFSET 0.023897f  // 0.066859
+#define GYRO_Z_OFFSET -0.019945  // -0.001628
 
 typedef struct gyro_calibration_data
 {
@@ -173,7 +173,7 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     angle_rotation += gyro_rate_y * dt;
 
     // TODO: Maybe wrap around not needed, but setting direction directly by the user.
-    angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
+    // angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
 
     last_time           = current_time;
     imu_data const data = {
@@ -195,7 +195,7 @@ process_imu(struct device const* dev)
     ret |= sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
     ret |= sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
 
-    // calibrate_gyro(gyro_data);  // TODO: make Calibration on Kconfig
+    calibrate_gyro(gyro_data);  // TODO: make Calibration on Kconfig
 
     if(ret)
     {

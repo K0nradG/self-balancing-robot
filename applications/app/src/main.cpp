@@ -9,10 +9,6 @@
 #define BLINKING_INTERVAL 500
 #endif  // CONFIG_INTERFACE_DRV
 
-#ifdef CONFIG_ENCODER_DRV
-#include "encoder.h"
-#endif  // CONFIG_ENCODER_DRV
-
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #include "battery_level.h"
 #define MEASUREMENT_INTERVAL 9000
@@ -28,13 +24,11 @@ new_battery_level_callback(battery_level_data data)
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_ROBOT_CONTROL
-#include "control_loop.h"
-
-#endif  // CONFIG_ROBOT_CONTROL
-
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "control_loop.h"
 #include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+#endif  // CONFIG_ROBOT_CONTROL
 
 int
 main(void)

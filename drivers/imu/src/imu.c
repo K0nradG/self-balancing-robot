@@ -13,13 +13,13 @@
 
 #define GYRO_CALIBRATION_SAMPLES 10000
 
-#define ALPHA 0.997f
-#define M_PI 3.14159265358979323846f
+#define ALPHA               0.997f
+#define M_PI                3.14159265358979323846f
 #define MICRO_PARTS_CONVERT 1e-06f
 
 #define ANGLE_OFFSET 90.0f
-#define DEG_TO_RAD (M_PI / 180.0f)
-#define OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
+#define DEG_TO_RAD   (M_PI / 180.0f)
+#define OFFSET       (ANGLE_OFFSET * DEG_TO_RAD)
 
 #define GYRO_X_OFFSET 0.032657f  // -0.029123f
 #define GYRO_Y_OFFSET 0.023897f  // 0.066859
@@ -195,7 +195,7 @@ process_imu(struct device const* dev)
     ret |= sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
     ret |= sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
 
-    calibrate_gyro(gyro_data);  // TODO: make Calibration on Kconfig
+    // calibrate_gyro(gyro_data);  // TODO: make Calibration on Kconfig
 
     if(ret)
     {
@@ -206,7 +206,7 @@ process_imu(struct device const* dev)
     }
 
     s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
-    tigger_control_loop();
+    trigger_control_loop();
 
     return ret;
 }

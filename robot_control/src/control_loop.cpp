@@ -1,7 +1,11 @@
 #include "control_loop.h"
 #include "motor_controller.h"
 #include "robot_controller.h"
-#include "utils.h"
+#include "zephyr/kernel.h"
+
+#ifdef CONFIG_ROBOT_CONTROL_LOG
+#include "logger"
+#endif  // CONFIG_ROBOT_CONTROL_LOG
 
 #ifdef CONFIG_LOG_OVER_BLE
 #include "ble_logger_service.h"
@@ -56,7 +60,7 @@ control_loop_work_handler(struct k_work* work)
 static K_WORK_DELAYABLE_DEFINE(s_control_work, control_loop_work_handler);
 
 void
-tigger_control_loop(void)
+trigger_control_loop(void)
 {
     k_work_submit(&s_control_work.work);
 }

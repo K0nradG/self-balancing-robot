@@ -8,7 +8,7 @@ config ENCODER_DATA_UPDATE_MS
     int "Encoder measurement interval in ms"
     default 100
 
-config IMPULSE_TO_SHAFT_ROTATION
+config IMPULSES_FOR_SHAFT_ROTATION
     int "Amount of encoder impulses when the motor shaft make a full rotation"
     default 800
 

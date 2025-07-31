@@ -1,7 +1,10 @@
 #include "robot_controller.h"
-#include <cmath>
 #include "data_manager.h"
 #include "motor_controller.h"
+
+#ifdef CONFIG_ROBOT_CONTROL_LOG
+#include "logger.h"
+#endif  // CONFIG_ROBOT_CONTROL_LOG
 
 namespace Robot_Control
 {
@@ -25,19 +28,12 @@ Robot_Controller::Robot_Controller()
 void
 Robot_Controller::control_motors()
 {
-    // imu_data const imu_data = get_imu_data();
-    // get_encoders_data();
-
     DataManager::instance().update();
-    imu_data imu_data           = DataManager::instance().get_imu_data();
-    encoders_data encoders_data = DataManager::instance().get_encoders_data();
+    imu_data const imu_data           = DataManager::instance().get_imu_data();
+    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
 
 #ifdef CONFIG_PID_ENABLED
-    float target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
-
-    float non_linear_gain = fminf(1.0f + fabs(imu_data.angle_balance) * 0.82f, 5.0f);
-    target_speed *= non_linear_gain;
-
+    float const target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
 #else
     float const target_speed = m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif
@@ -56,7 +52,14 @@ Robot_Controller::control_motors()
         .angle    = imu_data.angle_balance,
         .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-    send_motors_data(pwm0, pwm1);
+
+#ifdef CONFIG_ROBOT_CONTROL_LOG
+    platform_log(
+        "APP", LOG_LEVEL_INF, "ab: %f, ev0: %f, ev1: %f, pwm0: %f, pwm1: %f",
+        (double)(imu_data.angle_balance * radian_degrees / pi), (double)encoders_data.encoder_0.shaft_angle_rad,
+        (double)encoders_data.encoder_1.shaft_angle_rad, (double)pwm0, (double)pwm1);
+#endif  // CONFIG_ROBOT_CONTROL_LOG
+    send_motors_data(static_cast<int>(pwm0), static_cast<int>(pwm1));
     trigger_motors_update();
 }
 

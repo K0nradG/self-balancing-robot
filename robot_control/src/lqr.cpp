@@ -1,6 +1,6 @@
 #include "lqr.h"
-#include <cmath>
 #include <stdlib.h>
+#include <cmath>
 
 namespace Robot_Control
 {
@@ -59,4 +59,4 @@ LQR::parse_nus_parameters(char const* data)
 }
 #endif  // CONFIG_LOG_OVER_BLE
 
-} // namespace Robot_Control
+}  // namespace Robot_Control

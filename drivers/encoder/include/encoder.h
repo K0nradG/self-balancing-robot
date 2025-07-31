@@ -25,12 +25,8 @@ typedef struct
     float robot_angle_rad;
 } encoders_data;
 
-typedef void (*encoder_data_updated_cb_t)(encoders_data encoders);
-
-void
-new_encoder_data_updated_cb_register(encoder_data_updated_cb_t _new_encoder_data_cb);
-
-void
+// _ added since the same naming was used in data manager - causes wrong calls.
+encoders_data
 _get_encoders_data(void);
 
 #ifdef __cplusplus

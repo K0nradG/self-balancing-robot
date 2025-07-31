@@ -9,7 +9,7 @@ extern "C" {
 
 struct battery_level_data
 {
-    uint8_t  battery_level_percent;
+    uint8_t battery_level_percent;
     uint16_t battery_level_mv;
 };
 

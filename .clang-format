@@ -45,3 +45,5 @@ SpacesInCStyleCastParentheses: false
 SpacesInContainerLiterals: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
+AlignConsecutiveMacros:
+  Enabled: true

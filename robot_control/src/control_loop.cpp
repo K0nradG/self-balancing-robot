@@ -4,7 +4,7 @@
 #include "zephyr/kernel.h"
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
-#include "logger"
+#include "logger.h"
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 
 #ifdef CONFIG_LOG_OVER_BLE

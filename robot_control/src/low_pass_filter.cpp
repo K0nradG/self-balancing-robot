@@ -12,4 +12,4 @@ Low_Pass_Filter::filter(float input)
     return output;
 }
 
-} // namespace Robot_Control
+}  // namespace Robot_Control

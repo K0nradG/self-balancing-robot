@@ -12,7 +12,7 @@
 #define INIT_ERR -1
 
 /* Below values in [Ω]*/
-#define VOLTAGE_DIVIDER_RESISTOR_UP 100000
+#define VOLTAGE_DIVIDER_RESISTOR_UP   100000
 #define VOLTAGE_DIVIDER_RESISTOR_DOWN 200000
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));

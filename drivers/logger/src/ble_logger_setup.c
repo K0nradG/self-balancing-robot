@@ -8,7 +8,7 @@
 
 LOG_MODULE_REGISTER(ble_logger_setup, CONFIG_LOGGER_LOG_LEVEL);
 
-#define DEVICE_NAME "SELF_BALANCING_ROBOT"
+#define DEVICE_NAME      "SELF_BALANCING_ROBOT"
 #define NO_SCAN_RSP_DATA 0
 
 struct bt_conn* my_conn                               = NULL;

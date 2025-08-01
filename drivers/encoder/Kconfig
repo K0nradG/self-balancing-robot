@@ -8,11 +8,15 @@ config ENCODER_DATA_UPDATE_MS
     int "Encoder measurement interval in ms"
     default 100
 
-config IMPULSE_TO_SHAFT_ROTATION
+config IMPULSES_FOR_SHAFT_ROTATION
     int "Amount of encoder impulses when the motor shaft make a full rotation"
     default 800
 
 config WHEEL_DIAMETER_MM
     int "Wheel diameter in mm"
     default 65
+
+config WHEEL_BASE_WIDTH_MM
+    int "distance between wheels in mm"
+    default 195
 endif

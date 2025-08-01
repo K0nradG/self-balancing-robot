@@ -11,9 +11,9 @@
 #include "logger.h"
 #endif  // CONFIG_MOTOR_CONTROLLER_LOG
 
-#define N_GPIO_PINS 5u
+#define N_GPIO_PINS                      5u
 #define DIRECTION_CONTROL_PINS_BEGIN_IDX 1u
-#define PWM_PERIOD_NS PWM_USEC(CONFIG_PWM_PERIOD_US)
+#define PWM_PERIOD_NS                    PWM_USEC(CONFIG_PWM_PERIOD_US)
 
 static bool g_controller_enabled = false;
 static MOTORS_DATA g_motors_data = {.duty_cycle_percent_motor0 = 0u, .duty_cycle_percent_motor1 = 0u, .start = false};

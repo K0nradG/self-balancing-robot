@@ -8,7 +8,6 @@
 extern "C" {
 #endif
 
-
 typedef struct
 {
     float angle_balance;
@@ -19,8 +18,9 @@ typedef struct
 void
 mpu_reset(uint8_t conf);
 
+// _ added since the same naming was used in data manager - causes wrong calls.
 imu_data
-get_imu_data(void);
+_get_imu_data(void);
 
 #ifdef __cplusplus
 }

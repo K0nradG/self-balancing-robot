@@ -16,4 +16,4 @@ private:
     float m_last_output {};
 };
 
-} // namespace Robot_Control
+}  // namespace Robot_Control

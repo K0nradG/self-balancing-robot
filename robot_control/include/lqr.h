@@ -30,4 +30,4 @@ private:
     float m_output_saturation;
 };
 
-} // namespace Robot_Control
+}  // namespace Robot_Control

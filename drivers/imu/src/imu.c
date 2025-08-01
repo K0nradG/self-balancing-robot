@@ -4,6 +4,7 @@
 #include "imu.h"
 #include <math.h>
 #include <zephyr/init.h>
+#include "control_loop.h"
 #include "imu_config.h"
 
 #ifdef CONFIG_IMU_LOG
@@ -12,17 +13,17 @@
 
 #define GYRO_CALIBRATION_SAMPLES 10000
 
-#define ALPHA 0.997f
-#define M_PI 3.14159265358979323846f
+#define ALPHA               0.997f
+#define M_PI                3.14159265358979323846f
 #define MICRO_PARTS_CONVERT 1e-06f
 
 #define ANGLE_OFFSET 90.0f
-#define DEG_TO_RAD (M_PI / 180.0f)
-#define OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
+#define DEG_TO_RAD   (M_PI / 180.0f)
+#define OFFSET       (ANGLE_OFFSET * DEG_TO_RAD)
 
-#define GYRO_X_OFFSET 0.032657f
-#define GYRO_Y_OFFSET 0.006859f
-#define GYRO_Z_OFFSET -0.001628f
+#define GYRO_X_OFFSET 0.032657f  // -0.029123f
+#define GYRO_Y_OFFSET 0.023897f  // 0.066859
+#define GYRO_Z_OFFSET -0.019945  // -0.001628
 
 typedef struct gyro_calibration_data
 {
@@ -172,7 +173,7 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     angle_rotation += gyro_rate_y * dt;
 
     // TODO: Maybe wrap around not needed, but setting direction directly by the user.
-    angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
+    // angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
 
     last_time           = current_time;
     imu_data const data = {
@@ -205,12 +206,13 @@ process_imu(struct device const* dev)
     }
 
     s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
+    trigger_control_loop();
 
     return ret;
 }
 
 imu_data
-get_imu_data(void)
+_get_imu_data(void)
 {
     return s_imu_data;
 }

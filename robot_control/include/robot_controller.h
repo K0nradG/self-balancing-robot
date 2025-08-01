@@ -17,17 +17,22 @@ class Robot_Controller
 {
     static constexpr float pi               = 3.14159265358979323846f;
     static constexpr float radian_degrees   = 180.0f;
-    static constexpr float balance_setpoint = -12.0f * (pi / radian_degrees);
+    static constexpr float balance_setpoint = -11.5f * (pi / radian_degrees);  //-10.0f
+
+    static constexpr float rotate_setpoint = 0.0f * (pi / radian_degrees);
 
 #ifdef CONFIG_PID_ENABLED
-    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 300.0, .Ki = 0.0f, .Kd = 0.0f};
+    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 300.0, .Ki = 35.0f, .Kd = 2.3f};  // kp = 270
     static constexpr float balance_pid_filter_alpha         = 0.9f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED
 
-    static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 0.7f, .Ki = 0.1f, .Kd = 0.05f};
+    static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 0.80f, .Ki = 0.1f, .Kd = 0.001f};  // 0.002
     static constexpr float speed_pid_filter_alpha               = 1.0f;  // No filtering.
+
+    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 20.0f, .Ki = 0.0f, .Kd = 0.0f};
+    static constexpr float rotate_pid_filter_alpha         = 1.0f;  // No filtering.
 
 public:
     Robot_Controller();
@@ -48,6 +53,7 @@ public:
 
 private:
     float m_balance_setpoint;
+    float m_rotate_setpoint;
 
 #ifdef CONFIG_PID_ENABLED
     PID m_balance_pid;
@@ -57,6 +63,8 @@ private:
 
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
+
+    PID m_rotate_pid;
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data m_identification_data {};

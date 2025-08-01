@@ -1,7 +1,6 @@
 config ROBOT_CONTROL
     bool "Regulator driver module"
     depends on IMU_DRV
-    depends on MOTOR_CONTROLLER_DRV
 
 if ROBOT_CONTROL
 

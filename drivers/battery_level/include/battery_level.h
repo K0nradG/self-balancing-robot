@@ -26,6 +26,9 @@ battery_start_periodic_measurement(uint16_t interval_ms);
 void
 battery_stop_periodic_measurement(void);
 
+int
+battery_level_init(void);
+
 #ifdef __cplusplus
 }
 #endif

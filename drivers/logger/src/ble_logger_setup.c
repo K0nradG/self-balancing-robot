@@ -158,8 +158,8 @@ bluetooth_init(int err)
     LOG_INF("Advertising successfully started");
 }
 
-static int
-init(void)
+int
+ble_logger_init(void)
 {
     bt_conn_cb_register(&connection_callbacks);
 
@@ -171,6 +171,4 @@ init(void)
 
     return ret;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 #endif

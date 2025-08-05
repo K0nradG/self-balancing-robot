@@ -55,8 +55,8 @@ static struct bt_nus_cb nus_callbacks = {
     .received     = nus_data_received,
 };
 
-static int
-init()
+int
+ble_logger_service_init()
 {
     int err = bt_nus_init(&nus_callbacks);
     if(err)
@@ -65,8 +65,6 @@ init()
     }
     return err;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 void
 ble_logger_send(char* data)

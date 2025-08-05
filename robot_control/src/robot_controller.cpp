@@ -1,6 +1,7 @@
 #include "robot_controller.h"
 #include "data_manager.h"
 #include "motor_controller.h"
+#include "supervisor.h"
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
 #include "logger.h"
@@ -31,6 +32,8 @@ Robot_Controller::control_motors()
     DataManager::instance().update();
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
+
+    safety_supervisor((imu_data.angle_balance + m_balance_setpoint));
 
 #ifdef CONFIG_PID_ENABLED
     float const target_speed = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);

@@ -15,12 +15,12 @@ typedef struct
     float angle_rotation;
 } imu_data;
 
-void
-mpu_reset(uint8_t conf);
-
 // _ added since the same naming was used in data manager - causes wrong calls.
 imu_data
 _get_imu_data(void);
+
+int
+imu_init(void);
 
 #ifdef __cplusplus
 }

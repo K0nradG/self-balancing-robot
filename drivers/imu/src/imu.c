@@ -91,8 +91,8 @@ calibrate_gyro(struct sensor_value* gyro_data)
     }
 }
 
-static int
-init(void)
+int
+imu_init(void)
 {
     bool const is_imu_device_ready = device_is_ready(imu_dev);
 
@@ -104,8 +104,6 @@ init(void)
 
         return -ENODEV;
     }
-
-    mpu_reset(1);
 
 #ifdef CONFIG_MPU6050_TRIGGER
     trigger = (struct sensor_trigger) {
@@ -138,8 +136,6 @@ init(void)
 
     return 0;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static imu_data
 get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)

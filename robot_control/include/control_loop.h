@@ -6,6 +6,9 @@
 extern "C" {
 #endif
 
+int
+control_loop_init(void);
+
 void
 trigger_control_loop(void);
 

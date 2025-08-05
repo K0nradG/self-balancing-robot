@@ -41,6 +41,9 @@ notify_data_sent(void);
 void
 trigger_collecting_identification_data();
 
+int
+model_identification_init(void);
+
 #ifdef __cplusplus
 }
 #endif

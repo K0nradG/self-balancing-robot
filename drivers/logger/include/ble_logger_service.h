@@ -23,6 +23,9 @@ get_notif_status();
 void
 set_notif_status(bool nus_notification_enabled);
 
+int
+ble_logger_service_init();
+
 #ifdef __cplusplus
 }
 #endif

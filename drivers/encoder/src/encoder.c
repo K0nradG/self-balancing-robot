@@ -82,8 +82,8 @@ encoder_1_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint
     prev_state = curr_state;
 }
 
-static int
-init(void)
+int
+encoders_init(void)
 {
     if(!device_is_ready(encoder_0_a.port) || !device_is_ready(encoder_0_b.port) || !device_is_ready(encoder_1_a.port) ||
        !device_is_ready(encoder_1_b.port))
@@ -128,8 +128,6 @@ init(void)
 
     return ret;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static void
 update_encoder(encoder_data* encoder, float prev_angle_rad, float dt)

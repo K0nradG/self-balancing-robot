@@ -14,6 +14,12 @@ extern "C" {
 void
 platform_log(const char* module, int level, const char* fmt, ...);
 
+int
+ble_logger_init(void);
+
+int
+ble_logger_service_init();
+
 #ifdef __cplusplus
 }
 #endif

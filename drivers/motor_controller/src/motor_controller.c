@@ -70,8 +70,8 @@ set_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_percent
     g_motors_data.duty_cycle_percent_motor1 = duty_cycle_percent_motor1;
 }
 
-static int
-init(void)
+int
+motor_controller_init(void)
 {
     if(!device_is_ready(a_in1.port) || !device_is_ready(a_in2.port) || !device_is_ready(b_in1.port) ||
        !device_is_ready(b_in2.port) || !device_is_ready(h_b_en.port) || !pwm_is_ready_dt(&pwm_dc_2))
@@ -99,8 +99,6 @@ init(void)
 #endif  // CONFIG_MOTOR_CONTROLLER_LOG
     return ret;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 void
 stop_motors(void)

@@ -31,8 +31,8 @@ static struct k_work_delayable battery_measurement_work;
 static uint16_t measurement_interval;
 static bool periodic_measurement_started;
 
-static int
-init(void)
+int
+battery_level_init(void)
 {
     int ret;
 
@@ -76,8 +76,6 @@ init(void)
 
     return 0;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static uint8_t
 battery_charge_level(int16_t voltage_mv)

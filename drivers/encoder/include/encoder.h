@@ -29,6 +29,9 @@ typedef struct
 encoders_data
 _get_encoders_data(void);
 
+int
+encoders_init(void);
+
 #ifdef __cplusplus
 }
 #endif

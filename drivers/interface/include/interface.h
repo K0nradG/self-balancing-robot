@@ -13,6 +13,9 @@ led_start_periodic_blinking(uint16_t blinking_interval);
 void
 led_stop_periodic_blinking(void);
 
+int
+interface_init(void);
+
 #ifdef __cplusplus
 }
 #endif

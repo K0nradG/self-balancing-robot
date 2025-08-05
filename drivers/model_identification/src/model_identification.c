@@ -60,8 +60,8 @@ new_regulator_data_for_identification(identification_data data)
 void
 button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins);
 
-static int
-init(void)
+int
+model_identification_init(void)
 {
     if(!device_is_ready(button.port))
     {
@@ -87,8 +87,6 @@ init(void)
 
     return 0;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static bool
 buffer_all_full(void);

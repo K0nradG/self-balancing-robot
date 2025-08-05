@@ -25,8 +25,8 @@ nus_data_parse_callback(char const* data)
 }
 #endif  // CONFIG_LOG_OVER_BLE
 
-static int
-init(void)
+int
+control_loop_init(void)
 {
 #ifdef CONFIG_LOG_OVER_BLE
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
@@ -39,8 +39,6 @@ init(void)
 #endif  // CONFIG_ROBOT_CONTROL_LOG
     return 0;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static void
 control_loop_work_handler(struct k_work* work)

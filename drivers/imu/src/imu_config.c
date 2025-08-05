@@ -74,16 +74,6 @@ get_sensor_settings(uint8_t reg, uint8_t* value)
 }
 
 void
-mpu_reset(uint8_t conf)
-{
-    uint8_t tmp = 0u;
-    get_sensor_settings(PWR_MGMT_1, &tmp);
-    tmp &= ~(1 << 7);
-    tmp |= ((conf & 0x1) << 7);
-    set_sensor_settings(PWR_MGMT_1, tmp);
-}
-
-void
 set_dlpf(void)
 {
     uint8_t tmp = 0u;

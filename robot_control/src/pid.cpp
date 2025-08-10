@@ -7,7 +7,7 @@ namespace Robot_Control
 {
 
 float
-PID::calculate_output(float setpoint, float feedback)
+PID::calculate_output(float setpoint, float feedback, float feedback_dt)
 {
     float const error = setpoint - m_filter.filter(feedback);
 
@@ -24,9 +24,18 @@ PID::calculate_output(float setpoint, float feedback)
         m_integral += m_parameters.Ki * error * dt;
     }
 
-    float const error_difference = error - m_prev_error;
-    float const derivative       = m_parameters.Kd * (error_difference / dt);
-    m_prev_error                 = error;
+    float derivative = 0.0f;
+
+    if(m_use_feedback_dt)
+    {
+        derivative = m_parameters.Kd * feedback_dt;
+    }
+    else
+    {
+        float const error_difference = error - m_prev_error;
+        m_prev_error                 = error;
+        derivative                   = m_parameters.Kd * (error_difference / dt);
+    }
 
     float output = m_parameters.Kp * error + m_integral + derivative;
 
@@ -77,6 +86,9 @@ PID::parse_nus_parameters(char const* data)
                     break;
                 case 'd':
                     m_parameters.Kd = value;
+                    break;
+                case 'f':
+                    m_filter.set_alpha(value);
                     break;
                 default:
                     break;

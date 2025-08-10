@@ -1,4 +1,5 @@
 #include "low_pass_filter.h"
+#include <cmath>
 
 namespace Robot_Control
 {
@@ -10,6 +11,14 @@ Low_Pass_Filter::filter(float input)
     m_last_output      = output;
 
     return output;
+}
+
+void
+Low_Pass_Filter::set_alpha(float alpha)
+{
+    alpha   = std::max(-1.0f, alpha);
+    alpha   = std::min(1.0f, alpha);
+    m_alpha = alpha;
 }
 
 }  // namespace Robot_Control

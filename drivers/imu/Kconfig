@@ -11,4 +11,8 @@ config IMU_LOG
     bool "Enable logging from IMU driver"
     depends on LOGGER_DRV
 
+config IMU_CALIBRATE_GYRO
+    bool "Calibrate IMU gyro before operation"
+    depends on IMU_LOG
+
 endif #IMU_DRV

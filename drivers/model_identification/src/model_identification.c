@@ -69,14 +69,27 @@ init(void)
     }
 
     int ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
-    if(ret < 0)
+    if(ret != 0)
     {
-        return -1;
+        platform_log("MODEL", LOG_LEVEL_ERR, "GPIO pin configuration failed, err: %d", ret);
+        return ret;
     }
 
-    ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
+    ret |= gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
+    if(ret != 0)
+    {
+        platform_log("MODEL", LOG_LEVEL_ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
+        return ret;
+    }
+
     gpio_init_callback(&g_button_data_cb, button_pressed, BIT(button.pin));
-    gpio_add_callback(button.port, &g_button_data_cb);
+    ret |= gpio_add_callback(button.port, &g_button_data_cb);
+
+    if(ret != 0)
+    {
+        platform_log("MODEL", LOG_LEVEL_ERR, "GPIO callback add failed, err: %d", ret);
+        return ret;
+    }
 
     for(int i = 0; i < BUFFER_COUNT; i++)
     {
@@ -85,7 +98,7 @@ init(void)
         g_is_full[i]      = false;
     }
 
-    return 0;
+    return ret;
 }
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
@@ -133,7 +146,11 @@ static K_WORK_DELAYABLE_DEFINE(model_identification_work, model_identification_w
 void
 trigger_collecting_identification_data()
 {
-    k_work_submit(&model_identification_work.work);
+    int const err = k_work_submit(&model_identification_work.work);
+    if(err != 0)
+    {
+        platform_log("MODEL", LOG_LEVEL_ERR, "Identification data collecting failed, err: %d", err);
+    }
 }
 
 void
@@ -174,9 +191,11 @@ uint16_t
 buffer_get(uint8_t buffer_id, float* data, uint16_t max_len)
 {
     if(buffer_id >= BUFFER_COUNT)
-        return 0;
+    {
+        return 0u;
+    }
 
-    uint16_t len = (g_buffer_index[buffer_id] < max_len) ? g_buffer_index[buffer_id] : max_len;
+    uint16_t const len = (g_buffer_index[buffer_id] < max_len) ? g_buffer_index[buffer_id] : max_len;
     for(uint16_t i = 0; i < len; i++)
     {
         ring_buf_get(&g_buffers[buffer_id], (uint8_t*)&data[i], sizeof(float));

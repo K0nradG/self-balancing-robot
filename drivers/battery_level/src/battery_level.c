@@ -34,7 +34,7 @@ static bool periodic_measurement_started;
 static int
 init(void)
 {
-    int ret;
+    int ret = 0;
 
     if(!adc_is_ready_dt(&adc_channel))
     {
@@ -45,7 +45,7 @@ init(void)
     }
 
     ret = adc_channel_setup_dt(&adc_channel);
-    if(ret < 0)
+    if(ret != 0)
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
         platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "ADC channel setup failed: %d", ret);
@@ -54,7 +54,7 @@ init(void)
     }
 
     ret = adc_sequence_init_dt(&adc_channel, &sequence);
-    if(ret < 0)
+    if(ret != 0)
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
         platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "ADC sequence init failed: %d", ret);
@@ -62,7 +62,7 @@ init(void)
         return ret;
     }
 
-    if(!sequence.buffer || sequence.buffer_size == 0)
+    if((sequence.buffer == NULL) || (sequence.buffer_size == 0u))
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
         platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "Invalid ADC buffer");
@@ -74,7 +74,7 @@ init(void)
     platform_log("BATTERY_CONTROLLER", LOG_LEVEL_INF, "ADC init finished");
 #endif  // CONFIG_BATTERY_LEVEL_LOG
 
-    return 0;
+    return ret;
 }
 
 SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
@@ -142,19 +142,19 @@ static int
 get_sample(void)
 {
     int ret = adc_sequence_init_dt(&adc_channel, &sequence);
-    if(ret < 0)
+    if(ret != 0)
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "init sequence err:%d", ret);
+        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "init sequence err: %d", ret);
 #endif  // CONFIG_BATTERY_LEVEL_LOG
         return ret;
     }
 
     ret = adc_read(adc_channel.dev, &sequence);
-    if(ret < 0)
+    if(ret != 0)
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "adc read err:%d", ret);
+        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "adc read err: %d", ret);
 #endif  // CONFIG_BATTERY_LEVEL_LOG
         return ret;
     }
@@ -162,10 +162,10 @@ get_sample(void)
     int32_t battery_level_mv = adc_battery_buffer;
 
     ret = adc_raw_to_millivolts_dt(&adc_channel, &battery_level_mv);
-    if(ret < 0)
+    if(ret != 0)
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "adc raw to mv err:%d", ret);
+        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "adc raw to mv err: %d", ret);
 #endif  // CONFIG_BATTERY_LEVEL_LOG
         return ret;
     }
@@ -177,11 +177,11 @@ get_sample(void)
 #endif  // CONFIG_BATTERY_LEVEL_LOG
         return -1;
     }
-    const int64_t corrected_battery_level_mv = (int64_t)battery_level_mv *
+    int64_t const corrected_battery_level_mv = (int64_t)battery_level_mv *
                                                (VOLTAGE_DIVIDER_RESISTOR_UP + VOLTAGE_DIVIDER_RESISTOR_DOWN) /
                                                VOLTAGE_DIVIDER_RESISTOR_UP;
 
-    struct battery_level_data battery_level;
+    static struct battery_level_data battery_level = {0};
 
     battery_level.battery_level_percent = battery_charge_level((int16_t)corrected_battery_level_mv);
     battery_level.battery_level_mv      = corrected_battery_level_mv;
@@ -192,7 +192,7 @@ get_sample(void)
         new_battery_level_cb(battery_level);
     }
 
-    return 0;
+    return ret;
 }
 
 static void
@@ -201,10 +201,10 @@ battery_measurement_work_handler(struct k_work* work)
     ARG_UNUSED(work);
 
     int ret = get_sample();
-    if(ret)
+    if(ret != 0)
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "get battery lvl err:%d", ret);
+        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "get battery lvl err: %d", ret);
 #endif  // CONFIG_BATTERY_LEVEL_LOG
     }
     /* Batter measurement work is calls itself every measurement_interval ms*/
@@ -239,8 +239,8 @@ battery_stop_periodic_measurement(void)
     }
     periodic_measurement_started = false;
 
-    const int ret = k_work_cancel_delayable(&battery_measurement_work);
-    if(ret)
+    int const ret = k_work_cancel_delayable(&battery_measurement_work);
+    if(ret != 0)
     {
 #ifdef CONFIG_BATTERY_LEVEL_LOG
         platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "cancel battery work err:%d", ret);

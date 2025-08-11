@@ -58,8 +58,8 @@ static struct bt_nus_cb nus_callbacks = {
 static int
 init()
 {
-    int err = bt_nus_init(&nus_callbacks);
-    if(err)
+    int const err = bt_nus_init(&nus_callbacks);
+    if(err != 0)
     {
         LOG_ERR("NUS initialization error: %d", err);
     }
@@ -73,8 +73,8 @@ ble_logger_send(char* data)
 {
     if(get_con_status() && get_notif_status())
     {
-        int err = bt_nus_send(NULL, data, strlen(data));
-        if(err)
+        int const err = bt_nus_send(NULL, data, strlen(data));
+        if(err != 0)
         {
             LOG_ERR("NUS failed to send data: %d", err);
         }

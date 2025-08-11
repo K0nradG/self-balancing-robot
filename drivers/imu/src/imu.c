@@ -62,7 +62,7 @@ static struct sensor_trigger trigger = {0};
 static void
 handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 {
-    int ret = process_imu(dev);  // Read and process IMU data
+    int const ret = process_imu(dev);  // Read and process IMU data
 
     if(ret != 0)
     {
@@ -123,8 +123,6 @@ init(void)
         return -ENODEV;
     }
 
-    // mpu_reset(1);
-
 #ifdef CONFIG_MPU6050_TRIGGER
     trigger = (struct sensor_trigger) {
         .type = SENSOR_TRIG_DATA_READY,  // Trigger when data is ready
@@ -144,11 +142,6 @@ init(void)
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu dlpf set");
 #endif  // CONFIG_IMU_LOG
-
-    // set_measurement_interval();
-    // #ifdef CONFIG_IMU_LOG
-    //     platform_log("IMU", LOG_LEVEL_INF, "meas interval set");
-    // #endif  // CONFIG_IMU_LOG
 
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu init finished");
@@ -218,10 +211,6 @@ process_imu(struct device const* dev)
     ret |= sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
     ret |= sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
 
-#ifdef CONFIG_IMU_CALIBRATE_GYRO
-    calibrate_gyro(gyro_data);
-#endif  // CONFIG_IMU_CALIBRATE_GYRO
-
     if(ret != 0)
     {
 #ifdef CONFIG_IMU_LOG
@@ -230,6 +219,10 @@ process_imu(struct device const* dev)
         stop_control_loop();
         return -ENODEV;
     }
+
+#ifdef CONFIG_IMU_CALIBRATE_GYRO
+    calibrate_gyro(gyro_data);
+#endif  // CONFIG_IMU_CALIBRATE_GYRO
 
     s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
     trigger_control_loop();

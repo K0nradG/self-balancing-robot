@@ -54,9 +54,9 @@ static void
 exchange_func(struct bt_conn* conn, uint8_t att_err, struct bt_gatt_exchange_params* params)
 {
     LOG_INF("MTU exchange %s", att_err == 0 ? "successful" : "failed");
-    if(!att_err)
+    if(att_err == 0u)
     {
-        uint16_t payload_mtu = bt_gatt_get_mtu(conn) - 3;  // 3 bytes used for Attribute headers.
+        uint16_t const payload_mtu = bt_gatt_get_mtu(conn) - 3u;  // 3 bytes used for Attribute headers.
         LOG_INF("New MTU: %d bytes", payload_mtu);
     }
 }
@@ -70,7 +70,7 @@ update_data_length(struct bt_conn* conn)
     };
 
     int const err = bt_conn_le_data_len_update(conn, &my_data_len);
-    if(err)
+    if(err != 0)
     {
         LOG_ERR("data_len_update failed (err %d)", err);
     }
@@ -81,7 +81,7 @@ update_mtu(struct bt_conn* conn)
 {
     exchange_params.func = exchange_func;
     int const err        = bt_gatt_exchange_mtu(conn, &exchange_params);
-    if(err)
+    if(err != 0)
     {
         LOG_ERR("bt_gatt_exchange_mtu failed (err %d)", err);
     }
@@ -97,7 +97,7 @@ update_phy(struct bt_conn* conn)
     };
 
     int const err = bt_conn_le_phy_update(conn, &preferred_phy);
-    if(err)
+    if(err != 0)
     {
         LOG_ERR("bt_conn_le_phy_update() returned %d", err);
     }
@@ -106,7 +106,7 @@ update_phy(struct bt_conn* conn)
 static void
 on_connected(struct bt_conn* conn, uint8_t err)
 {
-    if(err)
+    if(err != 0)
     {
         LOG_INF("Connection failed: %d", err);
         return;
@@ -116,14 +116,14 @@ on_connected(struct bt_conn* conn, uint8_t err)
     struct bt_conn_info info = {0};
 
     err = bt_conn_get_info(conn, &info);
-    if(err)
+    if(err != 0)
     {
         LOG_ERR("bt_conn_get_info() returned %d", err);
         return;
     }
 
-    double connection_interval   = info.le.interval * 1.25;  // in ms
-    uint16_t supervision_timeout = info.le.timeout * 10;     // in ms
+    double const connection_interval   = (double)info.le.interval * 1.25;  // in ms
+    uint16_t const supervision_timeout = info.le.timeout * 10u;            // in ms
     LOG_INF(
         "Connection parameters: interval %.2f ms, latency %d intervals, timeout %d ms", connection_interval,
         info.le.latency, supervision_timeout);
@@ -149,10 +149,11 @@ bluetooth_init(int err)
 {
     ARG_UNUSED(err);
 
-    int ret = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), NULL, NO_SCAN_RSP_DATA);
-    if(ret)
+    int const ret = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), NULL, NO_SCAN_RSP_DATA);
+    if(ret != 0)
     {
         LOG_ERR("Advertising failed to start: %d", ret);
+        return;
     }
 
     LOG_INF("Advertising successfully started");
@@ -163,8 +164,8 @@ init(void)
 {
     bt_conn_cb_register(&connection_callbacks);
 
-    int ret = bt_enable(bluetooth_init);
-    if(ret)
+    int const ret = bt_enable(bluetooth_init);
+    if(ret != 0)
     {
         LOG_ERR("Bluetooth init failed: %d", ret);
     }

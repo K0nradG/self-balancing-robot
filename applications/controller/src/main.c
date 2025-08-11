@@ -46,7 +46,7 @@ static struct bt_nus_client nus_client;
 
 static uint16_t rotate_step = 0u;
 
-#define MS_TO_S 1000.0f
+#define MS_TO_S       1000.0f
 #define MAX_RAMP_STEP (float)((float)CONFIG_RAMP_RATE * ((float)CONFIG_JOYSTICK_SAMPLE_TIME / MS_TO_S))
 
 static int

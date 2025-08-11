@@ -20,7 +20,15 @@ static bool g_periodic_blinking_started = false;
 static void
 led_toggle_work_handler(struct k_work* work)
 {
-    gpio_pin_toggle_dt(&led_dev);
+    int const ret = gpio_pin_toggle_dt(&led_dev);
+
+    if(ret != 0)
+    {
+#ifdef CONFIG_INTERFACE_LOG
+        platform_log("INTERFACE", LOG_LEVEL_ERR, "LED toggle failed, err: %d", ret);
+#endif  // CONFIG_INTERFACE_LOG
+        return;
+    }
     reschedule_work(&led_toggle_work, K_MSEC(g_blinking_interval), "led blink");
 }
 
@@ -37,12 +45,9 @@ init(void)
         return -ENODEV;
     }
 
-    int ret = 0;
-
-    ret = gpio_pin_configure_dt(&led_dev, GPIO_OUTPUT_ACTIVE);
-
+    int const ret = gpio_pin_configure_dt(&led_dev, GPIO_OUTPUT_ACTIVE);
 #ifdef CONFIG_INTERFACE_LOG
-    if(ret)
+    if(ret != 0)
     {
         platform_log("INTERFACE", LOG_LEVEL_ERR, "led pins not ready");
         return ret;
@@ -85,7 +90,7 @@ led_stop_periodic_blinking(void)
     int const ret = k_work_cancel_delayable(&led_toggle_work);
 
 #ifdef CONFIG_INTERFACE_LOG
-    if(ret)
+    if(ret != 0)
     {
         platform_log("INTERFACE", LOG_LEVEL_ERR, "cancel led work err:%d", ret);
         return;

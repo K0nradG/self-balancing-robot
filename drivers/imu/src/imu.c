@@ -222,11 +222,12 @@ process_imu(struct device const* dev)
     calibrate_gyro(gyro_data);
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
-    if(ret)
+    if(ret != 0)
     {
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "imu processing failed");
 #endif  // CONFIG_IMU_LOG
+        stop_control_loop();
         return -ENODEV;
     }
 

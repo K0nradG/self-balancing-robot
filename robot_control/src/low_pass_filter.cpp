@@ -16,7 +16,7 @@ Low_Pass_Filter::filter(float input)
 void
 Low_Pass_Filter::set_alpha(float alpha)
 {
-    alpha   = std::max(-1.0f, alpha);
+    alpha   = std::max(0.0f, alpha);
     alpha   = std::min(1.0f, alpha);
     m_alpha = alpha;
 }

@@ -1,6 +1,5 @@
 build
 build-*
-build_*
 *.cache
 
 *.vscode

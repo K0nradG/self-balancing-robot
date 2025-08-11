@@ -4,7 +4,7 @@ import shutil
 
 def update_compile_commands(root_dir: str) -> None:
     root_json = os.path.join(root_dir, "compile_commands.json")
-    app_json = os.path.join(root_dir, "applications", "app", "build", "app", "compile_commands.json")
+    app_json = os.path.join(root_dir, "Sources", "applications", "app", "build", "app", "compile_commands.json")
     
     if not os.path.exists(app_json):
         print(f"Error: {app_json} does not exist.")

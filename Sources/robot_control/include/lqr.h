@@ -20,10 +20,10 @@ public:
     float
     calculate_output(float x, float y);
 
-#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_BLUETOOTH_DRV
     void
     parse_nus_parameters(char const* data);
-#endif  // CONFIG_LOG_OVER_BLE
+#endif  // CONFIG_BLUETOOTH_DRV
 
 private:
     Parameters m_parameters;

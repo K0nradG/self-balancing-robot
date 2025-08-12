@@ -19,7 +19,7 @@ Robot_Controller::Robot_Controller()
       m_balance_pid(balance_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), balance_pid_filter_alpha)
 #else
       m_balance_lqr(balance_lqr_parameters, static_cast<float>(CONFIG_PWM_LIMIT))
-#endif
+#endif  // CONFIG_PID_ENABLED
 {
 }
 
@@ -49,7 +49,7 @@ Robot_Controller::control_motors()
         float const pwm_balance = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
 #else
         float const target_speed = m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
-#endif
+#endif  // CONFIG_PID_ENABLED
 
         float const pwm0_target = pwm_balance - pwm_rotate;
         float const pwm1_target = pwm_balance + pwm_rotate;
@@ -79,7 +79,7 @@ Robot_Controller::control_motors()
     trigger_motors_update();
 }
 
-#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_BLUETOOTH_DRV
 void
 Robot_Controller::parse_nus_data(char const* data)
 {
@@ -111,7 +111,7 @@ Robot_Controller::parse_nus_data(char const* data)
                 m_balance_pid.parse_nus_parameters(payload);
 #else
                 m_balance_lqr.parse_nus_parameters(payload);
-#endif
+#endif  // CONFIG_PID_ENABLED
             }
             break;
 
@@ -141,7 +141,7 @@ Robot_Controller::parse_nus_data(char const* data)
             break;
     }
 }
-#endif
+#endif  // CONFIG_BLUETOOTH_DRV
 
 void
 Robot_Controller::send_motors_data(float pwm_motor0, float pwm_motor1)

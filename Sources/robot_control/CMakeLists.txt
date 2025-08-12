@@ -6,7 +6,8 @@ if(CONFIG_ROBOT_CONTROL)
                                 ${ROBOT_CONTROL_SRC_DIR}/control_loop.cpp
                                 ${ROBOT_CONTROL_SRC_DIR}/pid.cpp
                                 ${ROBOT_CONTROL_SRC_DIR}/low_pass_filter.cpp
-                                ${ROBOT_CONTROL_SRC_DIR}/data_manager.cpp)
+                                ${ROBOT_CONTROL_SRC_DIR}/data_manager.cpp
+                                ${ROBOT_CONTROL_SRC_DIR}/drivers_initializer.cpp)
 
     if(NOT CONFIG_PID_ENABLED)
         list(APPEND ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/lqr.cpp) # Appending necessary so as not to overwrite previous ROBOT_CONTROL_SRC value.   

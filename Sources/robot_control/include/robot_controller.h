@@ -42,10 +42,10 @@ public:
     void
     control_motors();
 
-#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_BLUETOOTH_DRV
     void
     parse_nus_data(char const* data);
-#endif  // CONFIG_LOG_OVER_BLE
+#endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data

@@ -34,8 +34,8 @@ led_toggle_work_handler(struct k_work* work)
 
 static K_WORK_DELAYABLE_DEFINE(led_toggle_work, led_toggle_work_handler);
 
-static int
-init(void)
+int
+interface_init(void)
 {
     if(!device_is_ready(led_dev.port))
     {
@@ -56,8 +56,6 @@ init(void)
 #endif  // CONFIG_INTERFACE_LOG
     return ret;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 void
 led_start_periodic_blinking(uint16_t blinking_interval)

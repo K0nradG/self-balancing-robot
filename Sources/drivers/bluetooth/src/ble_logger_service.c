@@ -1,14 +1,12 @@
-#ifdef CONFIG_LOG_OVER_BLE
-
-#include "ble_logger_service.h"
 #include <bluetooth/services/nus.h>
 #include <string.h>
 #include <zephyr/logging/log.h>
 #include "ble_connection.h"
+#include "ble_service.h"
 
 #define BLE_NUS_MAX_DATA_LEN 251
 
-LOG_MODULE_REGISTER(ble_logger_nus, CONFIG_LOGGER_LOG_LEVEL);
+LOG_MODULE_REGISTER(ble_nus, CONFIG_LOGGER_LOG_LEVEL);
 
 static bool g_nus_notification_enabled                                   = false;
 static regulator_parameters_parser_cb_t g_regulator_parameters_parser_cb = NULL;
@@ -55,8 +53,8 @@ static struct bt_nus_cb nus_callbacks = {
     .received     = nus_data_received,
 };
 
-static int
-init()
+int
+ble_service_init(void)
 {
     int const err = bt_nus_init(&nus_callbacks);
     if(err != 0)
@@ -66,10 +64,8 @@ init()
     return err;
 }
 
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
-
 void
-ble_logger_send(char* data)
+ble_send(char* data)
 {
     if(get_con_status() && get_notif_status())
     {
@@ -115,5 +111,3 @@ new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t reg
         g_regulator_parameters_parser_cb = regulator_parameters_parser_cb;
     }
 }
-
-#endif /*CONFIG_LOG_OVER_BLE*/

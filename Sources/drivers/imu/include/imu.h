@@ -15,6 +15,9 @@ typedef struct
     float angle_rotation;
 } imu_data;
 
+int
+imu_init(void);
+
 void
 mpu_reset(uint8_t conf);
 

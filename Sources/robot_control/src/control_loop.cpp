@@ -1,4 +1,5 @@
 #include "control_loop.h"
+#include "drivers_initializer.h"
 #include "interface.h"
 #include "motor_controller.h"
 #include "robot_controller.h"
@@ -8,9 +9,9 @@
 #include "logger.h"
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 
-#ifdef CONFIG_LOG_OVER_BLE
-#include "ble_logger_service.h"
-#endif
+#ifdef CONFIG_BLUETOOTH_DRV
+#include "ble_service.h"
+#endif  // CONFIG_BLUETOOTH_DRV
 
 static Robot_Control::Robot_Controller s_robot_controller {};
 
@@ -18,20 +19,22 @@ static Robot_Control::Robot_Controller s_robot_controller {};
 send_identification_data_cb_t g_send_identification_data_cb = nullptr;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_BLUETOOTH_DRV
 void
 nus_data_parse_callback(char const* data)
 {
     s_robot_controller.parse_nus_data(data);
 }
-#endif  // CONFIG_LOG_OVER_BLE
+#endif  // CONFIG_BLUETOOTH_DRV
 
 static int
 init(void)
 {
-#ifdef CONFIG_LOG_OVER_BLE
+    Drivers_Initializer::init();
+
+#ifdef CONFIG_BLUETOOTH_DRV
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
-#endif  // CONFIG_LOG_OVER_BLE
+#endif  // CONFIG_BLUETOOTH_DRV
 
     set_enable_controller(true);
 

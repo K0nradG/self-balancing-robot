@@ -15,6 +15,9 @@ typedef struct MOTORS_DATA
     bool start;
 } MOTORS_DATA;
 
+int
+motor_controller_init(void);
+
 void
 set_enable_controller(bool enable);
 

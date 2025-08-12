@@ -15,7 +15,7 @@ LQR::calculate_output(float x, float y)
     return output;
 }
 
-#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_BLUETOOTH_DRV
 void
 LQR::parse_nus_parameters(char const* data)
 {
@@ -57,6 +57,6 @@ LQR::parse_nus_parameters(char const* data)
         }
     }
 }
-#endif  // CONFIG_LOG_OVER_BLE
+#endif  // CONFIG_BLUETOOTH_DRV
 
 }  // namespace Robot_Control

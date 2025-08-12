@@ -1,6 +1,5 @@
 
 #include <zephyr/kernel.h>
-#include "ble_logger_service.h"
 #include "logger.h"
 #include "model_identification.h"
 

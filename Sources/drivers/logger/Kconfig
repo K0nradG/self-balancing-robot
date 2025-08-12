@@ -5,16 +5,6 @@ config LOGGER_DRV
 
 if LOGGER_DRV
 
-config LOG_OVER_BLE
-    bool  "enable seding logs over BLE"
-    depends on LOGGER_DRV
-    select BT
-    select BT_PERIPHERAL
-    select BT_NUS
-    select BT_GATT_CLIENT
-    select BT_USER_PHY_UPDATE
-    select BT_USER_DATA_LEN_UPDATE
-
 config LOG_OVER_SERIAL
     depends on LOGGER_DRV
     bool "enable seding logs over serial"

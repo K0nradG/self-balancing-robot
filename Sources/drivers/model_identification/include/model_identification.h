@@ -29,6 +29,9 @@ void
 new_regulator_data_for_identification(identification_data data);
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+int
+identification_init(void);
+
 uint16_t
 buffer_get(uint8_t buffer_id, float* data, uint16_t max_len);
 

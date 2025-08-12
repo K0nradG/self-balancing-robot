@@ -7,6 +7,9 @@
 extern "C" {
 #endif
 
+int
+interface_init(void);
+
 void
 led_start_periodic_blinking(uint16_t blinking_interval);
 

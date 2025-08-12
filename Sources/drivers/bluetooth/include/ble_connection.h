@@ -1,4 +1,3 @@
-#ifdef CONFIG_LOG_OVER_BLE
 #ifndef BLE_CONNECTION_H
 #define BLE_CONNECTION_H
 
@@ -11,4 +10,3 @@ void
 set_con_status(bool connected_flag);
 
 #endif /*BLE_CONNECTION_H*/
-#endif /*CONFIG_LOG_OVER_BLE*/

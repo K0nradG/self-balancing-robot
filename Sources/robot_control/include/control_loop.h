@@ -16,10 +16,10 @@ stop_control_loop(void);
 }
 #endif
 
-#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_BLUETOOTH_DRV
 void
 nus_data_parse_callback(char const* data);
-#endif  // CONFIG_LOG_OVER_BLE
+#endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"

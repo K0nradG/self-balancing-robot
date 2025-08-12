@@ -52,7 +52,7 @@ get_sensor_settings(uint8_t reg, uint8_t* value)
     {
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "Failed to write register address %x", reg);
-#endif
+#endif  // CONFIG_IMU_LOG
         return ret;
     }
 
@@ -62,13 +62,13 @@ get_sensor_settings(uint8_t reg, uint8_t* value)
     {
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "Failed to read value from register %x", reg);
-#endif
+#endif  // CONFIG_IMU_LOG
         return ret;
     }
 
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "I2C reg read successful: Reg %x, Value %x", reg, *value);
-#endif
+#endif  // CONFIG_IMU_LOG
 
     return ret;
 }
@@ -82,7 +82,7 @@ mpu_reset(uint8_t conf)
     {
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "Failed to get MPU settings, err: %d", err);
-#endif
+#endif  // CONFIG_IMU_LOG
         return;
     }
     tmp &= ~(1 << 7);
@@ -99,7 +99,7 @@ set_dlpf(void)
     {
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "Failed to get MPU settings, err: %d", err);
-#endif
+#endif  // CONFIG_IMU_LOG
         return;
     }
 

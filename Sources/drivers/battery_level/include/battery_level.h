@@ -17,6 +17,9 @@ struct battery_level_data
  * an argument and returns nothing (void).*/
 typedef void (*battery_level_updated_cb_t)(struct battery_level_data battery_lvl_data);
 
+int
+battery_level_init(void);
+
 void
 new_battery_level_cb_register(battery_level_updated_cb_t _new_battery_level_cb);
 

@@ -26,10 +26,10 @@ public:
     float
     calculate_output(float setpoint, float feedback, float feedback_dt = 0.0f);
 
-#ifdef CONFIG_LOG_OVER_BLE
+#ifdef CONFIG_BLUETOOTH_DRV
     void
     parse_nus_parameters(char const* data);
-#endif  // CONFIG_LOG_OVER_BLE
+#endif  // CONFIG_BLUETOOTH_DRV
 
     Parameters
     get_parameters() const;

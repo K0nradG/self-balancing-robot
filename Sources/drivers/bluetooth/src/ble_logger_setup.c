@@ -1,12 +1,11 @@
-#ifdef CONFIG_LOG_OVER_BLE
-
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/gap.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/logging/log.h>
 #include "ble_connection.h"
+#include "ble_setup.h"
 
-LOG_MODULE_REGISTER(ble_logger_setup, CONFIG_LOGGER_LOG_LEVEL);
+LOG_MODULE_REGISTER(ble_setup, CONFIG_LOGGER_LOG_LEVEL);
 
 #define DEVICE_NAME      "SELF_BALANCING_ROBOT"
 #define NO_SCAN_RSP_DATA 0
@@ -159,8 +158,8 @@ bluetooth_init(int err)
     LOG_INF("Advertising successfully started");
 }
 
-static int
-init(void)
+int
+ble_init(void)
 {
     bt_conn_cb_register(&connection_callbacks);
 
@@ -172,6 +171,3 @@ init(void)
 
     return ret;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
-#endif

@@ -25,6 +25,9 @@ typedef struct
     float robot_angle_rad;
 } encoders_data;
 
+int
+encoders_init(void);
+
 // _ added since the same naming was used in data manager - causes wrong calls.
 encoders_data
 _get_encoders_data(void);

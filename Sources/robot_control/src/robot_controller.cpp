@@ -89,7 +89,7 @@ Robot_Controller::parse_nus_data(char const* data)
     }
 
     char const key      = data[0];
-    char const* payload = data++;
+    char const* payload = data + 1;
 
     switch(key)
     {

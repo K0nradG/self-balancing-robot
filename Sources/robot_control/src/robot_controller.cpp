@@ -23,20 +23,15 @@ Robot_Controller::Robot_Controller()
 {
 }
 
-void
-Robot_Controller::control_motors()
+bool
+Robot_Controller::normal_motors_control()
 {
     DataManager::instance().update();
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
 
-    bool const disable_motors = validate_robot_angle(imu_data.angle_balance);
-    if(disable_motors)
-    {
-        ramp_pwm_to_target(m_pwm0, 0.0f);
-        ramp_pwm_to_target(m_pwm1, 0.0f);
-    }
-    else
+    bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
+    if(!disable_motors_command)
     {
         // float const pwm0 = m_wheel0_speed_pid.calculate_output(
         //     target_speed - target_rotate_speed, encoders_data.encoder_0.angular_velocity_rad_s);
@@ -54,8 +49,8 @@ Robot_Controller::control_motors()
         float const pwm0_target = pwm_balance - pwm_rotate;
         float const pwm1_target = pwm_balance + pwm_rotate;
 
-        ramp_pwm_to_target(m_pwm0, pwm0_target);
-        ramp_pwm_to_target(m_pwm1, pwm1_target);
+        m_pwm0 = pwm0_target;
+        m_pwm1 = pwm1_target;
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
@@ -64,6 +59,9 @@ Robot_Controller::control_motors()
             .angle    = imu_data.angle_balance,
             .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
+        send_motors_data(m_pwm0, m_pwm1);
+        trigger_motors_update();
     }
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
@@ -75,8 +73,26 @@ Robot_Controller::control_motors()
         (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 
+    return disable_motors_command;
+}
+
+bool
+Robot_Controller::soft_stop_motors()
+{
+    bool const motors_stopped = (ramp_pwm_to_stop(m_pwm0) && ramp_pwm_to_stop(m_pwm1));
     send_motors_data(m_pwm0, m_pwm1);
     trigger_motors_update();
+
+    return motors_stopped;
+}
+
+void
+Robot_Controller::reset_pids()
+{
+    m_wheel0_speed_pid.reset();
+    m_wheel1_speed_pid.reset();
+    m_rotate_pid.reset();
+    m_balance_pid.reset();
 }
 
 #ifdef CONFIG_BLUETOOTH_DRV
@@ -153,33 +169,35 @@ Robot_Controller::send_motors_data(float pwm_motor0, float pwm_motor1)
 bool
 Robot_Controller::validate_robot_angle(float balance_angle)
 {
-    static bool disable_motors                   = false;
+    static bool disable_motors_command           = false;
     static constexpr float safe_angle_margin     = 30.0f * (pi / radian_degrees);
     static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
 
     float const upper_limit = m_balance_setpoint + safe_angle_margin;
     float const lower_limit = m_balance_setpoint - safe_angle_margin;
 
-    if(!disable_motors && (balance_angle > upper_limit || balance_angle < lower_limit))
+    if(!disable_motors_command && (balance_angle > upper_limit || balance_angle < lower_limit))
     {
-        disable_motors = true;
-        return disable_motors;
+        disable_motors_command = true;
+        return disable_motors_command;
     }
 
-    if(disable_motors && (balance_angle < (upper_limit - safe_angle_hysteresis)) &&
+    if(disable_motors_command && (balance_angle < (upper_limit - safe_angle_hysteresis)) &&
        (balance_angle > (lower_limit + safe_angle_hysteresis)))
     {
-        disable_motors = false;
+        disable_motors_command = false;
     }
-    return disable_motors;
+    return disable_motors_command;
 }
 
-void
-Robot_Controller::ramp_pwm_to_target(float& pwm, float target_pwm)
+bool
+Robot_Controller::ramp_pwm_to_stop(float& pwm)
 {
-    static constexpr float pwm_ramp_step = 1.0f;
-    float const pwm_diff                 = target_pwm - pwm;
+    static constexpr float pwm_stop_target = 0.0f;
+    static constexpr float pwm_ramp_step   = 0.5f;
+    float const pwm_diff                   = pwm_stop_target - pwm;
 
+    bool motor_stopped = false;
     if(pwm_diff > pwm_ramp_step)
     {
         pwm += pwm_ramp_step;
@@ -190,8 +208,11 @@ Robot_Controller::ramp_pwm_to_target(float& pwm, float target_pwm)
     }
     else
     {
-        pwm = target_pwm;
+        pwm           = pwm_stop_target;
+        motor_stopped = true;
     }
+
+    return motor_stopped;
 }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV

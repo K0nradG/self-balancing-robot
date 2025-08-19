@@ -37,6 +37,9 @@ public:
     void
     set_parameters(Parameters parameters);
 
+    void
+    reset();
+
 private:
     std::int64_t m_last_time {};
     float m_integral {};

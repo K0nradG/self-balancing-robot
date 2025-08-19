@@ -2,7 +2,6 @@
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 
 #include "imu.h"
-#include <math.h>
 #include <zephyr/init.h>
 #include "control_loop.h"
 #include "imu_config.h"
@@ -24,9 +23,13 @@
 #define ACCELEROMETER_OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
 
 // "Balancing" position measurement:
-#define GYRO_X_DRIFT -0.159268f
-#define GYRO_Y_DRIFT -0.318539f
-#define GYRO_Z_DRIFT -0.393751f
+// #define GYRO_X_DRIFT -0.159268f
+// #define GYRO_Y_DRIFT -0.318539f
+// #define GYRO_Z_DRIFT -0.393751f
+
+#define GYRO_X_DRIFT -2.689413f
+#define GYRO_Y_DRIFT -1.387693f
+#define GYRO_Z_DRIFT -0.762965f
 
 // // Laying down measurement:
 // #define GYRO_X_DRIFT 0.001439f
@@ -150,6 +153,9 @@ imu_init(void)
     return 0;
 }
 
+#ifndef CONFIG_IMU_CALIBRATE_GYRO
+#include <math.h>
+
 static imu_data
 get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)
 {
@@ -195,6 +201,7 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
 
     return data;
 }
+#endif  // not CONFIG_IMU_CALIBRATE_GYRO
 
 static int
 process_imu(struct device const* dev)
@@ -220,10 +227,10 @@ process_imu(struct device const* dev)
 
 #ifdef CONFIG_IMU_CALIBRATE_GYRO
     calibrate_gyro(gyro_data);
-#endif  // CONFIG_IMU_CALIBRATE_GYRO
-
+#else
     s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
     trigger_control_loop();
+#endif  // CONFIG_IMU_CALIBRATE_GYRO
 
     return ret;
 }

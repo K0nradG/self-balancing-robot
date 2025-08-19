@@ -30,7 +30,7 @@ class Robot_Controller
 
 #ifdef CONFIG_PID_ENABLED
     // static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};  // kp = 270
-    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 50.0, .Ki = 0.0f, .Kd = 0.0f};  // kp = 270
+    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 0.0, .Ki = 0.0f, .Kd = 0.0f};  // kp = 270
     static constexpr float balance_pid_filter_alpha         = 0.9f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
@@ -39,8 +39,14 @@ class Robot_Controller
 public:
     Robot_Controller();
 
+    bool
+    normal_motors_control();
+
+    bool
+    soft_stop_motors();
+
     void
-    control_motors();
+    reset_pids();
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
@@ -50,7 +56,6 @@ public:
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data
     get_identification_data() const;
-
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 private:
@@ -77,8 +82,8 @@ private:
     bool
     validate_robot_angle(float balance_angle);
 
-    void
-    ramp_pwm_to_target(float& pwm, float target_pwm);
+    bool
+    ramp_pwm_to_stop(float& pwm);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data m_identification_data {};

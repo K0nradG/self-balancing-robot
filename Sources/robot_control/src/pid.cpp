@@ -114,4 +114,11 @@ PID::set_parameters(Parameters parameters)
     m_parameters = parameters;
 }
 
+void
+PID::reset()
+{
+    m_integral   = 0.0f;
+    m_prev_error = 0.0f;
+}
+
 }  // namespace Robot_Control

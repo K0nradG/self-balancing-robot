@@ -1,4 +1,5 @@
 #include "control_loop.h"
+#include "interface.h"
 #include "motor_controller.h"
 #include "robot_controller.h"
 #include "zephyr/kernel.h"
@@ -63,6 +64,13 @@ void
 trigger_control_loop(void)
 {
     k_work_submit(&s_control_work.work);
+}
+
+void
+stop_control_loop(void)
+{
+    set_enable_controller(false);
+    led_stop_periodic_blinking();
 }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV

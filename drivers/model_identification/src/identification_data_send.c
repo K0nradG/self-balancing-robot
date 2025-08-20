@@ -42,5 +42,9 @@ static K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_
 void
 trigger_identification_data_sending(void)
 {
-    k_work_submit(&identification_data_sending_work.work);
+    int const err = k_work_submit(&identification_data_sending_work.work);
+    if(err != 0)
+    {
+        platform_log("MODEL", LOG_LEVEL_ERR, "Identification data send trigger failed, err: %d", err);
+    }
 }

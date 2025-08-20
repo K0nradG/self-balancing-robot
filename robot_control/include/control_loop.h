@@ -9,6 +9,9 @@ extern "C" {
 void
 trigger_control_loop(void);
 
+void
+stop_control_loop(void);
+
 #ifdef __cplusplus
 }
 #endif

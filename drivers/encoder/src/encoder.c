@@ -99,32 +99,49 @@ init(void)
     ret |= gpio_pin_configure_dt(&encoder_1_a, GPIO_INPUT);
     ret |= gpio_pin_configure_dt(&encoder_1_b, GPIO_INPUT);
 
-    if(ret)
+    if(ret != 0)
     {
 #ifdef CONFIG_ENCODER_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "encoder pins not ready");
+        platform_log("ENCODER", LOG_LEVEL_ERR, "Encoder pins not ready");
 #endif  // CONFIG_ENCODER_LOG
         return ret;
     }
+
+    ret |= gpio_pin_interrupt_configure_dt(&encoder_0_a, GPIO_INT_EDGE_BOTH);
+    ret |= gpio_pin_interrupt_configure_dt(&encoder_0_b, GPIO_INT_EDGE_BOTH);
+
+    ret |= gpio_pin_interrupt_configure_dt(&encoder_1_a, GPIO_INT_EDGE_BOTH);
+    ret |= gpio_pin_interrupt_configure_dt(&encoder_1_b, GPIO_INT_EDGE_BOTH);
+
+    if(ret != 0)
+    {
+#ifdef CONFIG_ENCODER_LOG
+        platform_log("ENCODER", LOG_LEVEL_ERR, "Failed to configure pins interrupts");
+#endif  // CONFIG_ENCODER_LOG
+        return ret;
+    }
+
+    gpio_init_callback(&encoder_0_a_data, encoder_0_gpio_callback, BIT(encoder_0_a.pin));
+    ret |= gpio_add_callback(encoder_0_a.port, &encoder_0_a_data);
+    gpio_init_callback(&encoder_0_b_data, encoder_0_gpio_callback, BIT(encoder_0_b.pin));
+    ret |= gpio_add_callback(encoder_0_b.port, &encoder_0_b_data);
+
+    gpio_init_callback(&encoder_1_a_data, encoder_1_gpio_callback, BIT(encoder_1_a.pin));
+    ret |= gpio_add_callback(encoder_1_a.port, &encoder_1_a_data);
+    gpio_init_callback(&encoder_1_b_data, encoder_1_gpio_callback, BIT(encoder_1_b.pin));
+    ret |= gpio_add_callback(encoder_1_b.port, &encoder_1_b_data);
+
+    if(ret != 0)
+    {
+#ifdef CONFIG_ENCODER_LOG
+        platform_log("ENCODER", LOG_LEVEL_ERR, "Failed to add gpios callbacks, err: %d", ret);
+#endif  // CONFIG_ENCODER_LOG
+        return ret;
+    }
+
 #ifdef CONFIG_ENCODER_LOG
     platform_log("ENCODER", LOG_LEVEL_INF, "encoder init finished");
 #endif  // CONFIG_ENCODER_LOG
-
-    gpio_pin_interrupt_configure_dt(&encoder_0_a, GPIO_INT_EDGE_BOTH);
-    gpio_pin_interrupt_configure_dt(&encoder_0_b, GPIO_INT_EDGE_BOTH);
-
-    gpio_pin_interrupt_configure_dt(&encoder_1_a, GPIO_INT_EDGE_BOTH);
-    gpio_pin_interrupt_configure_dt(&encoder_1_b, GPIO_INT_EDGE_BOTH);
-
-    gpio_init_callback(&encoder_0_a_data, encoder_0_gpio_callback, BIT(encoder_0_a.pin));
-    gpio_add_callback(encoder_0_a.port, &encoder_0_a_data);
-    gpio_init_callback(&encoder_0_b_data, encoder_0_gpio_callback, BIT(encoder_0_b.pin));
-    gpio_add_callback(encoder_0_b.port, &encoder_0_b_data);
-
-    gpio_init_callback(&encoder_1_a_data, encoder_1_gpio_callback, BIT(encoder_1_a.pin));
-    gpio_add_callback(encoder_1_a.port, &encoder_1_a_data);
-    gpio_init_callback(&encoder_1_b_data, encoder_1_gpio_callback, BIT(encoder_1_b.pin));
-    gpio_add_callback(encoder_1_b.port, &encoder_1_b_data);
 
     return ret;
 }

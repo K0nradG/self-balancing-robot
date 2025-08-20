@@ -11,6 +11,9 @@ public:
     float
     filter(float input);
 
+    void
+    set_alpha(float alpha);
+
 private:
     float m_alpha;
     float m_last_output {};

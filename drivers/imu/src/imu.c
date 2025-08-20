@@ -11,19 +11,32 @@
 #include "logger.h"
 #endif  // CONFIG_IMU_LOG
 
-#define GYRO_CALIBRATION_SAMPLES 10000
+#ifdef CONFIG_IMU_CALIBRATE_GYRO
+#define GYRO_CALIBRATION_SAMPLES 100000
+#endif  // CONFIG_IMU_CALIBRATE_GYRO
 
-#define ALPHA               0.997f
+#define ALPHA               0.98f
 #define M_PI                3.14159265358979323846f
-#define MICRO_PARTS_CONVERT 1e-06f
+#define MILLI_PARTS_CONVERT 1e-03f
 
-#define ANGLE_OFFSET 90.0f
-#define DEG_TO_RAD   (M_PI / 180.0f)
-#define OFFSET       (ANGLE_OFFSET * DEG_TO_RAD)
+#define ANGLE_OFFSET         -90.0f
+#define DEG_TO_RAD           (M_PI / 180.0f)
+#define ACCELEROMETER_OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
 
-#define GYRO_X_OFFSET 0.032657f  // -0.029123f
-#define GYRO_Y_OFFSET 0.023897f  // 0.066859
-#define GYRO_Z_OFFSET -0.019945  // -0.001628
+// "Balancing" position measurement:
+#define GYRO_X_DRIFT -0.159268f
+#define GYRO_Y_DRIFT -0.318539f
+#define GYRO_Z_DRIFT -0.393751f
+
+// // Laying down measurement:
+// #define GYRO_X_DRIFT 0.001439f
+// #define GYRO_Y_DRIFT -0.5362055f
+// #define GYRO_Z_DRIFT -0.2785235f
+
+// // Standing still measurement:
+// #define GYRO_X_DRIFT -0.55392f
+// #define GYRO_Y_DRIFT -0.5578995f
+// #define GYRO_Z_DRIFT -0.4397565f
 
 typedef struct gyro_calibration_data
 {
@@ -49,7 +62,7 @@ static struct sensor_trigger trigger = {0};
 static void
 handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 {
-    int ret = process_imu(dev);  // Read and process IMU data
+    int const ret = process_imu(dev);  // Read and process IMU data
 
     if(ret != 0)
     {
@@ -62,34 +75,39 @@ handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 
 #endif  // CONFIG_MPU6050_TRIGGER
 
+#ifdef CONFIG_IMU_CALIBRATE_GYRO
 void
 calibrate_gyro(struct sensor_value* gyro_data)
 {
+    static bool calibration_finished = false;
+    if(calibration_finished)
+    {
+        return;
+    }
+
     if(g_calibration_data.sample_count < GYRO_CALIBRATION_SAMPLES)
     {
-        g_calibration_data.gyro_offset_x += (float)sensor_value_to_double(&gyro_data[0]);
-        g_calibration_data.gyro_offset_y += (float)sensor_value_to_double(&gyro_data[1]);
-        g_calibration_data.gyro_offset_z += (float)sensor_value_to_double(&gyro_data[2]);
+        g_calibration_data.gyro_offset_x += sensor_value_to_float(&gyro_data[0]);
+        g_calibration_data.gyro_offset_y += sensor_value_to_float(&gyro_data[1]);
+        g_calibration_data.gyro_offset_z += sensor_value_to_float(&gyro_data[2]);
         g_calibration_data.sample_count++;
     }
     else
     {
-        g_calibration_data.gyro_offset_x /= GYRO_CALIBRATION_SAMPLES;
-        g_calibration_data.gyro_offset_y /= GYRO_CALIBRATION_SAMPLES;
-        g_calibration_data.gyro_offset_z /= GYRO_CALIBRATION_SAMPLES;
+        g_calibration_data.gyro_offset_x /= (float)GYRO_CALIBRATION_SAMPLES;
+        g_calibration_data.gyro_offset_y /= (float)GYRO_CALIBRATION_SAMPLES;
+        g_calibration_data.gyro_offset_z /= (float)GYRO_CALIBRATION_SAMPLES;
 
 #ifdef CONFIG_IMU_LOG
-        static bool log_offsets = true;
-        if(log_offsets)
-        {
-            log_offsets = false;
-            platform_log(
-                "IMU", LOG_LEVEL_INF, "Gyro calibration complete: X = %f, Y = %f, Z = %f",
-                g_calibration_data.gyro_offset_x, g_calibration_data.gyro_offset_y, g_calibration_data.gyro_offset_z);
-        }
+        platform_log(
+            "IMU", LOG_LEVEL_INF, "Gyro calibration complete: X = %f, Y = %f, Z = %f", g_calibration_data.gyro_offset_x,
+            g_calibration_data.gyro_offset_y, g_calibration_data.gyro_offset_z);
 #endif  // CONFIG_IMU_LOG
+
+        calibration_finished = true;
     }
 }
+#endif  // CONFIG_IMU_CALIBRATE_GYRO
 
 static int
 init(void)
@@ -104,8 +122,6 @@ init(void)
 
         return -ENODEV;
     }
-
-    mpu_reset(1);
 
 #ifdef CONFIG_MPU6050_TRIGGER
     trigger = (struct sensor_trigger) {
@@ -127,11 +143,6 @@ init(void)
     platform_log("IMU", LOG_LEVEL_INF, "imu dlpf set");
 #endif  // CONFIG_IMU_LOG
 
-    // set_measurement_interval();
-#ifdef CONFIG_IMU_LOG
-    platform_log("IMU", LOG_LEVEL_INF, "meas interval set");
-#endif  // CONFIG_IMU_LOG
-
 #ifdef CONFIG_IMU_LOG
     platform_log("IMU", LOG_LEVEL_INF, "imu init finished");
 #endif  // CONFIG_IMU_LOG
@@ -146,36 +157,41 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
 {
     ARG_UNUSED(temperature);
 
-    static float angle_balance  = 0.0f;
-    static float angle_rotation = 0.0f;
-    static int64_t last_time    = 0;
-    int64_t const current_time  = k_uptime_get();
+    static float angle_balance    = 0.0f;
+    static float angle_rotation   = 0.0f;
+    static int64_t last_time_ms   = 0;
+    int64_t const current_time_ms = k_uptime_get();
+    static bool first_run         = true;
 
     // Compute dynamic DT in seconds:
-    float const dt = (last_time > 0) ? (current_time - last_time) / 1000.0 : 0.01;  // Default DT if first run
+    float const dt = (float)(current_time_ms - last_time_ms) * MILLI_PARTS_CONVERT;
 
-    float const ay = (float)sensor_value_to_double(&accelerometer_data[1]);
-    float const az = (float)sensor_value_to_double(&accelerometer_data[2]);
+    float const ay = sensor_value_to_float(&accelerometer_data[1]);
+    float const az = sensor_value_to_float(&accelerometer_data[2]);
 
-    float const accel_angle = (float)atan2f(ay, az) + OFFSET;  // [radians]
-    float gyro_rate_x       = (float)sensor_value_to_double(&gyro_data[0]) + GYRO_X_OFFSET;
-    float gyro_rate_y       = (float)sensor_value_to_double(&gyro_data[1]) + GYRO_Y_OFFSET;
+    // [radians]
+    float const accel_angle = atan2f(ay, az) - ACCELEROMETER_OFFSET;
+    float const gyro_rate_x = sensor_value_to_float(&gyro_data[0]) - GYRO_X_DRIFT;
+    float const gyro_rate_y = sensor_value_to_float(&gyro_data[1]) - GYRO_Y_DRIFT;
 
-    if(dt > 0.01)
+#if defined(CONFIG_IMU_LOG) && !defined(IMU_CALIBRATE_GYRO)
+    platform_log("IMU", LOG_LEVEL_INF, "gx: %f, gy: %f", (double)gyro_rate_x, (double)gyro_rate_y);
+#endif  // CONFIG_IMU_LOG
+
+    if(first_run)
     {
+        // Always synchronize the measurement with accelerometer angle in the beginning.
         angle_balance = accel_angle;
+        first_run     = false;
     }
     else
     {
-        angle_balance = ALPHA * (angle_balance + gyro_rate_x * dt) + (1 - ALPHA) * accel_angle;
+        angle_balance = ALPHA * (angle_balance + gyro_rate_x * dt) + (1.0f - ALPHA) * accel_angle;
     }
 
     angle_rotation += gyro_rate_y * dt;
 
-    // TODO: Maybe wrap around not needed, but setting direction directly by the user.
-    // angle_rotation = fmod(angle_rotation, 2.0f * M_PI);  // Wrap around 360.
-
-    last_time           = current_time;
+    last_time_ms        = current_time_ms;
     imu_data const data = {
         .angle_balance = angle_balance, .angle_balance_dt = gyro_rate_x, .angle_rotation = angle_rotation};
 
@@ -195,15 +211,18 @@ process_imu(struct device const* dev)
     ret |= sensor_channel_get(dev, SENSOR_CHAN_GYRO_XYZ, gyro_data);
     ret |= sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, &temperature);
 
-    // calibrate_gyro(gyro_data);  // TODO: make Calibration on Kconfig
-
-    if(ret)
+    if(ret != 0)
     {
 #ifdef CONFIG_IMU_LOG
         platform_log("IMU", LOG_LEVEL_ERR, "imu processing failed");
 #endif  // CONFIG_IMU_LOG
+        stop_control_loop();
         return -ENODEV;
     }
+
+#ifdef CONFIG_IMU_CALIBRATE_GYRO
+    calibrate_gyro(gyro_data);
+#endif  // CONFIG_IMU_CALIBRATE_GYRO
 
     s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
     trigger_control_loop();

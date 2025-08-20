@@ -89,12 +89,15 @@ init(void)
     ret |= gpio_pin_configure_dt(&b_in2, GPIO_OUTPUT_ACTIVE);
     ret |= gpio_pin_configure_dt(&h_b_en, GPIO_OUTPUT_ACTIVE);
 
-#ifdef CONFIG_MOTOR_CONTROLLER_LOG
-    if(ret)
+    if(ret != 0)
     {
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
         platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "motors pins not ready");
+#endif  // CONFIG_MOTOR_CONTROLLER_LOG
         return ret;
     }
+
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
     platform_log("MOTOR_CONTROLLER", LOG_LEVEL_INF, "motors init finished");
 #endif  // CONFIG_MOTOR_CONTROLLER_LOG
     return ret;
@@ -109,7 +112,7 @@ stop_motors(void)
     {
         int const ret = gpio_pin_set_dt(gpio_pins[i], 0);
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
-        if(ret)
+        if(ret != 0)
         {
             platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "stop motors failed");
         }
@@ -122,7 +125,7 @@ disable_controller(void)
 {
     int const ret = gpio_pin_set_dt(&h_b_en, 0);
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
-    if(ret)
+    if(ret != 0)
     {
         platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "stop controller failed");
     }
@@ -135,7 +138,7 @@ enable_controller(void)
 {
     int const ret = gpio_pin_set_dt(&h_b_en, 1);
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
-    if(ret)
+    if(ret != 0)
     {
         platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "enable controller failed");
     }
@@ -145,15 +148,31 @@ enable_controller(void)
 static void
 run_backward_motor(struct gpio_dt_spec* in1, struct gpio_dt_spec* in2)
 {
-    gpio_pin_set_dt(in1, 0);
-    gpio_pin_set_dt(in2, 1);
+    int err = 0;
+    err |= gpio_pin_set_dt(in1, 0);
+    err |= gpio_pin_set_dt(in2, 1);
+
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(err != 0)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "Running motors backward failed");
+    }
+#endif  // CONFIG_MOTOR_CONTROLLER_LOG
 }
 
 static void
 run_forward_motor(struct gpio_dt_spec* in1, struct gpio_dt_spec* in2)
 {
-    gpio_pin_set_dt(in1, 1);
-    gpio_pin_set_dt(in2, 0);
+    int err = 0;
+    err |= gpio_pin_set_dt(in1, 1);
+    err |= gpio_pin_set_dt(in2, 0);
+
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(err != 0)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "Running motors forward failed");
+    }
+#endif  // CONFIG_MOTOR_CONTROLLER_LOG
 }
 
 static void
@@ -177,17 +196,19 @@ set_new_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_per
         run_forward_motor(&b_in1, &b_in2);
     }
 
-    uint8_t duty_cycle_percent_motor0_scaled = (int)abs(duty_cycle_percent_motor0);
-    uint8_t duty_cycle_percent_motor1_scaled = (int)abs(duty_cycle_percent_motor1);
+    uint8_t const duty_cycle_percent_motor0_scaled = (uint8_t)abs(duty_cycle_percent_motor0);
+    uint8_t const duty_cycle_percent_motor1_scaled = (uint8_t)abs(duty_cycle_percent_motor1);
 
-    uint32_t duty_cycle_ns_motor0 = (PWM_PERIOD_NS * duty_cycle_percent_motor0_scaled) / CONFIG_PWM_LIMIT;
-    uint32_t duty_cycle_ns_motor1 = (PWM_PERIOD_NS * duty_cycle_percent_motor1_scaled) / CONFIG_PWM_LIMIT;
+    uint32_t const duty_cycle_ns_motor0 =
+        (PWM_PERIOD_NS * duty_cycle_percent_motor0_scaled) / (uint32_t)CONFIG_PWM_LIMIT;
+    uint32_t const duty_cycle_ns_motor1 =
+        (PWM_PERIOD_NS * duty_cycle_percent_motor1_scaled) / (uint32_t)CONFIG_PWM_LIMIT;
 
     int err = pwm_set_dt(&pwm_dc_1, PWM_PERIOD_NS, duty_cycle_ns_motor0);
     err     = pwm_set_dt(&pwm_dc_2, PWM_PERIOD_NS, duty_cycle_ns_motor1);
 
 #ifdef CONFIG_MOTOR_CONTROLLER_LOG
-    if(err)
+    if(err != 0)
     {
         platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "set pwm failed");
     }
@@ -230,5 +251,12 @@ static K_WORK_DELAYABLE_DEFINE(motor_controller_work, motor_controller_work_hand
 void
 trigger_motors_update(void)
 {
-    k_work_submit(&motor_controller_work.work);
+    int const err = k_work_submit(&motor_controller_work.work);
+
+#ifdef CONFIG_MOTOR_CONTROLLER_LOG
+    if(err != 0)
+    {
+        platform_log("MOTOR_CONTROLLER", LOG_LEVEL_ERR, "Motors update trigger failed");
+    }
+#endif  // CONFIG_MOTOR_CONTROLLER_LOG
 }

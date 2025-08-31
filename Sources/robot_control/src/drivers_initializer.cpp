@@ -34,7 +34,7 @@ void
 Drivers_Initializer::init()
 {
     int ret = 0;
-
+    // turn on watchdog
 #ifdef CONFIG_MOTOR_CONTROLLER_DRV
     ret = motor_controller_init();
     reboot_on_error(ret);

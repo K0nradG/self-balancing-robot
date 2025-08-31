@@ -19,7 +19,7 @@ class Robot_Controller
     static constexpr float radian_degrees = 180.0f;
 
     static constexpr float rotate_setpoint  = 0.0f * (pi / radian_degrees);
-    static constexpr float balance_setpoint = -20.0f * (pi / radian_degrees);  //-10.0f
+    static constexpr float balance_setpoint = 0.0f * (pi / radian_degrees);  //-10.0f
 
     static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 0.80f, .Ki = 0.1f, .Kd = 0.001f};  // 0.002
     static constexpr float max_speed_rad_s                      = 70.0f;

@@ -14,7 +14,7 @@
 #define GYRO_CALIBRATION_SAMPLES 100000
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
-#define ALPHA               0.98f
+#define ALPHA               0.992f
 #define M_PI                3.14159265358979323846f
 #define MILLI_PARTS_CONVERT 1e-03f
 
@@ -27,9 +27,17 @@
 // #define GYRO_Y_DRIFT -0.318539f
 // #define GYRO_Z_DRIFT -0.393751f
 
-#define GYRO_X_DRIFT -2.689413f
-#define GYRO_Y_DRIFT -1.387693f
-#define GYRO_Z_DRIFT -0.762965f
+// #define GYRO_X_DRIFT -0.079107f
+// #define GYRO_Y_DRIFT -0.097314f
+// #define GYRO_Z_DRIFT -0.024064f
+
+// #define GYRO_X_DRIFT -2.689413f
+// #define GYRO_Y_DRIFT -1.387693f
+// #define GYRO_Z_DRIFT -0.762965f
+
+#define GYRO_X_DRIFT -2.218894f
+#define GYRO_Y_DRIFT -1.262870f
+#define GYRO_Z_DRIFT -0.658018f
 
 // // Laying down measurement:
 // #define GYRO_X_DRIFT 0.001439f
@@ -165,7 +173,6 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     static float angle_rotation   = 0.0f;
     static int64_t last_time_ms   = 0;
     int64_t const current_time_ms = k_uptime_get();
-    static bool first_run         = true;
 
     // Compute dynamic DT in seconds:
     float const dt = (float)(current_time_ms - last_time_ms) * MILLI_PARTS_CONVERT;
@@ -174,7 +181,7 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     float const az = sensor_value_to_float(&accelerometer_data[2]);
 
     // [radians]
-    float const accel_angle = atan2f(ay, az) - ACCELEROMETER_OFFSET;
+    float const accel_angle = atan2f(ay, az) - ACCELEROMETER_OFFSET;  // Wrap detection needed.
     float const gyro_rate_x = sensor_value_to_float(&gyro_data[0]) - GYRO_X_DRIFT;
     float const gyro_rate_y = sensor_value_to_float(&gyro_data[1]) - GYRO_Y_DRIFT;
 
@@ -182,17 +189,7 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     platform_log("IMU", LOG_LEVEL_INF, "gx: %f, gy: %f", (double)gyro_rate_x, (double)gyro_rate_y);
 #endif  // CONFIG_IMU_LOG
 
-    if(first_run)
-    {
-        // Always synchronize the measurement with accelerometer angle in the beginning.
-        angle_balance = accel_angle;
-        first_run     = false;
-    }
-    else
-    {
-        angle_balance = ALPHA * (angle_balance + gyro_rate_x * dt) + (1.0f - ALPHA) * accel_angle;
-    }
-
+    angle_balance = ALPHA * (angle_balance + gyro_rate_x * dt) + (1.0f - ALPHA) * accel_angle;
     angle_rotation += gyro_rate_y * dt;
 
     last_time_ms        = current_time_ms;

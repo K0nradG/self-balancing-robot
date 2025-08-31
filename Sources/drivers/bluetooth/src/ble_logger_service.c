@@ -1,0 +1,113 @@
+#include <bluetooth/services/nus.h>
+#include <string.h>
+#include <zephyr/logging/log.h>
+#include "ble_connection.h"
+#include "ble_service.h"
+
+#define BLE_NUS_MAX_DATA_LEN 251
+
+LOG_MODULE_REGISTER(ble_nus, CONFIG_LOGGER_LOG_LEVEL);
+
+static bool g_nus_notification_enabled                                   = false;
+static regulator_parameters_parser_cb_t g_regulator_parameters_parser_cb = NULL;
+
+bool
+get_notif_status()
+{
+    return g_nus_notification_enabled;
+}
+
+void
+set_notif_status(bool nus_notification_enabled)
+{
+    g_nus_notification_enabled = nus_notification_enabled;
+}
+
+static void
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
+
+static void
+nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
+{
+    new_nus_parameters_received_for_regulator(data, len);
+    LOG_INF("NUS received data: %.*s", len, data);
+}
+
+void
+nus_notif_enabled(enum bt_nus_send_status status)
+{
+    if(status == BT_NUS_SEND_STATUS_ENABLED)
+    {
+        set_notif_status(true);
+        LOG_INF("notification enabled");
+    }
+    else if(status == BT_NUS_SEND_STATUS_DISABLED)
+    {
+        set_notif_status(false);
+        LOG_INF("notification disabled");
+    }
+}
+
+static struct bt_nus_cb nus_callbacks = {
+    .send_enabled = nus_notif_enabled,
+    .received     = nus_data_received,
+};
+
+int
+ble_service_init(void)
+{
+    int const err = bt_nus_init(&nus_callbacks);
+    if(err != 0)
+    {
+        LOG_ERR("NUS initialization error: %d", err);
+    }
+    return err;
+}
+
+void
+ble_send(char* data)
+{
+    if(get_con_status() && get_notif_status())
+    {
+        int const err = bt_nus_send(NULL, data, strlen(data));
+        if(err != 0)
+        {
+            LOG_ERR("NUS failed to send data: %d", err);
+        }
+    }
+}
+
+static void
+new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
+{
+    if(len > BLE_NUS_MAX_DATA_LEN)
+    {
+#ifdef CONFIG_ROBOT_CONTROL_LOG
+        LOG_ERR("Data length exceeds buffer size!");
+#endif  // CONFIG_ROBOT_CONTROL_LOG
+        return;
+    }
+
+    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
+    memset(received_data, 0, sizeof(received_data));
+
+    memcpy(received_data, data, len);
+    received_data[len] = '\0';
+#ifdef CONFIG_ROBOT_CONTROL_LOG
+    LOG_INF("Received NUS data: %s", received_data);
+#endif  // CONFIG_ROBOT_CONTROL_LOG
+
+    if(g_regulator_parameters_parser_cb)
+    {
+        g_regulator_parameters_parser_cb(received_data);
+    }
+}
+
+void
+new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t regulator_parameters_parser_cb)
+{
+    if(regulator_parameters_parser_cb)
+    {
+        g_regulator_parameters_parser_cb = regulator_parameters_parser_cb;
+    }
+}

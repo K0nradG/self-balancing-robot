@@ -1,0 +1,7 @@
+set(MOTOR_CONTROLLER_DRV_INC include)
+set(MOTOR_CONTROLLER_DRV_SRC_DIR src)
+
+file(GLOB MOTOR_CONTROLLER_DRV_SRC ${MOTOR_CONTROLLER_DRV_SRC_DIR}/*.c)
+
+zephyr_include_directories(${MOTOR_CONTROLLER_DRV_INC})
+zephyr_library_sources(${MOTOR_CONTROLLER_DRV_SRC})

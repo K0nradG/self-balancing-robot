@@ -1,0 +1,26 @@
+config ENCODER_DRV
+    bool "Encoder measurement module"
+    select GPIO
+    
+if ENCODER_DRV
+
+config ENCODER_LOG
+    bool "Enable logging from encoder driver"
+    depends on LOGGER_DRV
+    
+config ENCODER_DATA_UPDATE_MS
+    int "Encoder measurement interval in ms"
+    default 100
+
+config IMPULSES_FOR_SHAFT_ROTATION
+    int "Amount of encoder impulses when the motor shaft make a full rotation"
+    default 800
+
+config WHEEL_DIAMETER_MM
+    int "Wheel diameter in mm"
+    default 65
+
+config WHEEL_BASE_WIDTH_MM
+    int "distance between wheels in mm"
+    default 195
+endif

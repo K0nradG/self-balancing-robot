@@ -1,0 +1,15 @@
+config WATCHDOG_CONTROLLER_DRV
+    bool "Watchdog controller driver module"
+    select WATCHDOG
+
+if WATCHDOG_CONTROLLER_DRV
+
+config WATCHDOG_CONTROLLER_DRV_LOG
+    bool "Enable logging from watchdog controller driver module"
+    depends on LOGGER_DRV
+
+config WATCHDOG_MAX_TIMEOUT_MS
+    int "Watchdog maximum timeout in milliseconds"
+    default 200
+
+endif #WATCHDOG_CONTROLLER_DRV

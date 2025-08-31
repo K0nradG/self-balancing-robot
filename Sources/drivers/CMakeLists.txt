@@ -1,0 +1,13 @@
+if(DEFINED CONFIG_BATTERY_LEVEL_DRV OR DEFINED CONFIG_INTERFACE_DRV OR DEFINED CONFIG_CONTROLLER_APP)
+    add_subdirectory(utils)
+endif()
+
+add_subdirectory_ifdef(CONFIG_BATTERY_LEVEL_DRV battery_level)
+add_subdirectory_ifdef(CONFIG_MOTOR_CONTROLLER_DRV motor_controller)
+add_subdirectory_ifdef(CONFIG_IMU_DRV imu)
+add_subdirectory_ifdef(CONFIG_LOGGER_DRV logger)
+add_subdirectory_ifdef(CONFIG_BLUETOOTH_DRV bluetooth)
+add_subdirectory_ifdef(CONFIG_INTERFACE_DRV interface)
+add_subdirectory_ifdef(CONFIG_MODEL_IDENTIFICATION_DRV model_identification)
+add_subdirectory_ifdef(CONFIG_ENCODER_DRV encoder)
+add_subdirectory_ifdef(CONFIG_WATCHDOG_CONTROLLER_DRV watchdog_controller)

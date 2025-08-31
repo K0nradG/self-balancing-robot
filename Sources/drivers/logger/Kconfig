@@ -1,0 +1,17 @@
+
+config LOGGER_DRV
+    bool "BLE and serial logger module"
+    select LOG
+
+if LOGGER_DRV
+
+config LOG_OVER_SERIAL
+    depends on LOGGER_DRV
+    bool "enable seding logs over serial"
+
+
+module = LOGGER
+module-str = LOGGER
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"
+
+endif #LOGGER_DRV

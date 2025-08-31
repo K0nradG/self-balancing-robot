@@ -1,0 +1,8 @@
+config BLUETOOTH_DRV
+    bool  "Enable BLE driver"
+    select BT
+    select BT_PERIPHERAL
+    select BT_NUS
+    select BT_GATT_CLIENT
+    select BT_USER_PHY_UPDATE
+    select BT_USER_DATA_LEN_UPDATE

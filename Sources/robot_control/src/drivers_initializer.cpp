@@ -1,6 +1,10 @@
 #include "drivers_initializer.h"
 #include <zephyr/sys/reboot.h>
 
+#ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
+#include "watchdog_controller.h"
+#endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
+
 #ifdef CONFIG_MOTOR_CONTROLLER_DRV
 #include "motor_controller.h"
 #endif  // CONFIG_MOTOR_CONTROLLER_DRV
@@ -34,7 +38,12 @@ void
 Drivers_Initializer::init()
 {
     int ret = 0;
-    // turn on watchdog
+
+#ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
+    ret = watchdog_controller_init();
+    reboot_on_error(ret);
+#endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
+
 #ifdef CONFIG_MOTOR_CONTROLLER_DRV
     ret = motor_controller_init();
     reboot_on_error(ret);

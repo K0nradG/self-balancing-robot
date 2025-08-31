@@ -6,6 +6,10 @@
 #include "state_machine.h"
 #include "zephyr/kernel.h"
 
+#ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
+#include "watchdog_controller.h"
+#endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
+
 #ifdef CONFIG_ROBOT_CONTROL_LOG
 #include "logger.h"
 #endif  // CONFIG_ROBOT_CONTROL_LOG
@@ -75,6 +79,9 @@ static void
 control_loop_work_handler(struct k_work* work)
 {
     ARG_UNUSED(work);
+#ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
+    feed_watchdog();
+#endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
     Robot_Control::State_Machine::State const state = s_state_machine.get_state();
     switch(state)

@@ -29,8 +29,13 @@ Robot_Controller::normal_motors_control()
     DataManager::instance().update();
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
-
+    
+#ifdef CONFIG_VALIDATE_ROBOT_ANGLE  
     bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
+#else
+    bool const disable_motors_command = false;
+#endif  // CONFIG_VALIDATE_ROBOT_ANGLE
+
     if(!disable_motors_command)
     {
         // float const pwm0 = m_wheel0_speed_pid.calculate_output(
@@ -166,6 +171,7 @@ Robot_Controller::send_motors_data(float pwm_motor0, float pwm_motor1)
     set_duty_cycle_value(static_cast<int>(pwm_motor0), static_cast<int>(pwm_motor1));
 }
 
+#ifdef CONFIG_VALIDATE_ROBOT_ANGLE
 bool
 Robot_Controller::validate_robot_angle(float balance_angle)
 {
@@ -189,6 +195,7 @@ Robot_Controller::validate_robot_angle(float balance_angle)
     }
     return disable_motors_command;
 }
+#endif  // CONFIG_VALIDATE_ROBOT_ANGLE
 
 bool
 Robot_Controller::ramp_pwm_to_stop(float& pwm)

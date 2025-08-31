@@ -164,6 +164,25 @@ imu_init(void)
 #ifndef CONFIG_IMU_CALIBRATE_GYRO
 #include <math.h>
 
+static float
+unwrap_accelerometer_angle(float accel_angle)
+{
+    static float prev_angle = 0.0f;
+    float const delta       = accel_angle - prev_angle;
+
+    if(delta > M_PI)
+    {
+        accel_angle -= 2.0f * M_PI;
+    }
+    else if(delta < -M_PI)
+    {
+        accel_angle += 2.0f * M_PI;
+    }
+
+    prev_angle = accel_angle;
+    return accel_angle;
+}
+
 static imu_data
 get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)
 {
@@ -181,7 +200,9 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     float const az = sensor_value_to_float(&accelerometer_data[2]);
 
     // [radians]
-    float const accel_angle = atan2f(ay, az) - ACCELEROMETER_OFFSET;  // Wrap detection needed.
+    float accel_angle = atan2f(ay, az);
+    accel_angle       = unwrap_accelerometer_angle(accel_angle);
+    accel_angle -= ACCELEROMETER_OFFSET;
     float const gyro_rate_x = sensor_value_to_float(&gyro_data[0]) - GYRO_X_DRIFT;
     float const gyro_rate_y = sensor_value_to_float(&gyro_data[1]) - GYRO_Y_DRIFT;
 

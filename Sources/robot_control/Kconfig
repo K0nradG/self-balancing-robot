@@ -19,4 +19,7 @@ config ROBOT_CONTROL_LOG
 config PID_ENABLED
     bool "PID controller enabled, else enable LQR"
 
+config VALIDATE_ROBOT_ANGLE
+    bool "Validate robot angle and disable motors if angle is out of range"
+
 endif #ROBOT_CONTROL

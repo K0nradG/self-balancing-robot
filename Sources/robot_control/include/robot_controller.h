@@ -19,13 +19,13 @@ class Robot_Controller
     static constexpr float radian_degrees = 180.0f;
 
     static constexpr float rotate_setpoint  = 0.0f * (pi / radian_degrees);
-    static constexpr float balance_setpoint = 0.0f * (pi / radian_degrees);  //-10.0f
+    static constexpr float balance_setpoint = 10.0f * (pi / radian_degrees);  //-10.0f
 
     static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 0.80f, .Ki = 0.1f, .Kd = 0.001f};  // 0.002
     static constexpr float max_speed_rad_s                      = 70.0f;
     static constexpr float speed_pid_filter_alpha               = 1.0f;  // No filtering.
 
-    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 0.0f, .Ki = 0.0f, .Kd = 0.0f};
+    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 25.0f, .Ki = 40.0f, .Kd = 0.1f};
     static constexpr float rotate_pid_filter_alpha         = 1.0f;  // No filtering.
 
 #ifdef CONFIG_PID_ENABLED

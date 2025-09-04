@@ -29,8 +29,9 @@ Robot_Controller::normal_motors_control()
     DataManager::instance().update();
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
-    
-#ifdef CONFIG_VALIDATE_ROBOT_ANGLE  
+    float const rotation_angle        = DataManager::instance().get_rotation_angle();
+
+#ifdef CONFIG_VALIDATE_ROBOT_ANGLE
     bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
 #else
     bool const disable_motors_command = false;
@@ -43,7 +44,7 @@ Robot_Controller::normal_motors_control()
         // float const pwm1 = m_wheel1_speed_pid.calculate_output(
         //     target_speed + target_rotate_speed, encoders_data.encoder_1.angular_velocity_rad_s);
 
-        float const pwm_rotate = 0.0f;  // m_rotate_pid.calculate_output(m_rotate_setpoint, imu_data.angle_rotation);
+        float const pwm_rotate = m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle);
 
 #ifdef CONFIG_PID_ENABLED
         float const pwm_balance = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
@@ -73,7 +74,7 @@ Robot_Controller::normal_motors_control()
     platform_log(
         "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, ar: %f, ea0: %f, ea1: %f, ev0: %f, ev1: %f, pwm0: %f, pwm1: %f",
         (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
-        (double)(imu_data.angle_rotation * radian_degrees / pi), (double)encoders_data.encoder_0.shaft_angle_rad,
+        (double)(rotation_angle * radian_degrees / pi), (double)encoders_data.encoder_0.shaft_angle_rad,
         (double)encoders_data.encoder_1.shaft_angle_rad, (double)encoders_data.encoder_0.angular_velocity_rad_s,
         (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
 #endif  // CONFIG_ROBOT_CONTROL_LOG

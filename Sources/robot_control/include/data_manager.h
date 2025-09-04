@@ -5,6 +5,8 @@
 
 class DataManager
 {
+    static constexpr float alpha_rotation = 0.8f;
+
 public:
     static DataManager&
     instance();
@@ -18,6 +20,9 @@ public:
     encoders_data
     get_encoders_data() const;
 
+    float
+    get_rotation_angle() const;
+
 private:
     DataManager() = default;
 
@@ -28,4 +33,5 @@ private:
 
     imu_data m_imu_data {};
     encoders_data m_encoders_data {};
+    float m_rotation_angle {};
 };

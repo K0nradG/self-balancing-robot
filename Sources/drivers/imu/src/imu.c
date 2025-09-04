@@ -189,7 +189,6 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     ARG_UNUSED(temperature);
 
     static float angle_balance    = 0.0f;
-    static float angle_rotation   = 0.0f;
     static int64_t last_time_ms   = 0;
     int64_t const current_time_ms = k_uptime_get();
 
@@ -211,11 +210,13 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
 #endif  // CONFIG_IMU_LOG
 
     angle_balance = ALPHA * (angle_balance + gyro_rate_x * dt) + (1.0f - ALPHA) * accel_angle;
-    angle_rotation += gyro_rate_y * dt;
 
     last_time_ms        = current_time_ms;
     imu_data const data = {
-        .angle_balance = angle_balance, .angle_balance_dt = gyro_rate_x, .angle_rotation = angle_rotation};
+        .angle_balance     = angle_balance,
+        .angle_balance_dt  = gyro_rate_x,
+        .angle_rotation_dt = gyro_rate_y,
+        .time_dt           = dt};
 
     return data;
 }

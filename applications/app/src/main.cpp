@@ -1,5 +1,7 @@
 #pragma GCC diagnostic ignored "-Wdouble-promotion"
 
+#include "shell.h"
+
 #ifdef CONFIG_APP_LOG
 #include "logger.h"
 #endif  // CONFIG_APP_LOG
@@ -33,9 +35,8 @@ new_battery_level_callback(battery_level_data data)
 int
 main(void)
 {
-#ifdef CONFIG_APP_LOG
-    platform_log("APP", LOG_LEVEL_INF, "Application started.");
-#endif  // CONFIG_APP_LOG
+
+    //register_shell_commands();
 
 #ifdef CONFIG_INTERFACE_DRV
 #ifdef CONFIG_APP_LOG
@@ -64,4 +65,9 @@ main(void)
 
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 #endif  // CONFIG_ROBOT_CONTROL
+
+#ifdef CONFIG_APP_LOG
+    platform_log("APP", LOG_LEVEL_INF, "Application started.");
+#endif  // CONFIG_APP_LOG
+
 }

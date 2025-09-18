@@ -1,6 +1,7 @@
 config WATCHDOG_CONTROLLER_DRV
     bool "Watchdog controller driver module"
     select WATCHDOG
+    depends on !IMU_CALIBRATE_GYRO
 
 if WATCHDOG_CONTROLLER_DRV
 

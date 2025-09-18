@@ -1,6 +1,7 @@
 import os
 import subprocess
 import sys
+from Sources.scripts.python.format_changed_files import format_changed_files
 
 def run_nrfdongle_build_command():
     target_dir = os.path.join("Sources", "applications", "app")
@@ -14,4 +15,5 @@ def run_nrfdongle_build_command():
         sys.exit(e.returncode)
 
 if __name__ == "__main__":
+    format_changed_files()
     run_nrfdongle_build_command()

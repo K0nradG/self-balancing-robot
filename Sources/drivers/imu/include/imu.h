@@ -12,7 +12,8 @@ typedef struct
 {
     float angle_balance;
     float angle_balance_dt;
-    float angle_rotation;
+    float angle_rotation_dt;
+    float time_dt;
 } imu_data;
 
 int

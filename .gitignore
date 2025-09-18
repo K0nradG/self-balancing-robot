@@ -9,3 +9,4 @@ slprj
 *.slxc
 
 *.zip
+__pycache__

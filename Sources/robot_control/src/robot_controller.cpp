@@ -14,7 +14,8 @@ Robot_Controller::Robot_Controller()
       m_balance_setpoint(balance_setpoint),
       m_wheel0_speed_pid(wheel_speed_pid_parameters, max_speed_rad_s, speed_pid_filter_alpha),
       m_wheel1_speed_pid(wheel_speed_pid_parameters, max_speed_rad_s, speed_pid_filter_alpha),
-      m_rotate_pid(rotate_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), rotate_pid_filter_alpha),
+      m_rotate_pid(
+          rotate_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), rotate_pid_filter_alpha, rotate_pid_hysteresis),
 #ifdef CONFIG_PID_ENABLED
       m_balance_pid(balance_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), balance_pid_filter_alpha)
 #else

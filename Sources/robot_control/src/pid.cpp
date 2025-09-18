@@ -10,6 +10,12 @@ float
 PID::calculate_output(float setpoint, float feedback, float feedback_dt)
 {
     float const error = setpoint - m_filter.filter(feedback);
+    if(std::abs(error) < m_hysteresis)
+    {
+        m_integral   = 0.0f;
+        m_prev_error = error;
+        return 0.0f;
+    }
 
     int64_t const current_time = k_uptime_get();
     float const dt             = (m_last_time > 0) ? (current_time - m_last_time) / 1000.0f : 0.01f;

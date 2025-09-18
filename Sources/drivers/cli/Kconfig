@@ -1,0 +1,3 @@
+config SHELL_DRV
+    bool "Shell module"
+    select SHELL

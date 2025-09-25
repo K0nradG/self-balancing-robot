@@ -1,0 +1,4 @@
+
+config DFU_BLE
+    bool "Enable DFU over BLE SMP"
+    default y

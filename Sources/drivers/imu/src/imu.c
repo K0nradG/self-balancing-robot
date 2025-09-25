@@ -14,7 +14,7 @@
 #define GYRO_CALIBRATION_SAMPLES 100000
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
-#define ALPHA               0.985f
+#define ALPHA               0.997f
 #define M_PI                3.14159265358979323846f
 #define MILLI_PARTS_CONVERT 1e-03f
 
@@ -23,31 +23,10 @@
 #define ACCELEROMETER_OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
 
 // "Balancing" position measurement:
-// #define GYRO_X_DRIFT -0.159268f
-// #define GYRO_Y_DRIFT -0.318539f
-// #define GYRO_Z_DRIFT -0.393751f
 
-// #define GYRO_X_DRIFT -0.079107f
-// #define GYRO_Y_DRIFT -0.097314f
-// #define GYRO_Z_DRIFT -0.024064f
-
-// #define GYRO_X_DRIFT -2.689413f
-// #define GYRO_Y_DRIFT -1.387693f
-// #define GYRO_Z_DRIFT -0.762965f
-
-#define GYRO_X_DRIFT -2.218894f
-#define GYRO_Y_DRIFT -1.262870f
-#define GYRO_Z_DRIFT -0.658018f
-
-// // Laying down measurement:
-// #define GYRO_X_DRIFT 0.001439f
-// #define GYRO_Y_DRIFT -0.5362055f
-// #define GYRO_Z_DRIFT -0.2785235f
-
-// // Standing still measurement:
-// #define GYRO_X_DRIFT -0.55392f
-// #define GYRO_Y_DRIFT -0.5578995f
-// #define GYRO_Z_DRIFT -0.4397565f
+#define GYRO_X_DRIFT -0.085893f
+#define GYRO_Y_DRIFT -0.012154f
+#define GYRO_Z_DRIFT -0.006593f
 
 #ifdef CONFIG_IMU_CALIBRATE_GYRO
 typedef struct gyro_calibration_data

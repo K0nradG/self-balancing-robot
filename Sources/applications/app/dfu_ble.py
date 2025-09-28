@@ -5,35 +5,29 @@ import time
 
 NEWTMGR = "sudo /usr/local/bin/newtmgr"
 
-def run(cmd, check=True):
-    print(f">>> {cmd}")
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    print(result.stdout)
-    if check and result.returncode != 0:
+def run(cmd, check=True, retries=1, delay=1):
+    for attempt in range(1, retries + 1):
+        print(f">>> {cmd} (attempt {attempt}/{retries})")
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        print(result.stdout)
+        if result.returncode == 0:
+            return result
+        if attempt < retries:
+            print(f"Command failed (rc={result.returncode}), retrying in {delay}s...")
+            time.sleep(delay)
+    if check:
         print(result.stderr)
         sys.exit(result.returncode)
     return result
 
-def bluetoothctl_cmds(addr):
-    cmds = f"""
-    power on
-    agent on
-    default-agent
-    trust {addr}
-    pair {addr}
-    connect {addr}
-    quit
-    """
-    print(">>> Connecting via bluetoothctl...")
-    p = subprocess.Popen(['bluetoothctl'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    out, err = p.communicate(cmds)
-    print(out)
-    if p.returncode != 0:
-        print(err)
-        sys.exit(p.returncode)
-    time.sleep(2)  # Wait a moment for the connection to stabilize
+def enable_bluetooth():
+    print(">>> Odblokowywanie Bluetooth i uruchamianie hci0...")
+    run("sudo rfkill unblock bluetooth", check=False)
+    run("sudo hciconfig hci0 up", check=False)
 
 def main():
+    enable_bluetooth()
+
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <BLE_ADDRESS> <IMAGE_PATH>")
         sys.exit(1)
@@ -45,17 +39,13 @@ def main():
         print(f"File does not exist: {image_path}")
         sys.exit(1)
 
-    bluetoothctl_cmds(ble_addr)
+    run(f'{NEWTMGR} conn delete bleconn', check=False)
+    run(f'{NEWTMGR} conn add bleconn type=ble connstring="peer_name=SELF_BALANCING_ROBOT"', retries=3, delay=2)
 
-    # Add BLE connection profile for newtmgr
-    run(f"{NEWTMGR} conn add bleconn type=ble connstring=\"peer_name=AliroDL\"")
-    # List images on the device
-    run(f"{NEWTMGR} image list -c bleconn")
-    # Upload new image
-    run(f"{NEWTMGR} image upload -c bleconn {image_path}")
+    run(f"{NEWTMGR} image list -c bleconn", retries=5, delay=2)
+    run(f"{NEWTMGR} image upload -c bleconn {image_path}", retries=3, delay=2)
 
-    print(">>> Fetching hash of the new image...")
-    result = run(f"{NEWTMGR} image list -c bleconn", check=False)
+    result = run(f"{NEWTMGR} image list -c bleconn", check=False, retries=5, delay=2)
     lines = result.stdout.splitlines()
     slot1 = False
     image_hash = None
@@ -71,10 +61,12 @@ def main():
         print("Could not find hash of the new image in slot 1!")
         sys.exit(1)
 
-    # Set the new image as pending (test)
     run(f"{NEWTMGR} image test -c bleconn {image_hash}")
-    # Reset the device
     run(f"{NEWTMGR} reset -c bleconn")
+    print(">>> Waiting for device to reboot...")
+    time.sleep(3)
+    run(f"{NEWTMGR} image list -c bleconn", retries=5, delay=2)
 
 if __name__ == "__main__":
     main()
+

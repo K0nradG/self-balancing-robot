@@ -45,40 +45,40 @@ Drivers_Initializer::init()
 
 #ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
     ret = watchdog_controller_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
 #ifdef CONFIG_MOTOR_CONTROLLER_DRV
     ret = motor_controller_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_MOTOR_CONTROLLER_DRV
 
 #ifdef CONFIG_IMU_DRV
     ret = imu_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_IMU_DRV
 
 #ifdef CONFIG_ENCODER_DRV
     ret = encoders_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_ENCODER_DRV
 
 #ifdef CONFIG_BLUETOOTH_DRV
     ret = ble_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 
     ret = ble_service_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
     ret = battery_level_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_INTERFACE_DRV
     ret = interface_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_INTERFACE_DRV
 
 #ifdef CONFIG_SHELL_DRV
@@ -87,7 +87,7 @@ Drivers_Initializer::init()
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     ret = model_identification_init();
-    reboot_on_error(ret);
+    //reboot_on_error(ret);
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }
 

@@ -54,7 +54,7 @@ on_disconnected(struct bt_conn* conn, uint8_t reason)
     LOG_INF("Disconnected: %d", reason);
     set_con_status(false);
     bt_conn_unref(my_conn);
-    k_work_submit(&dfu_smp_start_adv_work.work);
+    // k_work_schedule(&dfu_smp_start_adv_work, K_MSEC(100));
 }
 
 void
@@ -152,10 +152,10 @@ on_connected(struct bt_conn* conn, uint8_t err)
         "Connection parameters: interval %.2f ms, latency %d intervals, timeout %d ms", connection_interval,
         info.le.latency, supervision_timeout);
 
-    update_phy(my_conn);
+    // update_phy(my_conn);
 
-    update_data_length(my_conn);
-    update_mtu(my_conn);
+    // update_data_length(my_conn);
+    // update_mtu(my_conn);
 
     set_con_status(true);
 
@@ -174,7 +174,7 @@ UploadConfirmHandler(uint32_t, enum mgmt_cb_return, int32_t* rc, uint16_t*, bool
     const struct img_mgmt_upload_check* imgData = (const struct img_mgmt_upload_check*)data;
 
     LOG_INF(
-        "DFU over SMP progress: %" PRIu64 "/%zu B of image: %u", imgData->req->off, imgData->action->size,
+        "DFU over SMP progress: %zu / %zu B of image: %zu", imgData->req->off, imgData->action->size,
         imgData->req->image);
 
     return MGMT_CB_OK;

@@ -1,0 +1,12 @@
+Raspberry Pi Zero 2 W
+
+Link to CAD models:
+https://grabcad.com/library/raspberry-pi-zero-2-w-1
+
+Raspberry Pi product site:
+https://www.raspberrypi.com/products/raspberry-pi-zero-2-w
+
+Wish it used a USB C connection instead and micro HDMI connector like the Raspberry Pi 4.
+
+#CAD #SolidWorks #3dmodel #raspberrypi #zero2w
+

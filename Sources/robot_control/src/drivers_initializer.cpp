@@ -5,6 +5,10 @@
 #include "watchdog_controller.h"
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
+#ifdef CONFIG_DFU_BLE
+#include "dfu_ble.h"
+#endif // CONFIG_DFU_BLE
+
 #ifdef CONFIG_MOTOR_CONTROLLER_DRV
 #include "motor_controller.h"
 #endif  // CONFIG_MOTOR_CONTROLLER_DRV
@@ -69,6 +73,13 @@ Drivers_Initializer::init()
 
     ret = ble_service_init();
     //reboot_on_error(ret);
+
+#ifdef CONFIG_DFU_BLE
+    ret = dfu_smp_init();
+    confirm_new_image();
+    start_dfu_smp_adv();
+#endif // CONFIG_DFU_BLE
+
 #endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV

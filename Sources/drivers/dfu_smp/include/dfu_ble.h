@@ -1,33 +1,19 @@
 #pragma once
 
-#include "aliro/errors.h"
-#include <zephyr/bluetooth/bluetooth.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-class BleSmpManager {
-public:
-	static constexpr bool ADV_STARTED = true;
-	static constexpr bool ADV_STOPPED = false;
+int
+dfu_smp_init();
 
-	static BleSmpManager &Instance()
-	{
-		static BleSmpManager instance;
-		return instance;
-	}
+void
+confirm_new_image();
 
-	AliroError Init();
-	void DfuSmpStartAdv();
-	void DfuSmpStopAdv();
-	void ConfirmNewImage();
+void
+start_dfu_smp_adv();
 
-	void SetAdvStatus(bool status) { mIsAdvStarted = status; }
-	bool GetAdvStatus() const { return mIsAdvStarted; }
 
-private:
-	BleSmpManager() = default;
-	BleSmpManager(const BleSmpManager &) = delete;
-	BleSmpManager &operator=(const BleSmpManager &) = delete;
-	BleSmpManager(BleSmpManager &&) = delete;
-	BleSmpManager &operator=(BleSmpManager &&) = delete;
-
-	bool mIsAdvStarted{ false };
-};
+#ifdef __cplusplus
+}
+#endif

@@ -1,4 +1,10 @@
 
 config DFU_BLE
     bool "Enable DFU over BLE SMP"
-    default y
+
+module = DFU_BLE
+module-str = DFU_BLE
+moudle-dep = LOG
+module-help = Enables DFU BLE logging over serial
+
+source "${ZEPHYR_BASE}/subsys/logging/Kconfig.template.log_config"

@@ -13,6 +13,11 @@ confirm_new_image();
 void
 start_dfu_smp_adv();
 
+void
+check_for_software_updates();
+
+bool
+get_software_update_status();
 
 #ifdef __cplusplus
 }

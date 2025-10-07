@@ -426,7 +426,7 @@
       "idf": "",
       "netlist": "",
       "specctra_dsn": "",
-      "step": "",
+      "step": "robot-case/Schematic.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""

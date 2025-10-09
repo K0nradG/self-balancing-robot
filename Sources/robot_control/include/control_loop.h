@@ -12,6 +12,9 @@ trigger_control_loop(void);
 void
 stop_control_loop(void);
 
+int
+control_loop_init();
+
 #ifdef __cplusplus
 }
 #endif

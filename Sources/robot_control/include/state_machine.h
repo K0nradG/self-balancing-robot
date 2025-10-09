@@ -43,7 +43,7 @@ private:
         bool motors_stopped {};
     };
 
-    State m_state = State::READY_TO_START;
+    State m_state = State::NORMAL_OPERATION;
     Transition_Flags m_flags {};
 };
 

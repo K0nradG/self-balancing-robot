@@ -47,31 +47,6 @@ Drivers_Initializer::init()
 {
     int ret = 0;
 
-#ifdef CONFIG_INTERFACE_DRV
-    ret = interface_init();
-    // reboot_on_error(ret);
-#endif  // CONFIG_INTERFACE_DRV
-
-#ifdef CONFIG_SHELL_DRV
-    register_shell_commands();
-#endif  // CONFIG_SHELL_DRV
-
-#ifdef CONFIG_BLUETOOTH_DRV
-    ret = ble_init();
-    // reboot_on_error(ret);
-
-    ret = ble_service_init();
-    // reboot_on_error(ret);
-
-#ifdef CONFIG_DFU_BLE
-    ret = dfu_smp_init();
-    confirm_new_image();
-    start_dfu_smp_adv();
-    check_for_software_updates();
-#endif  // CONFIG_DFU_BLE
-
-#endif  // CONFIG_BLUETOOTH_DRV
-
 #ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
     ret = watchdog_controller_init();
     // reboot_on_error(ret);

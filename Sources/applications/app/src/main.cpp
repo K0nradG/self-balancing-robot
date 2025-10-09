@@ -30,9 +30,27 @@ new_battery_level_callback(battery_level_data data)
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 #endif  // CONFIG_ROBOT_CONTROL
 
+#include <zephyr/kernel.h>
+
+/*TODO: ble dfu is mandatory needes to be default y*/
+#include "dfu_ble.h"
+
+K_SEM_DEFINE(start_app_sem, 0, 1);
+
+static void
+dfu_action()
+{
+    k_sem_give(&start_app_sem);
+}
+
 int
 main(void)
 {
+    dfu_action_cb_register(dfu_action);
+
+    // wait for dfu action from dfu module before starting main app
+    k_sem_take(&start_app_sem, K_FOREVER);
+
 #ifdef CONFIG_APP_LOG
     platform_log("APP", LOG_LEVEL_INF, "Application started.");
 #endif  // CONFIG_APP_LOG

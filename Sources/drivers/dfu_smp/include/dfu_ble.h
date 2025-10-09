@@ -4,20 +4,10 @@
 extern "C" {
 #endif
 
-int
-dfu_smp_init();
+typedef void (*dfu_action_cb_t)(void);
 
 void
-confirm_new_image();
-
-void
-start_dfu_smp_adv();
-
-void
-check_for_software_updates();
-
-bool
-get_software_update_status();
+dfu_action_cb_register(dfu_action_cb_t _dfu_action_cb);
 
 #ifdef __cplusplus
 }

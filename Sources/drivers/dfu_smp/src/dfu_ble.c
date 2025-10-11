@@ -8,6 +8,7 @@
 #include <zephyr/mgmt/mcumgr/mgmt/callbacks.h>
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
+#include "app_version.h"
 #include "ble_commands.h"
 #include "ble_service.h"
 #include "control_loop.h"
@@ -46,7 +47,7 @@ typedef enum
 {
     DFU_STATE_WAITING,
     DFU_STATE_SKIP,
-    DFU_STATE_START
+    DFU_STATE_START,
 } dfu_state_t;
 
 static dfu_state_t g_dfu_state = DFU_STATE_WAITING;
@@ -158,6 +159,7 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
     if(g_dfu_state == DFU_STATE_START)
     {
         LOG_INF("Entering DFU mode...");
+        get_app_version();
 
         // Keep thread alive but not blocking system
         while(1)
@@ -192,10 +194,6 @@ dfu_smp_init(void)
 #ifdef CONFIG_INTERFACE_DRV
     ret = interface_init();
     led_start_periodic_blinking(DFU_BLINKING_INTERVAL);
-#endif
-
-#ifdef CONFIG_SHELL_DRV
-    register_shell_commands();
 #endif
 
     ret = ble_init();

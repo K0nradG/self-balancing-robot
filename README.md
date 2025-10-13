@@ -73,20 +73,40 @@ In order to obtain the `compile_commands.json` run the `get_compile_commands.py`
 
 # The purpose of the project is to build a self balancing robot.
 
-## DONE
-- PCB design,
-- setup software tools and coding standards,
-- agreed on basic software scheme.
-  
-## TODO:
-- investigate PID output/error while positive and negative angle
-- tune  PID
-- tune alpha in compl filter (IMU)
-- introduce low pass filter in regulator.
-- measure as much as posiible components before identification.
-- model -> https://medium.com/geekculture/dynamics-modelling-and-simulation-of-self-balancing-robot-in-c-d32a3b835bbf
 
-https://www.researchgate.net/publication/332739123_Design_of_a_Two-Wheel_Self-Balancing_Robot_with_the_Implementation_of_a_Novel_State_Feedback_for_PID_Controller_using_On-Board_State_Estimation_Algorithm
+
+# Next projects steps
+
+1. finish DFU module:(Konrad)
+    - cleanup the code - > move dfu module from drivers to applications dir
+    - remove BLE option Kconfig
+    - consider moving ble and interface drivers to main from ble module
+    - test dfu with nrfconnect app and newtmgr(integrate newtmgr with Windows)
+    - add seperate command for getting app version
+    - adjust BLE MTU and RX  buffers
+    - implement python script to use  newtmgr tool to perform BLE DFU.
+    - implement python script to increment VERSION file after performing DFU process.
+
+2. State machine control with BLE NUS commands (Filip)
+
+3. Implement wheels speed regulator (Konrad)
+
+4. Cleanup BLE controller app (nrf7002DK): (Filip)
+    - seperate app to different modules:
+        - joystick module
+        - ble module
+        - iplement shell module (to enable/disable nus notifications)
+
+5. Implement drive forward regulator: (Konrad i Filip)
+    - inputs validation (ramping setpoints - consider which side of communication dongle or 7002dk ?)
+    - think about how it should work(consider wave balance setpiont in specyfic way, or position regulator)
+
+
+# Optional points
+
+1. Implement auto start/stop module (Konrad)
+2. Impelement swing up regulator (Filip)
+
 
 
 

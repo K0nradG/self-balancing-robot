@@ -19,4 +19,10 @@
 #define REG_PID_I_GAIN_CMD 'i'
 #define REG_PID_D_GAIN_CMD 'd'
 
+// State machine commands
+#define STATE_MACHINE_PREFIX 'm'
+
+#define STATE_MACHINE_START 'b'
+#define STATE_MACHINE_STOP  's'
+
 #endif /*BLE_CMD_H*/

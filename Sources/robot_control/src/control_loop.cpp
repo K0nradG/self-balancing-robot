@@ -24,16 +24,6 @@ static Robot_Control::State_Machine s_state_machine {};
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 send_identification_data_cb_t g_send_identification_data_cb = nullptr;
 s_state_machine.set_identification_state();
-
-#else
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
-
-static const struct gpio_dt_spec button      = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
-static struct gpio_callback g_button_data_cb = {{0}};
-
-static int
-button_init();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_BLUETOOTH_DRV
@@ -51,19 +41,8 @@ control_loop_init(void)
 
 #ifdef CONFIG_BLUETOOTH_DRV
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
+    state_machine_commands_parser_cb_register(&Robot_Control::State_Machine::parse_nus_commands);
 #endif  // CONFIG_BLUETOOTH_DRV
-
-#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
-    int const error = button_init();
-
-    if(error != 0)
-    {
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-        platform_log("ROBOT_CONTROL", LOG_LEVEL_ERR, "Button init failed ");
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-        return -1;
-    }
-#endif  // not CONFIG_MODEL_IDENTIFICATION_DRV
 
     set_enable_controller(true);
 
@@ -136,58 +115,5 @@ new_send_identification_data_cb_register(send_identification_data_cb_t new_send_
     {
         g_send_identification_data_cb = new_send_identification_data_cb;
     }
-}
-#else
-
-void
-button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
-{
-    (void)dev;
-    (void)cb;
-    (void)pins;
-
-    int32_t const current_time_ms             = k_uptime_get_32();
-    static int32_t last_time_ms               = 0;
-    static constexpr int32_t debounce_time_ms = 100;
-
-    if((current_time_ms - last_time_ms) > debounce_time_ms)
-    {
-        s_state_machine.set_button_pressed(true);
-        last_time_ms = current_time_ms;
-    }
-}
-
-static int
-button_init()
-{
-    int ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
-    if(ret != 0)
-    {
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-        platform_log("ROBOT_CONTROL", LOG_LEVEL_ERR, "GPIO pin configuration failed, err: %d", ret);
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-        return ret;
-    }
-
-    ret |= gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
-    if(ret != 0)
-    {
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-        platform_log("ROBOT_CONTROL", LOG_LEVEL_ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-        return ret;
-    }
-
-    gpio_init_callback(&g_button_data_cb, button_pressed, BIT(button.pin));
-    ret |= gpio_add_callback(button.port, &g_button_data_cb);
-
-    if(ret != 0)
-    {
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-        platform_log("ROBOT_CONTROL", LOG_LEVEL_ERR, "GPIO callback add failed, err: %d", ret);
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-        return ret;
-    }
-    return ret;
 }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV

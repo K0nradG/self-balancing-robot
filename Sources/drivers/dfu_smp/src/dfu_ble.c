@@ -77,7 +77,7 @@ start_dfu_smp_adv(void)
 }
 
 static enum mgmt_cb_return
-UploadConfirmHandler(uint32_t, enum mgmt_cb_return, int32_t* rc, uint16_t*, bool*, void* data, size_t)
+upload_confirm_handler(uint32_t, enum mgmt_cb_return, int32_t* rc, uint16_t*, bool*, void* data, size_t)
 {
     const struct img_mgmt_upload_check* imgData = (const struct img_mgmt_upload_check*)data;
     LOG_INF(
@@ -87,7 +87,7 @@ UploadConfirmHandler(uint32_t, enum mgmt_cb_return, int32_t* rc, uint16_t*, bool
 }
 
 static struct mgmt_callback sUploadCallback = {
-    .callback = UploadConfirmHandler,
+    .callback = upload_confirm_handler,
     .event_id = MGMT_EVT_OP_IMG_MGMT_DFU_CHUNK,
 };
 

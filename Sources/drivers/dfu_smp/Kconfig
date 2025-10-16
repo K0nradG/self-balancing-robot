@@ -1,6 +1,13 @@
 
 config DFU_BLE
     bool "Enable DFU over BLE SMP"
+    depends on BLUETOOTH_DRV
+
+if DFU_BLE
+
+rsource "Kconfig.dfu_smp.defconfig"
+
+endif
 
 module = DFU_BLE
 module-str = DFU_BLE

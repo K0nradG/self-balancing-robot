@@ -67,9 +67,6 @@ nus_data_parser(const uint8_t* data, uint16_t len)
 static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
 {
-#ifdef CONFIG_DFU_BLE
-
-#endif
     nus_data_parser(data, len);
     LOG_INF("NUS received data: %.*s", len, data);
 }

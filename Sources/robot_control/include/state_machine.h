@@ -15,6 +15,14 @@ public:
         RESET_AFTER_STOP
     };
 
+    struct Transition_Flags
+    {
+        bool start {};
+        bool stop {};
+        bool disable_motors_command {};
+        bool motors_stopped {};
+    };
+
     void
     update();
 
@@ -35,16 +43,12 @@ public:
     void
     set_identification_state();
 
-private:
-    struct Transition_Flags
-    {
-        bool button_pressed {};
-        bool disable_motors_command {};
-        bool motors_stopped {};
-    };
+    static void
+    parse_nus_commands(char const* data);
 
-    State m_state = State::NORMAL_OPERATION;
-    Transition_Flags m_flags {};
+private:
+    State m_state = State::READY_TO_START;
+    static Transition_Flags m_flags;
 };
 
 }  // namespace Robot_Control

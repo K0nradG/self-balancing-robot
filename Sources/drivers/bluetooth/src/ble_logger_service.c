@@ -9,20 +9,21 @@
 
 LOG_MODULE_REGISTER(ble_nus, CONFIG_LOGGER_LOG_LEVEL);
 
-static bool g_nus_notification_enabled                                   = false;
-static regulator_parameters_parser_cb_t g_regulator_parameters_parser_cb = NULL;
-static g_dfu_process_parser_cb_t g_dfu_process_parser_cb;
+static bool s_nus_notification_enabled                                       = false;
+static regulator_parameters_parser_cb_t s_regulator_parameters_parser_cb     = NULL;
+static dfu_process_parser_cb_t s_dfu_process_parser_cb                       = NULL;
+static state_machine_commands_parser_cb_t s_state_machine_commands_parser_cb = NULL;
 
 bool
 get_notif_status()
 {
-    return g_nus_notification_enabled;
+    return s_nus_notification_enabled;
 }
 
 void
 set_notif_status(bool nus_notification_enabled)
 {
-    g_nus_notification_enabled = nus_notification_enabled;
+    s_nus_notification_enabled = nus_notification_enabled;
 }
 
 static void
@@ -30,18 +31,27 @@ data_selector(const char* data)
 {
     if(data[0] == DFU_PREFIX)
     {
-        if(g_dfu_process_parser_cb)
+        if(s_dfu_process_parser_cb)
         {
-            g_dfu_process_parser_cb(data);
+            s_dfu_process_parser_cb(data);
         }
         return;
     }
 
     if(data[0] == REG_WHEEL_PID_PREFIX || data[0] == REG_BALANCE_PID_PREFIX || data[0] == REG_ROTATE_PID_PREFIX)
     {
-        if(g_regulator_parameters_parser_cb)
+        if(s_regulator_parameters_parser_cb)
         {
-            g_regulator_parameters_parser_cb(data);
+            s_regulator_parameters_parser_cb(data);
+        }
+    }
+
+    if(data[0] == STATE_MACHINE_PREFIX)
+    {
+        data++;
+        if(s_state_machine_commands_parser_cb)
+        {
+            s_state_machine_commands_parser_cb(data);
         }
     }
 }
@@ -120,15 +130,24 @@ new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _re
 {
     if(_regulator_parameters_parser_cb)
     {
-        g_regulator_parameters_parser_cb = _regulator_parameters_parser_cb;
+        s_regulator_parameters_parser_cb = _regulator_parameters_parser_cb;
     }
 }
 
 void
-dfu_process_parser_cb_register(g_dfu_process_parser_cb_t _dfu_process_parser_cb)
+dfu_process_parser_cb_register(dfu_process_parser_cb_t _dfu_process_parser_cb)
 {
     if(_dfu_process_parser_cb)
     {
-        g_dfu_process_parser_cb = _dfu_process_parser_cb;
+        s_dfu_process_parser_cb = _dfu_process_parser_cb;
+    }
+}
+
+void
+state_machine_commands_parser_cb_register(state_machine_commands_parser_cb_t _state_machine_commands_parser_cb)
+{
+    if(_state_machine_commands_parser_cb)
+    {
+        s_state_machine_commands_parser_cb = _state_machine_commands_parser_cb;
     }
 }

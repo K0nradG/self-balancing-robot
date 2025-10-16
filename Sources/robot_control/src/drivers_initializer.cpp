@@ -17,15 +17,6 @@
 #include "encoder.h"
 #endif  // CONFIG_ENCODER_DRV
 
-#ifdef CONFIG_BLUETOOTH_DRV
-#include "ble_service.h"
-#include "ble_setup.h"
-#endif  // CONFIG_BLUETOOTH_DRV
-
-#ifdef CONFIG_INTERFACE_DRV
-#include "interface.h"
-#endif  // CONFIG_INTERFACE_DRV
-
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #include "battery_level.h"
 #endif  // CONFIG_BATTERY_LEVEL_DRV
@@ -59,23 +50,10 @@ Drivers_Initializer::init()
     reboot_on_error(ret);
 #endif  // CONFIG_ENCODER_DRV
 
-#ifdef CONFIG_BLUETOOTH_DRV
-    ret = ble_init();
-    reboot_on_error(ret);
-
-    ret = ble_service_init();
-    reboot_on_error(ret);
-#endif  // CONFIG_BLUETOOTH_DRV
-
 #ifdef CONFIG_BATTERY_LEVEL_DRV
     ret = battery_level_init();
     reboot_on_error(ret);
 #endif  // CONFIG_BATTERY_LEVEL_DRV
-
-#ifdef CONFIG_INTERFACE_DRV
-    ret = interface_init();
-    reboot_on_error(ret);
-#endif  // CONFIG_INTERFACE_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     ret = model_identification_init();

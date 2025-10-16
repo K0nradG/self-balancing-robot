@@ -44,8 +44,8 @@ nus_data_parse_callback(char const* data)
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 
-static int
-init(void)
+int
+control_loop_init(void)
 {
     Drivers_Initializer::init();
 
@@ -72,8 +72,6 @@ init(void)
 #endif  // CONFIG_ROBOT_CONTROL_LOG
     return 0;
 }
-
-SYS_INIT(init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);
 
 static void
 control_loop_work_handler(struct k_work* work)

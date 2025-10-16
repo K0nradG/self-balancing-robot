@@ -1,0 +1,61 @@
+config BT_BONDABLE
+    default n
+
+config FLASH
+    default y
+
+config FLASH_MAP
+    default y
+
+config BOOTLOADER_MCUBOOT
+    default y
+
+config MCUMGR
+    default y
+
+config MCUMGR_TRANSPORT_BT
+    default y
+
+config IMG_MANAGER
+    default y
+
+config STREAM_FLASH
+    default y
+
+config ZCBOR
+    default y
+
+config MCUMGR_GRP_IMG
+    default y
+
+config MCUMGR_GRP_OS
+    default y
+
+config MCUMGR_GRP_IMG_STATUS_HOOKS
+    default y
+
+config IMG_ERASE_PROGRESSIVELY
+    default y
+
+
+choice MCUMGR_TRANSPORT_BT_PERM
+    default MCUMGR_TRANSPORT_BT_PERM_RW
+endchoice
+
+config MCUMGR_TRANSPORT_NETBUF_COUNT
+    default 6
+
+config MCUMGR_MGMT_NOTIFICATION_HOOKS
+    default y
+
+config MCUMGR_GRP_IMG_UPLOAD_CHECK_HOOK
+    default y
+
+config MCUMGR_SMP_COMMAND_STATUS_HOOKS
+    default y
+
+config MCUMGR_TRANSPORT_NETBUF_SIZE
+    default 1024
+
+config SYSTEM_WORKQUEUE_STACK_SIZE
+    default 2800

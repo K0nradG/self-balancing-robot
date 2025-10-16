@@ -1,28 +1,19 @@
+#include <inttypes.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/gap.h>
 #include <zephyr/bluetooth/gatt.h>
+#include <zephyr/dfu/mcuboot.h>
 #include <zephyr/logging/log.h>
 #include "ble_connection.h"
 #include "ble_setup.h"
 
 LOG_MODULE_REGISTER(ble_setup, CONFIG_LOGGER_LOG_LEVEL);
 
-#define DEVICE_NAME      "SELF_BALANCING_ROBOT"
-#define NO_SCAN_RSP_DATA 0
+struct bt_conn* my_conn = NULL;
 
-struct bt_conn* my_conn                               = NULL;
+#ifndef CONFIG_DFU_BLE
 static struct bt_gatt_exchange_params exchange_params = {0};
-
-static struct bt_le_adv_param const* adv_param = BT_LE_ADV_PARAM(
-    (BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_USE_IDENTITY),  // Connectable advertising and use identity address
-    800,                                                       // Min Advertising Interval 500ms (800*0.625ms)
-    801,                                                       // Max Advertising Interval 500.625ms (801*0.625ms)
-    NULL);                                                     // Set to NULL for undirected advertising
-static const struct bt_data ad[] = {
-    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, strlen(DEVICE_NAME)),
-
-};
+#endif  // CONFIG_DFU_BLE
 
 static void
 on_disconnected(struct bt_conn* conn, uint8_t reason)
@@ -48,6 +39,8 @@ on_le_data_len_updated(struct bt_conn* conn, struct bt_conn_le_data_len_info* in
         LOG_ERR("Wrong info on le data length update!");
     }
 }
+
+#ifndef CONFIG_DFU_BLE
 
 static void
 exchange_func(struct bt_conn* conn, uint8_t att_err, struct bt_gatt_exchange_params* params)
@@ -102,6 +95,8 @@ update_phy(struct bt_conn* conn)
     }
 }
 
+#endif  // CONFIG_DFU_BLE
+
 static void
 on_connected(struct bt_conn* conn, uint8_t err)
 {
@@ -127,10 +122,13 @@ on_connected(struct bt_conn* conn, uint8_t err)
         "Connection parameters: interval %.2f ms, latency %d intervals, timeout %d ms", connection_interval,
         info.le.latency, supervision_timeout);
 
-    update_phy(my_conn);
+#ifndef CONFIG_DFU_BLE
 
+    update_phy(my_conn);
     update_data_length(my_conn);
     update_mtu(my_conn);
+
+#endif  // CONFIG_DFU_BLE
 
     set_con_status(true);
 
@@ -143,31 +141,15 @@ struct bt_conn_cb connection_callbacks = {
     .le_data_len_updated = on_le_data_len_updated,
 };
 
-static void
-bluetooth_init(int err)
-{
-    ARG_UNUSED(err);
-
-    int const ret = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), NULL, NO_SCAN_RSP_DATA);
-    if(ret != 0)
-    {
-        LOG_ERR("Advertising failed to start: %d", ret);
-        return;
-    }
-
-    LOG_INF("Advertising successfully started");
-}
-
 int
 ble_init(void)
 {
     bt_conn_cb_register(&connection_callbacks);
 
-    int const ret = bt_enable(bluetooth_init);
+    int const ret = bt_enable(NULL);
     if(ret != 0)
     {
         LOG_ERR("Bluetooth init failed: %d", ret);
     }
-
     return ret;
 }

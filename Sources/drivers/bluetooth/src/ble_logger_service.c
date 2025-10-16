@@ -1,6 +1,7 @@
 #include <bluetooth/services/nus.h>
 #include <string.h>
 #include <zephyr/logging/log.h>
+#include "ble_commands.h"
 #include "ble_connection.h"
 #include "ble_service.h"
 
@@ -10,6 +11,7 @@ LOG_MODULE_REGISTER(ble_nus, CONFIG_LOGGER_LOG_LEVEL);
 
 static bool g_nus_notification_enabled                                   = false;
 static regulator_parameters_parser_cb_t g_regulator_parameters_parser_cb = NULL;
+static g_dfu_process_parser_cb_t g_dfu_process_parser_cb;
 
 bool
 get_notif_status()
@@ -24,12 +26,48 @@ set_notif_status(bool nus_notification_enabled)
 }
 
 static void
-new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len);
+data_selector(const char* data)
+{
+    if(data[0] == DFU_PREFIX)
+    {
+        if(g_dfu_process_parser_cb)
+        {
+            g_dfu_process_parser_cb(data);
+        }
+        return;
+    }
+
+    if(data[0] == REG_WHEEL_PID_PREFIX || data[0] == REG_BALANCE_PID_PREFIX || data[0] == REG_ROTATE_PID_PREFIX)
+    {
+        if(g_regulator_parameters_parser_cb)
+        {
+            g_regulator_parameters_parser_cb(data);
+        }
+    }
+}
+
+static void
+nus_data_parser(const uint8_t* data, uint16_t len)
+{
+    if(len > BLE_NUS_MAX_DATA_LEN)
+    {
+        LOG_ERR("Data length exceeds buffer size!");
+        return;
+    }
+
+    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
+    memset(received_data, 0, sizeof(received_data));
+
+    memcpy(received_data, data, len);
+    received_data[len] = '\0';
+
+    data_selector(received_data);
+}
 
 static void
 nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
 {
-    new_nus_parameters_received_for_regulator(data, len);
+    nus_data_parser(data, len);
     LOG_INF("NUS received data: %.*s", len, data);
 }
 
@@ -77,37 +115,20 @@ ble_send(char* data)
     }
 }
 
-static void
-new_nus_parameters_received_for_regulator(const uint8_t* data, uint16_t len)
+void
+new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _regulator_parameters_parser_cb)
 {
-    if(len > BLE_NUS_MAX_DATA_LEN)
+    if(_regulator_parameters_parser_cb)
     {
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-        LOG_ERR("Data length exceeds buffer size!");
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-        return;
-    }
-
-    static char received_data[BLE_NUS_MAX_DATA_LEN + 1];
-    memset(received_data, 0, sizeof(received_data));
-
-    memcpy(received_data, data, len);
-    received_data[len] = '\0';
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-    LOG_INF("Received NUS data: %s", received_data);
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-
-    if(g_regulator_parameters_parser_cb)
-    {
-        g_regulator_parameters_parser_cb(received_data);
+        g_regulator_parameters_parser_cb = _regulator_parameters_parser_cb;
     }
 }
 
 void
-new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t regulator_parameters_parser_cb)
+dfu_process_parser_cb_register(g_dfu_process_parser_cb_t _dfu_process_parser_cb)
 {
-    if(regulator_parameters_parser_cb)
+    if(_dfu_process_parser_cb)
     {
-        g_regulator_parameters_parser_cb = regulator_parameters_parser_cb;
+        g_dfu_process_parser_cb = _dfu_process_parser_cb;
     }
 }

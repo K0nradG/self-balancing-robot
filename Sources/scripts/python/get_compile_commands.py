@@ -40,16 +40,14 @@ def format_compile_commands(root_dir: str) -> None:
     
     print("Formatted compile_commands.json successfully.")
 
-def main():
+def get_compile_commands():
     root_dir: str = os.getcwd()
 
-    print("Running update function...")
+    print("Running compile commands update function...")
     update_compile_commands(root_dir)
     
-    print("Running format function...")
+    print("Running formatting function...")
     format_compile_commands(root_dir)
-    
-    print("All tasks completed successfully!")
 
 if __name__ == "__main__":
-    main()
+    get_compile_commands()

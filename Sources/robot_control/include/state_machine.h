@@ -43,12 +43,12 @@ public:
     void
     set_identification_state();
 
-    static void
+    void
     parse_nus_commands(char const* data);
 
 private:
     State m_state = State::READY_TO_START;
-    static Transition_Flags m_flags;
+    Transition_Flags m_flags {};
 };
 
 }  // namespace Robot_Control

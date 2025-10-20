@@ -10,17 +10,16 @@ namespace Robot_Control
 {
 
 Robot_Controller::Robot_Controller()
-    : m_rotate_setpoint(rotate_setpoint),
-      m_balance_setpoint(balance_setpoint),
-      m_wheel0_speed_pid(wheel_speed_pid_parameters, max_speed_rad_s, speed_pid_filter_alpha),
-      m_wheel1_speed_pid(wheel_speed_pid_parameters, max_speed_rad_s, speed_pid_filter_alpha),
-      m_rotate_pid(
-          rotate_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), rotate_pid_filter_alpha, rotate_pid_hysteresis),
+    : m_balance_setpoint(balance_setpoint),
+      m_rotate_setpoint(rotate_setpoint),
 #ifdef CONFIG_PID_ENABLED
-      m_balance_pid(balance_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), balance_pid_filter_alpha)
+      m_balance_pid(balance_pid_parameters, max_speed_rad_s, balance_pid_filter_alpha),
 #else
-      m_balance_lqr(balance_lqr_parameters, static_cast<float>(CONFIG_PWM_LIMIT))
+      m_balance_lqr(balance_lqr_parameters, max_speed_rad_s),
 #endif  // CONFIG_PID_ENABLED
+      m_rotate_pid(rotate_pid_parameters, max_speed_rad_s, rotate_pid_filter_alpha, rotate_pid_hysteresis),
+      m_wheel0_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha),
+      m_wheel1_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha)
 {
 }
 
@@ -40,24 +39,19 @@ Robot_Controller::normal_motors_control()
 
     if(!disable_motors_command)
     {
-        // float const pwm0 = m_wheel0_speed_pid.calculate_output(
-        //     target_speed - target_rotate_speed, encoders_data.encoder_0.angular_velocity_rad_s);
-        // float const pwm1 = m_wheel1_speed_pid.calculate_output(
-        //     target_speed + target_rotate_speed, encoders_data.encoder_1.angular_velocity_rad_s);
-
-        float const pwm_rotate = m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle);
-
 #ifdef CONFIG_PID_ENABLED
-        float const pwm_balance = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
+        float const target_speed_balance = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
 #else
-        float const target_speed = m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
+        float const target_speed_balance =
+            m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
+        float const target_speed_rotate = m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle);
 
-        float const pwm0_target = pwm_balance - pwm_rotate;
-        float const pwm1_target = pwm_balance + pwm_rotate;
+        float const target_speed0 = target_speed_balance - target_speed_rotate;
+        float const target_speed1 = target_speed_balance + target_speed_rotate;
 
-        m_pwm0 = pwm0_target;
-        m_pwm1 = pwm1_target;
+        m_pwm0 = m_wheel0_speed_pid.calculate_output(target_speed0, encoders_data.encoder_0.angular_velocity_rad_s);
+        m_pwm1 = m_wheel1_speed_pid.calculate_output(target_speed1, encoders_data.encoder_1.angular_velocity_rad_s);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {

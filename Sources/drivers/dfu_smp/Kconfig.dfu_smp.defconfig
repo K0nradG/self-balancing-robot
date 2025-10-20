@@ -1,3 +1,9 @@
+config NET_BUF
+    default y
+
+config CRC
+    default y
+
 config BT_BONDABLE
     default n
 
@@ -8,6 +14,9 @@ config FLASH_MAP
     default y
 
 config BOOTLOADER_MCUBOOT
+    default y
+
+config MCUMGR_GRP_OS_BOOTLOADER_INFO
     default y
 
 config MCUMGR
@@ -55,7 +64,54 @@ config MCUMGR_SMP_COMMAND_STATUS_HOOKS
     default y
 
 config MCUMGR_TRANSPORT_NETBUF_SIZE
-    default 1024
+    default 2475
 
 config SYSTEM_WORKQUEUE_STACK_SIZE
     default 2800
+
+config BT_DRV_RX_STACK_SIZE
+    default 1024
+
+config BT_DRV_TX_STACK_SIZE
+    default 1024
+
+config BT_CENTRAL
+    default n
+
+config BT_PERIPHERAL
+    default y
+
+config MCUMGR_TRANSPORT_BT_REASSEMBLY
+    default y
+
+config BT_CTLR
+    default y
+
+config MCUMGR_TRANSPORT_BT_CONN_PARAM_CONTROL
+    default y
+
+config NCS_SAMPLE_MCUMGR_BT_OTA_DFU_SPEEDUP
+    default y
+
+config MCUMGR_GRP_OS_MCUMGR_PARAMS
+	default y
+
+config BT_BUF_ACL_TX_COUNT
+    default 20
+
+config BT_BUF_ACL_RX_COUNT
+    default 20
+
+
+
+#Kconfig to test:
+
+#enable this
+## CONFIG_BT_CTLR_TX_PWR_DYNAMIC_CONTROL
+#CONFIG_BT_CTLR_HCI_NUM_CMD_PKT_MAX=1
+#CONFIG_BT_CTLR_ADV_EXT_CODING_SELECTION_SUPPORT=y
+
+#disable this
+#CONFIG_BT_CTLR_ECDH_SUPPORT=y
+#CONFIG_BT_CTLR_LE_ENC=y
+#CONFIG_BT_CTLR_ECDH=y

@@ -32,6 +32,12 @@ nus_data_parse_callback(char const* data)
 {
     s_robot_controller.parse_nus_data(data);
 }
+
+void
+parse_nus_commands_callback(char const* data)
+{
+    s_state_machine.parse_nus_commands(data);
+}
 #endif  // CONFIG_BLUETOOTH_DRV
 
 int
@@ -41,7 +47,7 @@ control_loop_init(void)
 
 #ifdef CONFIG_BLUETOOTH_DRV
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
-    state_machine_commands_parser_cb_register(&Robot_Control::State_Machine::parse_nus_commands);
+    state_machine_commands_parser_cb_register(&parse_nus_commands_callback);
 #endif  // CONFIG_BLUETOOTH_DRV
 
     set_enable_controller(true);

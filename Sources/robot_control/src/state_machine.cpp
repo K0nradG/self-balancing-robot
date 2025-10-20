@@ -4,8 +4,6 @@
 namespace Robot_Control
 {
 
-State_Machine::Transition_Flags State_Machine::m_flags {};
-
 void
 State_Machine::update()
 {

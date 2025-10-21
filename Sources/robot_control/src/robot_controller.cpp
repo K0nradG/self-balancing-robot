@@ -1,6 +1,8 @@
 #include "robot_controller.h"
+#include <math.h>
 #include "data_manager.h"
 #include "motor_controller.h"
+#include "zephyr/sys/util.h"
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
 #include "logger.h"
@@ -45,14 +47,28 @@ Robot_Controller::normal_motors_control()
         float const target_speed_balance =
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
-        float const target_speed_rotate = m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle);
 
-        float const target_speed0 = target_speed_balance - target_speed_rotate;
-        float const target_speed1 = target_speed_balance + target_speed_rotate;
+        float const rotation_speed_gain = 1.0f / (1.0f + fabsf(
+                                                             MAX(encoders_data.encoder_0.angular_velocity_rad_s,
+                                                                 encoders_data.encoder_1.angular_velocity_rad_s)));
+        float const target_speed_rotate =
+            m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle) * rotation_speed_gain;
+
+        float const target_speed0 =
+            MAX(MIN(target_speed_balance - target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
+        float const target_speed1 =
+            MAX(MIN(target_speed_balance + target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
 
         m_pwm0 = m_wheel0_speed_pid.calculate_output(target_speed0, encoders_data.encoder_0.angular_velocity_rad_s);
         m_pwm1 = m_wheel1_speed_pid.calculate_output(target_speed1, encoders_data.encoder_1.angular_velocity_rad_s);
 
+#ifdef CONFIG_ROBOT_CONTROL_LOG
+        platform_log(
+            "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, pwm0: %f, pwm1: %f",
+            (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees /
+            pi), (double)(m_rotate_setpoint * radian_degrees / pi), (double)(rotation_angle * radian_degrees / pi),
+            (double)target_speed0, (double)target_speed1, (double)m_pwm0, (double)m_pwm1);
+#endif  // CONFIG_ROBOT_CONTROL_LOG
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
             .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
@@ -66,12 +82,12 @@ Robot_Controller::normal_motors_control()
     }
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
-    platform_log(
-        "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, ar: %f, ea0: %f, ea1: %f, ev0: %f, ev1: %f, pwm0: %f, pwm1: %f",
-        (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
-        (double)(rotation_angle * radian_degrees / pi), (double)encoders_data.encoder_0.shaft_angle_rad,
-        (double)encoders_data.encoder_1.shaft_angle_rad, (double)encoders_data.encoder_0.angular_velocity_rad_s,
-        (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+    // platform_log(
+    //     "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, ar: %f, ea0: %f, ea1: %f, ev0: %f, ev1: %f, pwm0: %f, pwm1: %f",
+    //     (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
+    //     (double)(rotation_angle * radian_degrees / pi), (double)encoders_data.encoder_0.shaft_angle_rad,
+    //     (double)encoders_data.encoder_1.shaft_angle_rad, (double)encoders_data.encoder_0.angular_velocity_rad_s,
+    //     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 
     return disable_motors_command;
@@ -88,8 +104,11 @@ Robot_Controller::soft_stop_motors()
 }
 
 void
-Robot_Controller::reset_pids()
+Robot_Controller::reset()
 {
+    m_rotate_setpoint = 0.0f;
+    DataManager::instance().reset();
+
     m_wheel0_speed_pid.reset();
     m_wheel1_speed_pid.reset();
     m_rotate_pid.reset();
@@ -172,7 +191,7 @@ bool
 Robot_Controller::validate_robot_angle(float balance_angle)
 {
     static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 30.0f * (pi / radian_degrees);
+    static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
     static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
 
     float const upper_limit = m_balance_setpoint + safe_angle_margin;

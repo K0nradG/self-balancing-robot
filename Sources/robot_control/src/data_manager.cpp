@@ -33,3 +33,11 @@ DataManager::get_rotation_angle() const
 {
     return m_rotation_angle;
 }
+
+void
+DataManager::reset()
+{
+    reset_imu_balance_angle();
+    reset_encoders();
+    m_rotation_angle = 0.0f;
+}

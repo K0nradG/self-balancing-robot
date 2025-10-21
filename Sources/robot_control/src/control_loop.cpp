@@ -83,12 +83,16 @@ control_loop_work_handler(struct k_work* work)
             break;
         }
         case Robot_Control::State_Machine::State::RESET_AFTER_STOP:
-            s_robot_controller.reset_pids();
+            s_robot_controller.reset();
             break;
         default:
             break;
     }
     s_state_machine.update();
+
+#ifdef CONFIG_ROBOT_CONTROL_LOG
+    // platform_log("LOOP", LOG_LEVEL_INF, "s: %u", (uint16_t)(state));
+#endif  // CONFIG_ROBOT_CONTROL_LOG
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     if(g_send_identification_data_cb)

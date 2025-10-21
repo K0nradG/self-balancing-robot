@@ -23,6 +23,9 @@ public:
     float
     get_rotation_angle() const;
 
+    void
+    reset();
+
 private:
     DataManager() = default;
 

@@ -26,6 +26,10 @@ mpu_reset(uint8_t conf);
 imu_data
 _get_imu_data(void);
 
+//! @brief Resets the IMU static balance angle on next update call
+void
+reset_imu_balance_angle(void);
+
 #ifdef __cplusplus
 }
 #endif

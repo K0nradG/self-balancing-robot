@@ -1,5 +1,5 @@
 #pragma once
-#include <cstdint>
+#include <stdint.h>
 #include "low_pass_filter.h"
 
 namespace Robot_Control
@@ -43,7 +43,7 @@ public:
     reset();
 
 private:
-    std::int64_t m_last_time {};
+    int64_t m_last_time {};
     float m_integral {};
     float m_prev_error {};
 

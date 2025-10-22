@@ -24,9 +24,9 @@
 
 // "Balancing" position measurement:
 
-#define GYRO_X_DRIFT -0.085893f
-#define GYRO_Y_DRIFT -0.012154f
-#define GYRO_Z_DRIFT -0.006593f
+#define GYRO_X_DRIFT -0.087331f
+#define GYRO_Y_DRIFT 0.012047f
+#define GYRO_Z_DRIFT 0.005287f
 
 #ifdef CONFIG_IMU_CALIBRATE_GYRO
 typedef struct gyro_calibration_data

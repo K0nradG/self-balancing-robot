@@ -1,5 +1,4 @@
 #include "robot_controller.h"
-#include <math.h>
 #include "data_manager.h"
 #include "motor_controller.h"
 #include "zephyr/sys/util.h"
@@ -187,7 +186,7 @@ bool
 Robot_Controller::validate_robot_angle(float balance_angle)
 {
     static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 10.0f * (pi / radian_degrees);
+    static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
     static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
 
     float const upper_limit = m_balance_setpoint + safe_angle_margin;

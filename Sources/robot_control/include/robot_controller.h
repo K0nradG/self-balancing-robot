@@ -30,7 +30,7 @@ class Robot_Controller
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED
 
-    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 50.0f, .Ki = 25.0f, .Kd = 1.0f};
+    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 50.0f, .Ki = 25.0f, .Kd = 0.0f};
     static constexpr float rotate_pid_filter_alpha         = 1.0f;  // No filtering.
     static constexpr float rotate_pid_hysteresis           = 0.5f * (pi / radian_degrees);
 

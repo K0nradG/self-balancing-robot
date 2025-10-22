@@ -9,6 +9,15 @@ namespace Robot_Control
 float
 PID::calculate_output(float setpoint, float feedback, float feedback_dt)
 {
+    static constexpr float dt_min = 0.001f;
+    static constexpr float dt_max = 0.05f;
+
+    int64_t const current_time = k_uptime_get();
+    float const dt             = (m_last_time > 0) ?
+                                     MAX(MIN(static_cast<float>((current_time - m_last_time)) / 1000.0f, dt_max), dt_min) :
+                                     dt_max;
+    m_last_time                = current_time;
+
     float const error = setpoint - m_filter.filter(feedback);
     if(fabsf(error) < m_hysteresis)
     {
@@ -16,10 +25,6 @@ PID::calculate_output(float setpoint, float feedback, float feedback_dt)
         m_prev_error = error;
         return 0.0f;
     }
-
-    int64_t const current_time = k_uptime_get();
-    float const dt             = (m_last_time > 0) ? (current_time - m_last_time) / 1000.0f : 0.01f;
-    m_last_time                = current_time;
 
     if(fabsf(m_parameters.Ki) < 1e-3f)
     {

@@ -48,11 +48,7 @@ Robot_Controller::normal_motors_control()
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
 
-        float const rotation_speed_gain = 1.0f / (1.0f + fabsf(
-                                                             MAX(encoders_data.encoder_0.angular_velocity_rad_s,
-                                                                 encoders_data.encoder_1.angular_velocity_rad_s)));
-        float const target_speed_rotate =
-            m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle) * rotation_speed_gain;
+        float const target_speed_rotate = m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle);
 
         float const target_speed0 =
             MAX(MIN(target_speed_balance - target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
@@ -65,8 +61,8 @@ Robot_Controller::normal_motors_control()
 #ifdef CONFIG_ROBOT_CONTROL_LOG
         platform_log(
             "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, pwm0: %f, pwm1: %f",
-            (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees /
-            pi), (double)(m_rotate_setpoint * radian_degrees / pi), (double)(rotation_angle * radian_degrees / pi),
+            (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
+            (double)(m_rotate_setpoint * radian_degrees / pi), (double)(rotation_angle * radian_degrees / pi),
             (double)target_speed0, (double)target_speed1, (double)m_pwm0, (double)m_pwm1);
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
@@ -191,7 +187,7 @@ bool
 Robot_Controller::validate_robot_angle(float balance_angle)
 {
     static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
+    static constexpr float safe_angle_margin     = 10.0f * (pi / radian_degrees);
     static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
 
     float const upper_limit = m_balance_setpoint + safe_angle_margin;

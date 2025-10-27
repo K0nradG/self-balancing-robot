@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pid.h"
+#include "ramp.h"
 
 #ifndef CONFIG_PID_ENABLED
 #include "lqr.h"
@@ -18,8 +19,8 @@ class Robot_Controller
     static constexpr float pi             = 3.14159265358979323846f;
     static constexpr float radian_degrees = 180.0f;
 
-    static constexpr float balance_setpoint = -16.5f * (pi / radian_degrees);
-    static constexpr float rotate_setpoint  = 0.0f * (pi / radian_degrees);
+    static constexpr float balance_setpoint     = -16.5f * (pi / radian_degrees);
+    static constexpr float rotate_setpoint_rate = 180.0f * (pi / radian_degrees);
 
 #ifdef CONFIG_PID_ENABLED
     // static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};  // kp = 270
@@ -61,7 +62,7 @@ public:
 
 private:
     float m_balance_setpoint;
-    float m_rotate_setpoint;
+    Ramp m_rotate_setpoint;
 
 #ifdef CONFIG_PID_ENABLED
     PID m_balance_pid;

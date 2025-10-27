@@ -12,7 +12,7 @@ namespace Robot_Control
 
 Robot_Controller::Robot_Controller()
     : m_balance_setpoint(balance_setpoint),
-      m_rotate_setpoint(rotate_setpoint),
+      m_rotate_setpoint(rotate_setpoint_rate),
 #ifdef CONFIG_PID_ENABLED
       m_balance_pid(balance_pid_parameters, max_speed_rad_s, balance_pid_filter_alpha),
 #else
@@ -47,7 +47,9 @@ Robot_Controller::normal_motors_control()
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
 
-        float const target_speed_rotate = m_rotate_pid.calculate_output(m_rotate_setpoint, rotation_angle);
+        m_rotate_setpoint.update(imu_data.time_dt);
+        float const target_speed_rotate =
+            m_rotate_pid.calculate_output(m_rotate_setpoint.get_current_value(), rotation_angle);
 
         float const target_speed0 =
             MAX(MIN(target_speed_balance - target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
@@ -61,8 +63,9 @@ Robot_Controller::normal_motors_control()
         platform_log(
             "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, pwm0: %f, pwm1: %f",
             (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
-            (double)(m_rotate_setpoint * radian_degrees / pi), (double)(rotation_angle * radian_degrees / pi),
-            (double)target_speed0, (double)target_speed1, (double)m_pwm0, (double)m_pwm1);
+            (double)(m_rotate_setpoint.get_current_value() * radian_degrees / pi),
+            (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
+            (double)m_pwm0, (double)m_pwm1);
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
@@ -101,7 +104,7 @@ Robot_Controller::soft_stop_motors()
 void
 Robot_Controller::reset()
 {
-    m_rotate_setpoint = 0.0f;
+    m_rotate_setpoint.reset();
     DataManager::instance().reset();
 
     m_wheel0_speed_pid.reset();
@@ -158,9 +161,9 @@ Robot_Controller::parse_nus_data(char const* data)
                 char buffer[16];
                 snprintf(buffer, sizeof(buffer), "%s", payload);
 
-                char* endptr      = nullptr;
-                float val         = strtof(buffer, &endptr);
-                m_rotate_setpoint = val * (pi / radian_degrees);
+                char* endptr = nullptr;
+                float val    = strtof(buffer, &endptr);
+                m_rotate_setpoint.set_target(val * (pi / radian_degrees));
             }
             else
             {

@@ -1,22 +1,17 @@
 #include "pid.h"
 #include <math.h>
 #include <stdlib.h>
-#include "zephyr/kernel.h"
+#include "zephyr/sys/util.h"
 
 namespace Robot_Control
 {
 
 float
-PID::calculate_output(float setpoint, float feedback, float feedback_dt)
+PID::calculate_output(float setpoint, float feedback, float dt, float feedback_dt)
 {
     static constexpr float dt_min = 0.001f;
     static constexpr float dt_max = 0.05f;
-
-    int64_t const current_time = k_uptime_get();
-    float const dt             = (m_last_time > 0) ?
-                                     MAX(MIN(static_cast<float>((current_time - m_last_time)) / 1000.0f, dt_max), dt_min) :
-                                     dt_max;
-    m_last_time                = current_time;
+    dt                            = MAX(MIN(dt, dt_max), dt_min);
 
     float const error = setpoint - m_filter.filter(feedback);
     if(fabsf(error) < m_hysteresis)

@@ -26,7 +26,7 @@ public:
     }
 
     float
-    calculate_output(float setpoint, float feedback, float feedback_dt = 0.0f);
+    calculate_output(float setpoint, float feedback, float dt, float feedback_dt = 0.0f);
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
@@ -43,7 +43,6 @@ public:
     reset();
 
 private:
-    int64_t m_last_time {};
     float m_integral {};
     float m_prev_error {};
 

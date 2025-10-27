@@ -3,14 +3,16 @@
 class Ramp
 {
 public:
-    Ramp(float rate) : m_rate(rate)
-    {}
+    Ramp(float rate) : m_rate(rate) {}
 
     void
     update(float dt);
 
     float
     get_current_value() const;
+
+    float
+    get_target() const;
 
     void
     set_target(float target);

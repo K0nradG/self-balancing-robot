@@ -41,7 +41,8 @@ Robot_Controller::normal_motors_control()
     if(!disable_motors_command)
     {
 #ifdef CONFIG_PID_ENABLED
-        float const target_speed_balance = m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance);
+        float const target_speed_balance =
+            m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance, imu_data.time_dt);
 #else
         float const target_speed_balance =
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
@@ -49,23 +50,27 @@ Robot_Controller::normal_motors_control()
 
         m_rotate_setpoint.update(imu_data.time_dt);
         float const target_speed_rotate =
-            m_rotate_pid.calculate_output(m_rotate_setpoint.get_current_value(), rotation_angle);
+            m_rotate_pid.calculate_output(m_rotate_setpoint.get_current_value(), rotation_angle, imu_data.time_dt);
 
         float const target_speed0 =
             MAX(MIN(target_speed_balance - target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
         float const target_speed1 =
             MAX(MIN(target_speed_balance + target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
 
-        m_pwm0 = m_wheel0_speed_pid.calculate_output(target_speed0, encoders_data.encoder_0.angular_velocity_rad_s);
-        m_pwm1 = m_wheel1_speed_pid.calculate_output(target_speed1, encoders_data.encoder_1.angular_velocity_rad_s);
+        m_pwm0 = m_wheel0_speed_pid.calculate_output(
+            target_speed0, encoders_data.encoder_0.angular_velocity_rad_s, imu_data.time_dt);
+        m_pwm1 = m_wheel1_speed_pid.calculate_output(
+            target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
         platform_log(
-            "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, pwm0: %f, pwm1: %f",
+            "APP", LOG_LEVEL_INF,
+            "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
             (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
             (double)(m_rotate_setpoint.get_current_value() * radian_degrees / pi),
             (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
-            (double)m_pwm0, (double)m_pwm1);
+            (double)encoders_data.encoder_0.angular_velocity_rad_s,
+            (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
@@ -78,15 +83,6 @@ Robot_Controller::normal_motors_control()
         send_motors_data(m_pwm0, m_pwm1);
         trigger_motors_update();
     }
-
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-    // platform_log(
-    //     "APP", LOG_LEVEL_INF, "bs: %f, ab: %f, ar: %f, ea0: %f, ea1: %f, ev0: %f, ev1: %f, pwm0: %f, pwm1: %f",
-    //     (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
-    //     (double)(rotation_angle * radian_degrees / pi), (double)encoders_data.encoder_0.shaft_angle_rad,
-    //     (double)encoders_data.encoder_1.shaft_angle_rad, (double)encoders_data.encoder_0.angular_velocity_rad_s,
-    //     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
-#endif  // CONFIG_ROBOT_CONTROL_LOG
 
     return disable_motors_command;
 }
@@ -163,7 +159,7 @@ Robot_Controller::parse_nus_data(char const* data)
 
                 char* endptr = nullptr;
                 float val    = strtof(buffer, &endptr);
-                m_rotate_setpoint.set_target(val * (pi / radian_degrees));
+                m_rotate_setpoint.set_target(m_rotate_setpoint.get_target() + (val * (pi / radian_degrees)));
             }
             else
             {

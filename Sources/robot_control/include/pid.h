@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "low_pass_filter.h"
+#include "saturation.h"
 
 namespace Robot_Control
 {
@@ -15,7 +16,7 @@ public:
         float Kd = 0.0f;
     };
 
-    PID(Parameters parameters, float output_saturation, float alpha, float hysteresis = 0.0f,
+    PID(Parameters parameters, Saturation output_saturation, float alpha, float hysteresis = 0.0f,
         bool use_feedback_dt = false)
         : m_parameters(parameters),
           m_output_saturation(output_saturation),
@@ -47,7 +48,7 @@ private:
     float m_prev_error {};
 
     Parameters m_parameters;
-    float m_output_saturation;
+    Saturation m_output_saturation;
     Low_Pass_Filter m_filter;
     float m_hysteresis;
     bool m_use_feedback_dt;

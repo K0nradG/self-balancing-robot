@@ -1,6 +1,7 @@
 #include "robot_controller.h"
 #include "data_manager.h"
 #include "motor_controller.h"
+#include "saturation.h"
 #include "zephyr/sys/util.h"
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
@@ -11,16 +12,28 @@ namespace Robot_Control
 {
 
 Robot_Controller::Robot_Controller()
-    : m_balance_setpoint(balance_setpoint),
+    : m_distance_setpoint(distance_setpoint_rate),
+      m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint(rotate_setpoint_rate),
+      m_distance_pid(
+          distance_pid_parameters, Saturation(angle_backward_max_deviation, angle_forward_max_deviation),
+          distance_pid_filter_alpha, distance_pid_hysteresis),
 #ifdef CONFIG_PID_ENABLED
-      m_balance_pid(balance_pid_parameters, max_speed_rad_s, balance_pid_filter_alpha),
+      m_balance_pid(balance_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), balance_pid_filter_alpha),
 #else
       m_balance_lqr(balance_lqr_parameters, max_speed_rad_s),
 #endif  // CONFIG_PID_ENABLED
-      m_rotate_pid(rotate_pid_parameters, max_speed_rad_s, rotate_pid_filter_alpha, rotate_pid_hysteresis),
-      m_wheel0_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha),
-      m_wheel1_speed_pid(wheel_speed_pid_parameters, static_cast<float>(CONFIG_PWM_LIMIT), speed_pid_filter_alpha)
+      m_rotate_pid(
+          rotate_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), rotate_pid_filter_alpha,
+          rotate_pid_hysteresis),
+      m_wheel0_speed_pid(
+          wheel_speed_pid_parameters,
+          Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
+          speed_pid_filter_alpha),
+      m_wheel1_speed_pid(
+          wheel_speed_pid_parameters,
+          Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
+          speed_pid_filter_alpha)
 {
 }
 
@@ -40,9 +53,13 @@ Robot_Controller::normal_motors_control()
 
     if(!disable_motors_command)
     {
+        m_distance_setpoint.update(imu_data.time_dt);
+        float const balance_angle_deviation = m_distance_pid.calculate_output(
+            m_distance_setpoint.get_current_value(), encoders_data.robot_distance_m, imu_data.time_dt);
+
 #ifdef CONFIG_PID_ENABLED
-        float const target_speed_balance =
-            m_balance_pid.calculate_output(m_balance_setpoint, imu_data.angle_balance, imu_data.time_dt);
+        float const target_speed_balance = m_balance_pid.calculate_output(
+            m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, imu_data.time_dt);
 #else
         float const target_speed_balance =
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
@@ -65,8 +82,11 @@ Robot_Controller::normal_motors_control()
 #ifdef CONFIG_ROBOT_CONTROL_LOG
         platform_log(
             "APP", LOG_LEVEL_INF,
-            "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
-            (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
+            "ds: %f, d: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: "
+            "%f",
+            (double)m_distance_setpoint.get_current_value(), (double)encoders_data.robot_distance_m,
+            (double)(balance_angle_deviation * radian_degrees / pi), (double)(m_balance_setpoint * radian_degrees / pi),
+            (double)(imu_data.angle_balance * radian_degrees / pi),
             (double)(m_rotate_setpoint.get_current_value() * radian_degrees / pi),
             (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
             (double)encoders_data.encoder_0.angular_velocity_rad_s,
@@ -100,6 +120,7 @@ Robot_Controller::soft_stop_motors()
 void
 Robot_Controller::reset()
 {
+    m_distance_setpoint.reset();
     m_rotate_setpoint.reset();
     DataManager::instance().reset();
 
@@ -123,6 +144,23 @@ Robot_Controller::parse_nus_data(char const* data)
 
     switch(key)
     {
+        case 'f':
+            if(*payload == 's')
+            {
+                payload++;
+
+                char buffer[16];
+                snprintf(buffer, sizeof(buffer), "%s", payload);
+
+                char* endptr = nullptr;
+                float val    = strtof(buffer, &endptr);
+                m_distance_setpoint.set_target(m_distance_setpoint.get_target() + val);
+            }
+            else
+            {
+                m_distance_pid.parse_nus_parameters(payload);
+            }
+            break;
         case 'b':
             if(*payload == 's')
             {
@@ -144,11 +182,10 @@ Robot_Controller::parse_nus_data(char const* data)
 #endif  // CONFIG_PID_ENABLED
             }
             break;
-
         case 's':
             m_wheel0_speed_pid.parse_nus_parameters(payload);
             m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
-
+            break;
         case 'r':
             if(*payload == 's')
             {
@@ -166,7 +203,6 @@ Robot_Controller::parse_nus_data(char const* data)
                 m_rotate_pid.parse_nus_parameters(payload);
             }
             break;
-
         default:
             break;
     }

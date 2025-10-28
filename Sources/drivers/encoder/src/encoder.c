@@ -178,6 +178,8 @@ _get_encoders_data(void)
     g_encoders_data.robot_angle_rad =
         (g_encoders_data.encoder_1.shaft_angle_rad - g_encoders_data.encoder_0.shaft_angle_rad) *
         (WHEEL_DIAMETER_M / (2.0f * WHEEL_BASE_WIDTH_M));
+    g_encoders_data.robot_distance_m =
+        (g_encoders_data.encoder_0.distance_m + g_encoders_data.encoder_1.distance_m) / 2.0f;
 
     return g_encoders_data;
 }

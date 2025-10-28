@@ -1,6 +1,7 @@
 #include "pid.h"
 #include <math.h>
 #include <stdlib.h>
+#include "ble_commands.h"
 #include "zephyr/sys/util.h"
 
 namespace Robot_Control
@@ -9,9 +10,10 @@ namespace Robot_Control
 float
 PID::calculate_output(float setpoint, float feedback, float dt, float feedback_dt)
 {
-    static constexpr float dt_min = 0.001f;
-    static constexpr float dt_max = 0.05f;
-    dt                            = MAX(MIN(dt, dt_max), dt_min);
+    static constexpr float abs_diff = 1e-3f;
+    static constexpr float dt_min   = 0.001f;
+    static constexpr float dt_max   = 0.05f;
+    dt                              = MAX(MIN(dt, dt_max), dt_min);
 
     float const error = setpoint - m_filter.filter(feedback);
     if(fabsf(error) < m_hysteresis)
@@ -21,7 +23,7 @@ PID::calculate_output(float setpoint, float feedback, float dt, float feedback_d
         return 0.0f;
     }
 
-    if(fabsf(m_parameters.Ki) < 1e-3f)
+    if(fabsf(m_parameters.Ki) < abs_diff)
     {
         m_integral = 0.0f;
     }
@@ -43,19 +45,15 @@ PID::calculate_output(float setpoint, float feedback, float dt, float feedback_d
         derivative                   = m_parameters.Kd * (error_difference / dt);
     }
 
-    float output = m_parameters.Kp * error + m_integral + derivative;
+    float const output           = m_parameters.Kp * error + m_integral + derivative;
+    float const saturated_output = m_output_saturation.saturate(output);
 
-    if(fabsf(output) > m_output_saturation)
+    if((fabsf(output - saturated_output) > abs_diff) && ((output * error) > 0))
     {
-        if((output * error) > 0)
-        {
-            m_integral -= m_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
-        }
-        output = MAX(output, -m_output_saturation);
-        output = MIN(output, m_output_saturation);
+        m_integral -= m_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
     }
 
-    return output;
+    return saturated_output;
 }
 
 #ifdef CONFIG_BLUETOOTH_DRV
@@ -69,7 +67,8 @@ PID::parse_nus_parameters(char const* data)
 
     while(*data)
     {
-        if(*data == 'k' || *data == 'i' || *data == 'd')
+        if((*data == REG_PID_K_GAIN_CMD) || (*data == REG_PID_I_GAIN_CMD) || (*data == REG_PID_D_GAIN_CMD) ||
+           (*data == REG_PID_FILTER_ALPHA_CMD))
         {
             char key = *data;
             data++;
@@ -84,16 +83,16 @@ PID::parse_nus_parameters(char const* data)
 
             switch(key)
             {
-                case 'k':
+                case REG_PID_K_GAIN_CMD:
                     m_parameters.Kp = value;
                     break;
-                case 'i':
+                case REG_PID_I_GAIN_CMD:
                     m_parameters.Ki = value;
                     break;
-                case 'd':
+                case REG_PID_D_GAIN_CMD:
                     m_parameters.Kd = value;
                     break;
-                case 'f':
+                case REG_PID_FILTER_ALPHA_CMD:
                     m_filter.set_alpha(value);
                     break;
                 default:

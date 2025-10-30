@@ -11,8 +11,6 @@ LOG_MODULE_REGISTER(ble_setup, CONFIG_LOGGER_LOG_LEVEL);
 
 struct bt_conn* my_conn = NULL;
 
-static struct bt_gatt_exchange_params exchange_params = {0};
-
 static const char*
 phy2str(uint8_t phy)
 {
@@ -46,59 +44,6 @@ on_le_data_len_updated(struct bt_conn* conn, struct bt_conn_le_data_len_info* in
     uint16_t rx_len  = info->rx_max_len;
     uint16_t rx_time = info->rx_max_time;
     LOG_INF("Data length updated. Length %d/%d bytes, time %d/%d us", tx_len, rx_len, tx_time, rx_time);
-}
-
-static void
-exchange_func(struct bt_conn* conn, uint8_t att_err, struct bt_gatt_exchange_params* params)
-{
-    LOG_INF("MTU exchange %s", att_err == 0 ? "successful" : "failed");
-    if(att_err == 0u)
-    {
-        uint16_t const payload_mtu = bt_gatt_get_mtu(conn) - 3u;
-        LOG_INF("New MTU: %d bytes (payload)", payload_mtu);
-    }
-}
-
-static void
-update_data_length(struct bt_conn* conn)
-{
-    struct bt_conn_le_data_len_param len = {
-        .tx_max_len  = BT_GAP_DATA_LEN_MAX,
-        .tx_max_time = BT_GAP_DATA_TIME_MAX,
-    };
-
-    int err = bt_conn_le_data_len_update(conn, &len);
-    if(err)
-    {
-        LOG_ERR("bt_conn_le_data_len_update() failed (err %d)", err);
-    }
-}
-
-static void
-update_mtu(struct bt_conn* conn)
-{
-    exchange_params.func = exchange_func;
-    int err              = bt_gatt_exchange_mtu(conn, &exchange_params);
-    if(err)
-    {
-        LOG_ERR("bt_gatt_exchange_mtu() failed (err %d)", err);
-    }
-}
-
-static void
-update_phy(struct bt_conn* conn)
-{
-    struct bt_conn_le_phy_param phy_pref = {
-        .options     = BT_CONN_LE_PHY_OPT_NONE,
-        .pref_rx_phy = BT_GAP_LE_PHY_2M,
-        .pref_tx_phy = BT_GAP_LE_PHY_2M,
-    };
-
-    int err = bt_conn_le_phy_update(conn, &phy_pref);
-    if(err)
-    {
-        LOG_ERR("bt_conn_le_phy_update() failed (err %d)", err);
-    }
 }
 
 static void
@@ -152,11 +97,6 @@ on_connected(struct bt_conn* conn, uint8_t err)
     LOG_INF("  Timeout: %u ms", info.le.timeout * 10);
     LOG_INF("  PHY TX/RX: %s/%s", phy2str(info.le.phy->tx_phy), phy2str(info.le.phy->rx_phy));
     LOG_INF("  MTU: %u bytes", bt_gatt_get_mtu(conn));
-
-    k_sleep(K_MSEC(1000));
-    update_phy(conn);
-    update_data_length(conn);
-    update_mtu(conn);
 }
 
 struct bt_conn_cb connection_callbacks = {

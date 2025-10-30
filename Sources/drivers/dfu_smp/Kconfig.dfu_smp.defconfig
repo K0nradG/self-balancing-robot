@@ -102,8 +102,6 @@ config BT_BUF_ACL_TX_COUNT
 config BT_BUF_ACL_RX_COUNT
     default 20
 
-
-
 #Kconfig to test:
 
 #enable this

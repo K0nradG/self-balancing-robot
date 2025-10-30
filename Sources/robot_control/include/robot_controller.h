@@ -19,15 +19,15 @@ class Robot_Controller
     static constexpr float pi             = 3.14159265358979323846f;
     static constexpr float radian_degrees = 180.0f;
 
-    static constexpr float distance_setpoint_rate = 0.3;                             // [m/s]
-    static constexpr float balance_setpoint       = -16.5f * (pi / radian_degrees);  // [rad]
-    static constexpr float rotate_setpoint_rate   = 180.0f * (pi / radian_degrees);  // [rad/s]
+    static constexpr float balance_setpoint     = -16.5f * (pi / radian_degrees);  // [rad]
+    static constexpr float rotate_setpoint_rate = 180.0f * (pi / radian_degrees);  // [rad/s]
 
-    static constexpr PID::Parameters distance_pid_parameters = {.Kp = 0.1, .Ki = 0.0f, .Kd = 0.05f};
-    static constexpr float distance_pid_filter_alpha         = 0.9f;
-    static constexpr float angle_backward_max_deviation      = -3.0f * (pi / radian_degrees);
-    static constexpr float angle_forward_max_deviation       = 3.0f * (pi / radian_degrees);
-    static constexpr float distance_pid_hysteresis           = 0.01f;
+    static constexpr PID::Parameters distance_pid_parameters = {
+        .Kp = 0.115, .Ki = 0.0f, .Kd = 0.05f};  // Allow for 30 / 20 cm steps to be realized freely.
+    static constexpr float distance_pid_filter_alpha    = 0.9f;
+    static constexpr float angle_backward_max_deviation = -3.0f * (pi / radian_degrees);
+    static constexpr float angle_forward_max_deviation  = 3.0f * (pi / radian_degrees);
+    static constexpr float distance_pid_hysteresis      = 0.01f;
 
 #ifdef CONFIG_PID_ENABLED
     static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};
@@ -67,7 +67,7 @@ public:
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 private:
-    Ramp m_distance_setpoint;
+    float m_distance_setpoint;
     float m_balance_setpoint;
     Ramp m_rotate_setpoint;
 

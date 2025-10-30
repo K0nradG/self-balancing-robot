@@ -12,7 +12,7 @@ namespace Robot_Control
 {
 
 Robot_Controller::Robot_Controller()
-    : m_distance_setpoint(distance_setpoint_rate),
+    : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint(rotate_setpoint_rate),
       m_distance_pid(
@@ -53,9 +53,8 @@ Robot_Controller::normal_motors_control()
 
     if(!disable_motors_command)
     {
-        m_distance_setpoint.update(imu_data.time_dt);
-        float const balance_angle_deviation = m_distance_pid.calculate_output(
-            m_distance_setpoint.get_current_value(), encoders_data.robot_distance_m, imu_data.time_dt);
+        float const balance_angle_deviation =
+            m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
 
 #ifdef CONFIG_PID_ENABLED
         float const target_speed_balance = m_balance_pid.calculate_output(
@@ -84,7 +83,7 @@ Robot_Controller::normal_motors_control()
             "APP", LOG_LEVEL_INF,
             "ds: %f, d: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: "
             "%f",
-            (double)m_distance_setpoint.get_current_value(), (double)encoders_data.robot_distance_m,
+            (double)m_distance_setpoint, (double)encoders_data.robot_distance_m,
             (double)(balance_angle_deviation * radian_degrees / pi), (double)(m_balance_setpoint * radian_degrees / pi),
             (double)(imu_data.angle_balance * radian_degrees / pi),
             (double)(m_rotate_setpoint.get_current_value() * radian_degrees / pi),
@@ -120,7 +119,7 @@ Robot_Controller::soft_stop_motors()
 void
 Robot_Controller::reset()
 {
-    m_distance_setpoint.reset();
+    m_distance_setpoint = 0.0f;
     m_rotate_setpoint.reset();
     DataManager::instance().reset();
 
@@ -154,7 +153,7 @@ Robot_Controller::parse_nus_data(char const* data)
 
                 char* endptr = nullptr;
                 float val    = strtof(buffer, &endptr);
-                m_distance_setpoint.set_target(m_distance_setpoint.get_target() + val);
+                m_distance_setpoint += val;
             }
             else
             {

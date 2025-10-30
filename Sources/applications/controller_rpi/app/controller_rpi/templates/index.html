@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>DFU Dashboard</title>
+  <script src="/static/tailwind.js"></script>
+  <style>
+    body {
+      background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
+      background-size: 400% 400%;
+      animation: gradient 10s ease infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Inter', sans-serif;
+    }
+
+    @keyframes gradient {
+      0% {
+        background-position: 0% 50%
+      }
+
+      50% {
+        background-position: 100% 50%
+      }
+
+      100% {
+        background-position: 0% 50%
+      }
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 700px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: #4f46e5;
+    }
+
+    #progressContainer {
+      width: 100%;
+      background: #eee;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+
+    #progressBar {
+      height: 28px;
+      border-radius: 12px;
+      background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+      width: 0%;
+      transition: width .3s ease;
+      color: white;
+      font-weight: bold;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    pre {
+      background: #111;
+      color: #4ade80;
+      padding: 10px;
+      border-radius: 10px;
+      height: 220px;
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    .step {
+      background: #f3f4f6;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      margin-top: 20px;
+      display: inline-block;
+      color: #1f2937;
+    }
+
+    .step.finished {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .step.error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .btn {
+      font-size: 1.1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      margin: 0.25rem;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background-color: #4f46e5;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #4338ca;
+    }
+
+    .btn-secondary {
+      background-color: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #4b5563;
+    }
+
+    .btn-success {
+      background-color: #16a34a;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #15803d;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>DFU Dashboard</h1>
+
+    <label class="block mb-3 font-medium text-lg text-gray-700">Select firmware file:</label>
+    <input type="file" id="fileInput" class="border p-3 rounded w-full mb-4 text-lg">
+    <p id="fileInfo" class="text-gray-600 mb-4"></p>
+
+    <div class="flex justify-center flex-wrap">
+      <button id="startBtn" class="btn btn-primary hidden">Start DFU</button>
+      <button id="resetBtn" class="btn btn-secondary hidden">Upload Another Image</button>
+      <a id="downloadLogsBtn" href="/download_logs" class="btn btn-success hidden" download>Download Logs</a>
+      <a href="/app" class="btn btn-primary">Application Dashboard</a>
+    </div>
+
+    <div id="progressContainer">
+      <div id="progressBar">0%</div>
+    </div>
+    <div id="currentStep" class="step">Idle</div>
+    <div id="stats" class="stats hidden mt-3 text-gray-700"></div>
+    <pre id="logBox" class="mt-5"></pre>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const fileInfo = document.getElementById('fileInfo');
+    const startBtn = document.getElementById('startBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const progressBar = document.getElementById('progressBar');
+    const stats = document.getElementById('stats');
+    const logBox = document.getElementById('logBox');
+    const currentStep = document.getElementById('currentStep');
+    const downloadLogsBtn = document.getElementById('downloadLogsBtn');
+
+    let uploadedFilePath = null;
+    let dfuRunning = false;
+
+    // Upload pliku
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KiB)`;
+      progressBar.style.width = '0%';
+      progressBar.textContent = '0%';
+      currentStep.textContent = 'Idle';
+      currentStep.className = 'step';
+      stats.classList.add('hidden');
+      logBox.textContent = '';
+      startBtn.classList.add('hidden');
+      downloadLogsBtn.classList.add('hidden');
+      resetBtn.classList.add('hidden');
+
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (res.ok) {
+        uploadedFilePath = data.file_path;
+        startBtn.classList.remove('hidden');
+        fileInfo.textContent = `Ready to start DFU for ${file.name}`;
+      } else {
+        fileInfo.textContent = 'Upload failed!';
+      }
+    });
+
+    // Start DFU
+    startBtn.addEventListener('click', async () => {
+      if (!uploadedFilePath || dfuRunning) return;
+      dfuRunning = true;
+      startBtn.classList.add('hidden');
+      resetBtn.classList.add('hidden');
+      downloadLogsBtn.classList.add('hidden');
+      currentStep.textContent = 'Starting DFU...';
+      fileInfo.textContent = '';
+      await fetch('/start_dfu', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_path: uploadedFilePath })
+      });
+    });
+
+    // Upload another image (reset)
+    resetBtn.addEventListener('click', async () => {
+      await fetch('/reset', { method: 'POST' });
+      location.reload();
+    });
+
+    async function updateProgress() {
+      const r = await fetch('/status');
+      const d = await r.json();
+
+      progressBar.style.width = `${d.percent}%`;
+      progressBar.textContent = d.percent.toFixed(1) + '%';
+      if (d.percent > 10) progressBar.textContent += ` • ${d.speed.toFixed(1)} KiB/s`;
+
+      currentStep.textContent = d.current_step || 'Idle';
+
+      if (d.status === 'finished') {
+        dfuRunning = false;
+        currentStep.className = 'step finished';
+        currentStep.textContent = 'DFU completed successfully ✅';
+        stats.classList.remove('hidden');
+        stats.innerHTML = `Total time: ${d.duration.toFixed(1)} s<br>
+                           Average speed: ${d.avg_speed.toFixed(1)} KiB/s<br>
+                           File size: ${d.size.toFixed(1)} KiB`;
+        resetBtn.classList.remove('hidden');
+        downloadLogsBtn.classList.remove('hidden');
+      } else if (d.status === 'error') {
+        dfuRunning = false;
+        currentStep.className = 'step error';
+        currentStep.textContent = 'Error during DFU ❌';
+        resetBtn.classList.remove('hidden');
+        downloadLogsBtn.classList.remove('hidden');
+      }
+    }
+
+    async function updateLogs() {
+      const r = await fetch('/logs');
+      const d = await r.json();
+      logBox.textContent = d.logs.join('');
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    setInterval(updateProgress, 1000);
+    setInterval(updateLogs, 1500);
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,9 @@
+choice BOOTLOADER
+    default BOOTLOADER_MCUBOOT
+endchoice
+
+choice MCUBOOT_MODE
+    default MCUBOOT_MODE_OVERWRITE_ONLY
+endchoice
+
+source "share/sysbuild/Kconfig"

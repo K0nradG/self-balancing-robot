@@ -32,6 +32,10 @@ encoders_init(void);
 encoders_data
 _get_encoders_data(void);
 
+//! @brief Resets entire encoders struct
+void
+reset_encoders(void);
+
 #ifdef __cplusplus
 }
 #endif

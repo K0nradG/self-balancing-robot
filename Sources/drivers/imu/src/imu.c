@@ -24,9 +24,9 @@
 
 // "Balancing" position measurement:
 
-#define GYRO_X_DRIFT -0.085893f
-#define GYRO_Y_DRIFT -0.012154f
-#define GYRO_Z_DRIFT -0.006593f
+#define GYRO_X_DRIFT -0.087331f
+#define GYRO_Y_DRIFT 0.012047f
+#define GYRO_Z_DRIFT 0.005287f
 
 #ifdef CONFIG_IMU_CALIBRATE_GYRO
 typedef struct gyro_calibration_data
@@ -40,8 +40,9 @@ typedef struct gyro_calibration_data
 static gyro_calibration_data g_calibration_data = {0};
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
-struct device const* imu_dev = DEVICE_DT_GET_ONE(invensense_mpu6050);
-imu_data s_imu_data          = {0};
+struct device const* imu_dev      = DEVICE_DT_GET_ONE(invensense_mpu6050);
+imu_data s_imu_data               = {0};
+static bool s_reset_balance_angle = false;
 
 static int
 process_imu(struct device const* dev);
@@ -169,7 +170,13 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
 {
     ARG_UNUSED(temperature);
 
-    static float angle_balance    = 0.0f;
+    static float angle_balance = 0.0f;
+    if(s_reset_balance_angle)
+    {
+        angle_balance         = 0.0f;
+        s_reset_balance_angle = false;
+    }
+
     static int64_t last_time_ms   = 0;
     int64_t const current_time_ms = k_uptime_get();
 
@@ -240,4 +247,10 @@ imu_data
 _get_imu_data(void)
 {
     return s_imu_data;
+}
+
+void
+reset_imu_balance_angle(void)
+{
+    s_reset_balance_angle = true;
 }

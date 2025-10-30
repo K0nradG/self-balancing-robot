@@ -1,27 +1,27 @@
 #include "pid.h"
+#include <math.h>
 #include <stdlib.h>
-#include <cmath>
-#include "zephyr/kernel.h"
+#include "zephyr/sys/util.h"
 
 namespace Robot_Control
 {
 
 float
-PID::calculate_output(float setpoint, float feedback, float feedback_dt)
+PID::calculate_output(float setpoint, float feedback, float dt, float feedback_dt)
 {
+    static constexpr float dt_min = 0.001f;
+    static constexpr float dt_max = 0.05f;
+    dt                            = MAX(MIN(dt, dt_max), dt_min);
+
     float const error = setpoint - m_filter.filter(feedback);
-    if(std::abs(error) < m_hysteresis)
+    if(fabsf(error) < m_hysteresis)
     {
         m_integral   = 0.0f;
         m_prev_error = error;
         return 0.0f;
     }
 
-    int64_t const current_time = k_uptime_get();
-    float const dt             = (m_last_time > 0) ? (current_time - m_last_time) / 1000.0f : 0.01f;
-    m_last_time                = current_time;
-
-    if(std::abs(m_parameters.Ki) < 1e-3f)
+    if(fabsf(m_parameters.Ki) < 1e-3f)
     {
         m_integral = 0.0f;
     }
@@ -45,14 +45,14 @@ PID::calculate_output(float setpoint, float feedback, float feedback_dt)
 
     float output = m_parameters.Kp * error + m_integral + derivative;
 
-    if(std::abs(output) > m_output_saturation)
+    if(fabsf(output) > m_output_saturation)
     {
         if((output * error) > 0)
         {
             m_integral -= m_parameters.Ki * error * dt;  // Revert the integral update - wind-up occurred.
         }
-        output = std::max(output, -m_output_saturation);
-        output = std::min(output, m_output_saturation);
+        output = MAX(output, -m_output_saturation);
+        output = MIN(output, m_output_saturation);
     }
 
     return output;

@@ -83,7 +83,7 @@ control_loop_work_handler(struct k_work* work)
             break;
         }
         case Robot_Control::State_Machine::State::RESET_AFTER_STOP:
-            s_robot_controller.reset_pids();
+            s_robot_controller.reset();
             break;
         default:
             break;

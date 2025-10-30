@@ -181,3 +181,9 @@ _get_encoders_data(void)
 
     return g_encoders_data;
 }
+
+void
+reset_encoders(void)
+{
+    g_encoders_data = (encoders_data) {0};
+}

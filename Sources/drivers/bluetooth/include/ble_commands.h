@@ -10,10 +10,11 @@
 #define DFU_SKIP_CMD  's'
 
 // Regulator commands
-#define REG_DISTANCE_PID_PREFIX 'f'
-#define REG_WHEEL_PID_PREFIX    's'
-#define REG_BALANCE_PID_PREFIX  'b'
-#define REG_ROTATE_PID_PREFIX   'r'
+#define REG_DISTANCE_PID_PREFIX     'f'
+#define REG_LINEAR_SPEED_PID_PREFIX 's'
+#define REG_BALANCE_PID_PREFIX      'b'
+#define REG_ROTATE_PID_PREFIX       'r'
+#define REG_WHEEL_PID_PREFIX        'w'
 
 #define REG_SETPOINT_CMD         's'
 #define REG_PID_K_GAIN_CMD       'k'

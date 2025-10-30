@@ -1,8 +1,8 @@
 #include "robot_controller.h"
+#include "ble_commands.h"
 #include "data_manager.h"
 #include "motor_controller.h"
 #include "saturation.h"
-#include "zephyr/sys/util.h"
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
 #include "logger.h"
@@ -16,8 +16,11 @@ Robot_Controller::Robot_Controller()
       m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint(rotate_setpoint_rate),
       m_distance_pid(
-          distance_pid_parameters, Saturation(angle_backward_max_deviation, angle_forward_max_deviation),
-          distance_pid_filter_alpha, distance_pid_hysteresis),
+          distance_pid_parameters, Saturation(-max_linear_speed, max_linear_speed), distance_pid_filter_alpha,
+          distance_pid_hysteresis),
+      m_linear_speed_pid(
+          linear_speed_pid_parameters, Saturation(angle_backward_max_deviation, angle_forward_max_deviation),
+          linear_speed_pid_filter_alpha),
 #ifdef CONFIG_PID_ENABLED
       m_balance_pid(balance_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), balance_pid_filter_alpha),
 #else
@@ -29,11 +32,11 @@ Robot_Controller::Robot_Controller()
       m_wheel0_speed_pid(
           wheel_speed_pid_parameters,
           Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
-          speed_pid_filter_alpha),
+          wheel_speed_pid_filter_alpha),
       m_wheel1_speed_pid(
           wheel_speed_pid_parameters,
           Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
-          speed_pid_filter_alpha)
+          wheel_speed_pid_filter_alpha)
 {
 }
 
@@ -53,8 +56,11 @@ Robot_Controller::normal_motors_control()
 
     if(!disable_motors_command)
     {
-        float const balance_angle_deviation =
+        float const target_linear_speed =
             m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
+
+        float const balance_angle_deviation = m_linear_speed_pid.calculate_output(
+            target_linear_speed, encoders_data.robot_linear_speed, imu_data.time_dt);
 
 #ifdef CONFIG_PID_ENABLED
         float const target_speed_balance = m_balance_pid.calculate_output(
@@ -68,10 +74,9 @@ Robot_Controller::normal_motors_control()
         float const target_speed_rotate =
             m_rotate_pid.calculate_output(m_rotate_setpoint.get_current_value(), rotation_angle, imu_data.time_dt);
 
-        float const target_speed0 =
-            MAX(MIN(target_speed_balance - target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
-        float const target_speed1 =
-            MAX(MIN(target_speed_balance + target_speed_rotate, max_speed_rad_s), -max_speed_rad_s);
+        static Saturation const target_wheel_speed_saturation {-max_speed_rad_s, max_speed_rad_s};
+        float const target_speed0 = target_wheel_speed_saturation.saturate(target_speed_balance - target_speed_rotate);
+        float const target_speed1 = target_wheel_speed_saturation.saturate(target_speed_balance + target_speed_rotate);
 
         m_pwm0 = m_wheel0_speed_pid.calculate_output(
             target_speed0, encoders_data.encoder_0.angular_velocity_rad_s, imu_data.time_dt);
@@ -81,11 +86,12 @@ Robot_Controller::normal_motors_control()
 #ifdef CONFIG_ROBOT_CONTROL_LOG
         platform_log(
             "APP", LOG_LEVEL_INF,
-            "ds: %f, d: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: "
+            "ds: %f, d: %f, ts: %f, s: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, "
+            "pwm0: %f, pwm1: "
             "%f",
-            (double)m_distance_setpoint, (double)encoders_data.robot_distance_m,
-            (double)(balance_angle_deviation * radian_degrees / pi), (double)(m_balance_setpoint * radian_degrees / pi),
-            (double)(imu_data.angle_balance * radian_degrees / pi),
+            (double)m_distance_setpoint, (double)encoders_data.robot_distance_m, (double)target_linear_speed,
+            (double)encoders_data.robot_linear_speed, (double)(balance_angle_deviation * radian_degrees / pi),
+            (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
             (double)(m_rotate_setpoint.get_current_value() * radian_degrees / pi),
             (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
             (double)encoders_data.encoder_0.angular_velocity_rad_s,
@@ -143,8 +149,8 @@ Robot_Controller::parse_nus_data(char const* data)
 
     switch(key)
     {
-        case 'f':
-            if(*payload == 's')
+        case REG_DISTANCE_PID_PREFIX:
+            if(*payload == REG_SETPOINT_CMD)
             {
                 payload++;
 
@@ -160,8 +166,11 @@ Robot_Controller::parse_nus_data(char const* data)
                 m_distance_pid.parse_nus_parameters(payload);
             }
             break;
-        case 'b':
-            if(*payload == 's')
+        case REG_LINEAR_SPEED_PID_PREFIX:
+            m_linear_speed_pid.parse_nus_parameters(payload);
+            break;
+        case REG_BALANCE_PID_PREFIX:
+            if(*payload == REG_SETPOINT_CMD)
             {
                 payload++;
 
@@ -181,12 +190,8 @@ Robot_Controller::parse_nus_data(char const* data)
 #endif  // CONFIG_PID_ENABLED
             }
             break;
-        case 's':
-            m_wheel0_speed_pid.parse_nus_parameters(payload);
-            m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
-            break;
-        case 'r':
-            if(*payload == 's')
+        case REG_ROTATE_PID_PREFIX:
+            if(*payload == REG_SETPOINT_CMD)
             {
                 payload++;
 
@@ -201,6 +206,10 @@ Robot_Controller::parse_nus_data(char const* data)
             {
                 m_rotate_pid.parse_nus_parameters(payload);
             }
+            break;
+        case REG_WHEEL_PID_PREFIX:
+            m_wheel0_speed_pid.parse_nus_parameters(payload);
+            m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
             break;
         default:
             break;

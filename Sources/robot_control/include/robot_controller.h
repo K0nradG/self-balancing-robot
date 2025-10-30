@@ -22,12 +22,15 @@ class Robot_Controller
     static constexpr float balance_setpoint     = -16.5f * (pi / radian_degrees);  // [rad]
     static constexpr float rotate_setpoint_rate = 180.0f * (pi / radian_degrees);  // [rad/s]
 
-    static constexpr PID::Parameters distance_pid_parameters = {
-        .Kp = 0.115, .Ki = 0.0f, .Kd = 0.05f};  // Allow for 30 / 20 cm steps to be realized freely.
-    static constexpr float distance_pid_filter_alpha    = 0.9f;
-    static constexpr float angle_backward_max_deviation = -3.0f * (pi / radian_degrees);
-    static constexpr float angle_forward_max_deviation  = 3.0f * (pi / radian_degrees);
-    static constexpr float distance_pid_hysteresis      = 0.01f;
+    static constexpr PID::Parameters distance_pid_parameters = {.Kp = 2.0f, .Ki = 0.1f, .Kd = 0.0f};
+    static constexpr float distance_pid_filter_alpha         = 0.9f;
+    static constexpr float max_linear_speed                  = 0.5f;  // [m/s]
+    static constexpr float distance_pid_hysteresis           = 0.01f;
+
+    static constexpr PID::Parameters linear_speed_pid_parameters = {.Kp = 0.175, .Ki = 0.0f, .Kd = 0.0f};
+    static constexpr float linear_speed_pid_filter_alpha         = 0.1f;
+    static constexpr float angle_backward_max_deviation          = -3.0f * (pi / radian_degrees);
+    static constexpr float angle_forward_max_deviation           = 3.0f * (pi / radian_degrees);
 
 #ifdef CONFIG_PID_ENABLED
     static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};
@@ -42,7 +45,7 @@ class Robot_Controller
     static constexpr float rotate_pid_hysteresis           = 0.5f * (pi / radian_degrees);
 
     static constexpr PID::Parameters wheel_speed_pid_parameters = {.Kp = 1.5f, .Ki = 0.1f, .Kd = 0.0f};
-    static constexpr float speed_pid_filter_alpha               = 1.0f;  // No filtering.
+    static constexpr float wheel_speed_pid_filter_alpha         = 1.0f;  // No filtering.
 
 public:
     Robot_Controller();
@@ -72,6 +75,8 @@ private:
     Ramp m_rotate_setpoint;
 
     PID m_distance_pid;
+
+    PID m_linear_speed_pid;
 
 #ifdef CONFIG_PID_ENABLED
     PID m_balance_pid;

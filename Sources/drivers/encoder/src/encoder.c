@@ -163,6 +163,7 @@ _get_encoders_data(void)
 {
     static float prev_angle_rad_encoder_0 = 0.0f;
     static float prev_angle_rad_encoder_1 = 0.0f;
+    static float prev_robot_distance_m    = 0.0f;
     static int64_t last_timestamp_ms      = 0;
 
     int64_t const now_ms = k_uptime_get();
@@ -180,6 +181,8 @@ _get_encoders_data(void)
         (WHEEL_DIAMETER_M / (2.0f * WHEEL_BASE_WIDTH_M));
     g_encoders_data.robot_distance_m =
         (g_encoders_data.encoder_0.distance_m + g_encoders_data.encoder_1.distance_m) / 2.0f;
+    g_encoders_data.robot_linear_speed = (g_encoders_data.robot_distance_m - prev_robot_distance_m) / dt;
+    prev_robot_distance_m              = g_encoders_data.robot_distance_m;
 
     return g_encoders_data;
 }

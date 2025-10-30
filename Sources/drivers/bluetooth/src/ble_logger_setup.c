@@ -11,99 +11,123 @@ LOG_MODULE_REGISTER(ble_setup, CONFIG_LOGGER_LOG_LEVEL);
 
 struct bt_conn* my_conn = NULL;
 
-static const char*
-phy2str(uint8_t phy)
-{
-    switch(phy)
-    {
-        case BT_GAP_LE_PHY_1M:
-            return "1M";
-        case BT_GAP_LE_PHY_2M:
-            return "2M";
-        case BT_GAP_LE_PHY_CODED:
-            return "Coded";
-        default:
-            return "Unknown";
-    }
-}
+static struct bt_gatt_exchange_params exchange_params = {0};
 
 static void
 on_disconnected(struct bt_conn* conn, uint8_t reason)
 {
-    LOG_INF("Disconnected: reason %d", reason);
+    LOG_INF("Disconnected: %d", reason);
     set_con_status(false);
     bt_conn_unref(my_conn);
-    my_conn = NULL;
 }
 
-static void
+void
 on_le_data_len_updated(struct bt_conn* conn, struct bt_conn_le_data_len_info* info)
 {
-    uint16_t tx_len  = info->tx_max_len;
-    uint16_t tx_time = info->tx_max_time;
-    uint16_t rx_len  = info->rx_max_len;
-    uint16_t rx_time = info->rx_max_time;
-    LOG_INF("Data length updated. Length %d/%d bytes, time %d/%d us", tx_len, rx_len, tx_time, rx_time);
+    if(info != NULL)
+    {
+        uint16_t tx_len  = info->tx_max_len;
+        uint16_t tx_time = info->tx_max_time;
+        uint16_t rx_len  = info->rx_max_len;
+        uint16_t rx_time = info->rx_max_time;
+        LOG_INF("Data length updated. Length %d/%d bytes, time %d/%d us", tx_len, rx_len, tx_time, rx_time);
+    }
+    else
+    {
+        LOG_ERR("Wrong info on le data length update!");
+    }
 }
 
 static void
-on_le_param_updated(struct bt_conn* conn, uint16_t interval, uint16_t latency, uint16_t timeout)
+exchange_func(struct bt_conn* conn, uint8_t att_err, struct bt_gatt_exchange_params* params)
 {
-    LOG_INF("Connection parameters updated:");
-    LOG_INF("  Interval: %.2f ms", interval * 1.25);
-    LOG_INF("  Latency: %u", latency);
-    LOG_INF("  Timeout: %u ms", timeout * 10);
+    LOG_INF("MTU exchange %s", att_err == 0 ? "successful" : "failed");
+    if(att_err == 0u)
+    {
+        uint16_t const payload_mtu = bt_gatt_get_mtu(conn) - 3u;  // 3 bytes used for Attribute headers.
+        LOG_INF("New MTU: %d bytes", payload_mtu);
+    }
 }
 
 static void
-on_le_phy_updated(struct bt_conn* conn, struct bt_conn_le_phy_info* param)
+update_data_length(struct bt_conn* conn)
 {
-    if(param->tx_phy == BT_CONN_LE_TX_POWER_PHY_1M)
+    struct bt_conn_le_data_len_param my_data_len = {
+        .tx_max_len  = BT_GAP_DATA_LEN_MAX,
+        .tx_max_time = BT_GAP_DATA_TIME_MAX,
+    };
+
+    int const err = bt_conn_le_data_len_update(conn, &my_data_len);
+    if(err != 0)
     {
-        LOG_INF("PHY updated. New PHY: 1M");
+        LOG_ERR("data_len_update failed (err %d)", err);
     }
-    else if(param->tx_phy == BT_CONN_LE_TX_POWER_PHY_2M)
+}
+
+static void
+update_mtu(struct bt_conn* conn)
+{
+    exchange_params.func = exchange_func;
+    int const err        = bt_gatt_exchange_mtu(conn, &exchange_params);
+    if(err != 0)
     {
-        LOG_INF("PHY updated. New PHY: 2M");
+        LOG_ERR("bt_gatt_exchange_mtu failed (err %d)", err);
     }
-    else if(param->tx_phy == BT_CONN_LE_TX_POWER_PHY_CODED_S8)
+}
+
+static void
+update_phy(struct bt_conn* conn)
+{
+    struct bt_conn_le_phy_param const preferred_phy = {
+        .options     = BT_CONN_LE_PHY_OPT_NONE,
+        .pref_rx_phy = BT_GAP_LE_PHY_2M,
+        .pref_tx_phy = BT_GAP_LE_PHY_2M,
+    };
+
+    int const err = bt_conn_le_phy_update(conn, &preferred_phy);
+    if(err != 0)
     {
-        LOG_INF("PHY updated. New PHY: Long Range");
+        LOG_ERR("bt_conn_le_phy_update() returned %d", err);
     }
 }
 
 static void
 on_connected(struct bt_conn* conn, uint8_t err)
 {
-    if(err)
+    if(err != 0)
     {
-        LOG_ERR("Connection failed (err %u)", err);
+        LOG_INF("Connection failed: %d", err);
         return;
     }
 
-    my_conn = bt_conn_ref(conn);
+    my_conn                  = bt_conn_ref(conn);
+    struct bt_conn_info info = {0};
 
-    struct bt_conn_info info;
-    if(bt_conn_get_info(conn, &info))
+    err = bt_conn_get_info(conn, &info);
+    if(err != 0)
     {
-        LOG_ERR("bt_conn_get_info() failed");
+        LOG_ERR("bt_conn_get_info() returned %d", err);
         return;
     }
+
+    double const connection_interval   = (double)info.le.interval * 1.25;  // in ms
+    uint16_t const supervision_timeout = info.le.timeout * 10u;            // in ms
+    LOG_INF(
+        "Connection parameters: interval %.2f ms, latency %d intervals, timeout %d ms", connection_interval,
+        info.le.latency, supervision_timeout);
+
+    update_phy(my_conn);
+    update_data_length(my_conn);
+    update_mtu(my_conn);
+
+    set_con_status(true);
 
     LOG_INF("Connected");
-    LOG_INF("Connection parameters:");
-    LOG_INF("  Interval: %.2f ms", info.le.interval * 1.25);
-    LOG_INF("  Latency: %u", info.le.latency);
-    LOG_INF("  Timeout: %u ms", info.le.timeout * 10);
-    LOG_INF("  PHY TX/RX: %s/%s", phy2str(info.le.phy->tx_phy), phy2str(info.le.phy->rx_phy));
-    LOG_INF("  MTU: %u bytes", bt_gatt_get_mtu(conn));
 }
 
 struct bt_conn_cb connection_callbacks = {
     .connected           = on_connected,
     .disconnected        = on_disconnected,
-    .le_param_updated    = on_le_param_updated,
-    .le_phy_updated      = on_le_phy_updated,
     .le_data_len_updated = on_le_data_len_updated,
 };
 
@@ -112,13 +136,10 @@ ble_init(void)
 {
     bt_conn_cb_register(&connection_callbacks);
 
-    int ret = bt_enable(NULL);
-    if(ret)
+    int const ret = bt_enable(NULL);
+    if(ret != 0)
     {
-        LOG_ERR("Bluetooth init failed (err %d)", ret);
-        return ret;
+        LOG_ERR("Bluetooth init failed: %d", ret);
     }
-
-    LOG_INF("Bluetooth initialized");
-    return 0;
+    return ret;
 }

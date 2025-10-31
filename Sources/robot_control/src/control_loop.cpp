@@ -66,6 +66,7 @@ control_loop_work_handler(struct k_work* work)
     feed_watchdog();
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
+    s_state_machine.update();
     Robot_Control::State_Machine::State const state = s_state_machine.get_state();
     switch(state)
     {
@@ -88,7 +89,6 @@ control_loop_work_handler(struct k_work* work)
         default:
             break;
     }
-    s_state_machine.update();
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     if(g_send_identification_data_cb)

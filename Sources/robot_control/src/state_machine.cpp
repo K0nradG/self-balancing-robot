@@ -78,10 +78,16 @@ State_Machine::parse_nus_commands(char const* data)
     switch(command)
     {
         case STATE_MACHINE_START:
-            m_flags.start = true;
+            if(m_state == READY_TO_START)
+            {
+                m_flags.start = true;
+            }
             break;
         case STATE_MACHINE_STOP:
-            m_flags.stop = true;
+            if(m_state == NORMAL_OPERATION)
+            {
+                m_flags.stop = true;
+            }
             break;
         default:
             break;

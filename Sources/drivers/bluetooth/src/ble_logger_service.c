@@ -39,7 +39,8 @@ data_selector(const char* data)
     }
 
     if((data[0] == REG_DISTANCE_PID_PREFIX) || (data[0] == REG_LINEAR_SPEED_PID_PREFIX) ||
-       (data[0] == REG_BALANCE_PID_PREFIX) || (data[0] == REG_ROTATE_PID_PREFIX) || (data[0] == REG_WHEEL_PID_PREFIX))
+       (data[0] == REG_BALANCE_PID_PREFIX) || (data[0] == REG_ROTATE_PID_PREFIX) || (data[0] == REG_WHEEL_PID_PREFIX) ||
+       (data[0] == TRAJECTORY_MANAGER_PREFIX))
     {
         if(s_regulator_parameters_parser_cb)
         {

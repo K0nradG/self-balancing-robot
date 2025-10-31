@@ -2,6 +2,7 @@
 
 #include "pid.h"
 #include "ramp.h"
+#include "trajectory_manager.h"
 
 #ifndef CONFIG_PID_ENABLED
 #include "lqr.h"
@@ -74,6 +75,8 @@ private:
     float m_balance_setpoint;
     Ramp m_rotate_setpoint_ramp;
 
+    Trajectory_Manager m_trajectory_manager;
+
     PID m_distance_pid;
 
     PID m_linear_speed_pid;
@@ -100,6 +103,9 @@ private:
 
     bool
     ramp_pwm_to_stop(float& pwm);
+
+    bool
+    manage_trajectory(float rotation_angle, float robot_distance_m);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data m_identification_data {};

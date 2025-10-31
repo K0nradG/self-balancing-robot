@@ -28,4 +28,10 @@
 #define STATE_MACHINE_START 'b'
 #define STATE_MACHINE_STOP  's'
 
+// Trajectory manager commands
+#define TRAJECTORY_MANAGER_PREFIX 't'
+
+#define TRAJECTORY_MANAGER_ROTATION 'r'
+#define TRAJECTORY_MANAGER_DISTANCE 'f'
+
 #endif /*BLE_CMD_H*/

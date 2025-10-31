@@ -78,6 +78,16 @@
       overflow-y: auto;
       text-align: left;
     }
+
+    #status {
+      font-weight: 700;
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+
+    #robotControllerBtn {
+      display: none;
+    }
   </style>
 </head>
 
@@ -85,38 +95,115 @@
   <div class="card">
     <h1>Application Dashboard</h1>
 
-    <input type="text" id="bleAddress" placeholder="Enter BLE Address" class="border p-2 rounded mb-4 w-full">
+    <div id="status">Connection: disconnected | Application: wait for DFU</div>
+
     <div class="flex flex-wrap justify-center mb-4">
       <button id="connectBtn" class="btn btn-primary">CONNECT</button>
-      <button id="disconnectBtn" class="btn btn-secondary">DISCONNECT</button>
-      <button id="startAppBtn" class="btn btn-success">START APPLICATION</button>
-      <button id="showLogsBtn" class="btn btn-primary">SHOW DEVICE LOGS</button>
-      <button id="hideLogsBtn" class="btn btn-secondary">HIDE DEVICE LOGS</button>
-      <a href="/motion" class="btn btn-primary">Robot Controller</a> <!-- nowy przycisk -->
+      <button id="disconnectBtn" class="btn btn-secondary" style="display:none;">DISCONNECT</button>
+      <button id="startAppBtn" class="btn btn-success" style="display:none;">START APPLICATION</button>
+      <button id="showLogsBtn" class="btn btn-primary" style="display:none;">SHOW DEVICE LOGS</button>
+      <button id="hideLogsBtn" class="btn btn-secondary" style="display:none;">HIDE DEVICE LOGS</button>
+      <a id="robotControllerBtn" href="/motion" class="btn btn-primary">Robot Controller</a>
     </div>
 
     <pre id="logBox"></pre>
   </div>
 
   <script>
-    const bleAddress = document.getElementById('bleAddress');
+    const addr = "E6:AD:30:2D:3A:6B";
     const logBox = document.getElementById('logBox');
+    const statusEl = document.getElementById('status');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const startAppBtn = document.getElementById('startAppBtn');
+    const showLogsBtn = document.getElementById('showLogsBtn');
+    const hideLogsBtn = document.getElementById('hideLogsBtn');
+    const robotControllerBtn = document.getElementById('robotControllerBtn');
 
+    let connectionStatus = "disconnected";
+    let applicationStatus = "wait for DFU";
+
+    // --- LOCAL STORAGE ---
+    function saveState() {
+      localStorage.setItem('connectionStatus', connectionStatus);
+      localStorage.setItem('applicationStatus', applicationStatus);
+    }
+
+    function loadState() {
+      connectionStatus = localStorage.getItem('connectionStatus') || "disconnected";
+      applicationStatus = localStorage.getItem('applicationStatus') || "wait for DFU";
+      updateUI();
+    }
+
+    // --- POST HELP ---
     async function post(path, data = {}) {
       const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
       return await res.json();
     }
 
-    document.getElementById('connectBtn').onclick = async () => {
-      const addr = bleAddress.value.trim();
-      if (!addr) { alert("Enter BLE address"); return; }
+    // --- UPDATE UI ---
+    function updateUI() {
+      // connect/disconnect buttons
+      connectBtn.style.display = (connectionStatus === "disconnected") ? "inline-block" : "none";
+      disconnectBtn.style.display = (connectionStatus === "connected") ? "inline-block" : "none";
+
+      // start application & show logs visible only if connected
+      startAppBtn.style.display = (connectionStatus === "connected") ? "inline-block" : "none";
+      showLogsBtn.style.display = (connectionStatus === "connected" && hideLogsBtn.style.display === "none") ? "inline-block" : "none";
+
+      // hide logs button
+      hideLogsBtn.style.display = hideLogsBtn.style.display;
+
+      // robot controller only if connected AND application work
+      robotControllerBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work") ? "inline-block" : "none";
+
+      // status text
+      statusEl.textContent = `Connection: ${connectionStatus} | Application: ${applicationStatus}`;
+    }
+
+    async function setConnectionStatus(status) {
+      connectionStatus = status;
+      updateUI();
+      saveState();
+    }
+
+    async function setApplicationStatus(status) {
+      applicationStatus = status;
+      updateUI();
+      saveState();
+    }
+
+    // --- BUTTON EVENTS ---
+    connectBtn.onclick = async () => {
+      await setConnectionStatus("connecting");
       await post('/nus/connect', { address: addr });
+      // symulacja połączenia
+      setTimeout(() => setConnectionStatus("connected"), 1000);
     };
 
-    document.getElementById('disconnectBtn').onclick = async () => { await post('/nus/disconnect'); };
-    document.getElementById('startAppBtn').onclick = async () => { await post('/nus/send', { data: 'ds' }); };
-    document.getElementById('showLogsBtn').onclick = async () => { await post('/nus/notify_on'); };
-    document.getElementById('hideLogsBtn').onclick = async () => { await post('/nus/notify_off'); };
+    disconnectBtn.onclick = async () => {
+      await post('/nus/disconnect');
+      setConnectionStatus("disconnected");
+      setApplicationStatus("wait for DFU");
+    };
+
+    startAppBtn.onclick = async () => {
+      await post('/nus/send', { data: 'ds' });
+      setApplicationStatus("application work");
+    };
+
+    showLogsBtn.onclick = () => {
+      showLogsBtn.style.display = "none";
+      hideLogsBtn.style.display = "inline-block";
+    };
+
+    hideLogsBtn.onclick = () => {
+      hideLogsBtn.style.display = "none";
+      showLogsBtn.style.display = "inline-block";
+    };
+
+    // --- INIT ---
+    loadState();
   </script>
 </body>
 

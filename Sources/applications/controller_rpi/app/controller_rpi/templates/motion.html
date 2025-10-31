@@ -31,6 +31,23 @@
       }
     }
 
+    #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+      padding: 0 20px;
+      box-sizing: border-box;
+      z-index: 1000;
+    }
+
+    #controls .btn {
+      padding: 1rem 2rem;
+      font-size: 1.3rem;
+    }
+
     .card {
       background: white;
       border-radius: 20px;
@@ -85,25 +102,60 @@
 <body>
   <div class="card">
     <h1>Robot Controller</h1>
-    <p>Trzymaj telefon poziomo i przechylaj w lewo/prawo aby sterować ROTATE</p>
+    <p>Hold the phone horizontally and tilt left/right</p>
 
-    <div>
-      <button id="forward" class="btn btn-primary">Forward</button>
-      <button id="backward" class="btn btn-secondary">Backward</button>
+    <div class="flex justify-center flex-wrap mb-4">
+      <button id="startBtn" class="btn btn-primary">START CONTROL</button>
+      <button id="stopBtn" class="btn btn-secondary" style="display:none;">STOP CONTROL</button>
+      <a href="/app" class="btn btn-success">BACK</a>
     </div>
 
-    <div class="status">
-      Distance: <span id="distance">0</span> m<br>
-      Rotate: <span id="rotate">0</span> °
+    <p>Rotate: <span id="rotate">0</span>°</p>
+    <p>Distance: <span id="distance">0</span> m</p>
+
+    <div id="controls">
+      <button id="forward" class="btn btn-primary">Forward</button>
+      <button id="backward" class="btn btn-secondary">Backward</button>
     </div>
   </div>
 
   <script>
     let rotate = 0, distance = 0;
     let forwardPressed = false, backwardPressed = false;
-    const ROTATE_MAX = 60, DIST_STEP = 2;
+    const ROTATE_MAX = 200, DIST_STEP = 2;
     const SAMPLE_MS = 500;
     let lastSend = 0;
+
+    let controlActive = false;
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+
+    startBtn.onclick = () => {
+      controlActive = true;
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'inline-block';
+    };
+
+    stopBtn.onclick = () => {
+      controlActive = false;
+      stopBtn.style.display = 'none';
+      startBtn.style.display = 'inline-block';
+    };
+
+    async function send_data_over_nus() {
+      const payload = `r${rotate.toFixed(1)}d${distance.toFixed(1)}`;
+      try {
+        await fetch('/nus/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payload })
+        });
+      } catch (e) {
+        console.warn('Błąd wysyłki do NUS:', e);
+      }
+    }
+
 
     const rotateEl = document.getElementById('rotate');
     const distanceEl = document.getElementById('distance');
@@ -130,9 +182,12 @@
     }
 
     window.addEventListener('devicemotion', (event) => {
+
+      if (!controlActive) return;
+
       const a = event.accelerationIncludingGravity;
       if (!a || a.x == null) return;
-      const tilt = a.y; // dla dłuższej krawędzi
+      const tilt = a.y;
       const GRAVITY = 9.81;
       rotate = Math.max(-ROTATE_MAX, Math.min(ROTATE_MAX, (tilt / GRAVITY) * ROTATE_MAX));
 
@@ -143,7 +198,8 @@
         lastSend = now;
         rotateEl.textContent = rotate.toFixed(1);
         distanceEl.textContent = distance;
-        sendData();
+
+        send_data_over_nus();
       }
     });
 

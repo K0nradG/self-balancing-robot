@@ -72,7 +72,7 @@ public:
 private:
     float m_distance_setpoint;
     float m_balance_setpoint;
-    Ramp m_rotate_setpoint;
+    Ramp m_rotate_setpoint_ramp;
 
     PID m_distance_pid;
 

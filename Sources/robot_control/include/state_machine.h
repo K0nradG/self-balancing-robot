@@ -21,6 +21,15 @@ public:
         bool stop {};
         bool disable_motors_command {};
         bool motors_stopped {};
+
+        void
+        reset()
+        {
+            start                  = false;
+            stop                   = false;
+            disable_motors_command = false;
+            motors_stopped         = false;
+        }
     };
 
     void

@@ -14,7 +14,7 @@ namespace Robot_Control
 Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
-      m_rotate_setpoint(rotate_setpoint_rate),
+      m_rotate_setpoint_ramp(rotate_setpoint_rate),
       m_distance_pid(
           distance_pid_parameters, Saturation(-max_linear_speed, max_linear_speed), distance_pid_filter_alpha,
           distance_pid_hysteresis),
@@ -70,9 +70,9 @@ Robot_Controller::normal_motors_control()
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
 
-        m_rotate_setpoint.update(imu_data.time_dt);
+        m_rotate_setpoint_ramp.update(imu_data.time_dt);
         float const target_speed_rotate =
-            m_rotate_pid.calculate_output(m_rotate_setpoint.get_current_value(), rotation_angle, imu_data.time_dt);
+            m_rotate_pid.calculate_output(m_rotate_setpoint_ramp.get_current_value(), rotation_angle, imu_data.time_dt);
 
         static Saturation const target_wheel_speed_saturation {-max_speed_rad_s, max_speed_rad_s};
         float const target_speed0 = target_wheel_speed_saturation.saturate(target_speed_balance - target_speed_rotate);
@@ -92,7 +92,7 @@ Robot_Controller::normal_motors_control()
             (double)m_distance_setpoint, (double)encoders_data.robot_distance_m, (double)target_linear_speed,
             (double)encoders_data.robot_linear_speed, (double)(balance_angle_deviation * radian_degrees / pi),
             (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
-            (double)(m_rotate_setpoint.get_current_value() * radian_degrees / pi),
+            (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
             (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
             (double)encoders_data.encoder_0.angular_velocity_rad_s,
             (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
@@ -126,7 +126,7 @@ void
 Robot_Controller::reset()
 {
     m_distance_setpoint = 0.0f;
-    m_rotate_setpoint.reset();
+    m_rotate_setpoint_ramp.reset();
     DataManager::instance().reset();
 
     m_wheel0_speed_pid.reset();
@@ -200,7 +200,7 @@ Robot_Controller::parse_nus_data(char const* data)
 
                 char* endptr = nullptr;
                 float val    = strtof(buffer, &endptr);
-                m_rotate_setpoint.set_target(m_rotate_setpoint.get_target() + (val * (pi / radian_degrees)));
+                m_rotate_setpoint_ramp.set_target(m_rotate_setpoint_ramp.get_target() + (val * (pi / radian_degrees)));
             }
             else
             {

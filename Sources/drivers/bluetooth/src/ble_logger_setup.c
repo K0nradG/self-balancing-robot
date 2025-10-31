@@ -11,9 +11,7 @@ LOG_MODULE_REGISTER(ble_setup, CONFIG_LOGGER_LOG_LEVEL);
 
 struct bt_conn* my_conn = NULL;
 
-#ifndef CONFIG_DFU_BLE
 static struct bt_gatt_exchange_params exchange_params = {0};
-#endif  // CONFIG_DFU_BLE
 
 static void
 on_disconnected(struct bt_conn* conn, uint8_t reason)
@@ -39,8 +37,6 @@ on_le_data_len_updated(struct bt_conn* conn, struct bt_conn_le_data_len_info* in
         LOG_ERR("Wrong info on le data length update!");
     }
 }
-
-#ifndef CONFIG_DFU_BLE
 
 static void
 exchange_func(struct bt_conn* conn, uint8_t att_err, struct bt_gatt_exchange_params* params)
@@ -95,8 +91,6 @@ update_phy(struct bt_conn* conn)
     }
 }
 
-#endif  // CONFIG_DFU_BLE
-
 static void
 on_connected(struct bt_conn* conn, uint8_t err)
 {
@@ -122,13 +116,9 @@ on_connected(struct bt_conn* conn, uint8_t err)
         "Connection parameters: interval %.2f ms, latency %d intervals, timeout %d ms", connection_interval,
         info.le.latency, supervision_timeout);
 
-#ifndef CONFIG_DFU_BLE
-
     update_phy(my_conn);
     update_data_length(my_conn);
     update_mtu(my_conn);
-
-#endif  // CONFIG_DFU_BLE
 
     set_con_status(true);
 

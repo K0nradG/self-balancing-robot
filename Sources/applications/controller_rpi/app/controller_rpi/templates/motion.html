@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Robot Controller</title>
+  <script src="/static/tailwind.js"></script>
+  <style>
+    body {
+      background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
+      background-size: 400% 400%;
+      animation: gradient 10s ease infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Inter', sans-serif;
+    }
+
+    @keyframes gradient {
+      0% {
+        background-position: 0% 50%
+      }
+
+      50% {
+        background-position: 100% 50%
+      }
+
+      100% {
+        background-position: 0% 50%
+      }
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 700px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: #4f46e5;
+    }
+
+    .btn {
+      font-size: 1.1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      margin: 0.25rem;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background-color: #4f46e5;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #4338ca;
+    }
+
+    .btn-secondary {
+      background-color: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #4b5563;
+    }
+
+    .status {
+      font-size: 1.5rem;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>Robot Controller</h1>
+    <p>Trzymaj telefon poziomo i przechylaj w lewo/prawo aby sterować ROTATE</p>
+
+    <div>
+      <button id="forward" class="btn btn-primary">Forward</button>
+      <button id="backward" class="btn btn-secondary">Backward</button>
+    </div>
+
+    <div class="status">
+      Distance: <span id="distance">0</span> m<br>
+      Rotate: <span id="rotate">0</span> °
+    </div>
+  </div>
+
+  <script>
+    let rotate = 0, distance = 0;
+    let forwardPressed = false, backwardPressed = false;
+    const ROTATE_MAX = 60, DIST_STEP = 2;
+    const SAMPLE_MS = 500;
+    let lastSend = 0;
+
+    const rotateEl = document.getElementById('rotate');
+    const distanceEl = document.getElementById('distance');
+
+    document.getElementById('forward').addEventListener('mousedown', () => forwardPressed = true);
+    document.getElementById('forward').addEventListener('mouseup', () => forwardPressed = false);
+    document.getElementById('backward').addEventListener('mousedown', () => backwardPressed = true);
+    document.getElementById('backward').addEventListener('mouseup', () => backwardPressed = false);
+
+    // touch support
+    document.getElementById('forward').addEventListener('touchstart', e => { e.preventDefault(); forwardPressed = true; });
+    document.getElementById('forward').addEventListener('touchend', e => { e.preventDefault(); forwardPressed = false; });
+    document.getElementById('backward').addEventListener('touchstart', e => { e.preventDefault(); backwardPressed = true; });
+    document.getElementById('backward').addEventListener('touchend', e => { e.preventDefault(); backwardPressed = false; });
+
+    async function sendData() {
+      try {
+        await fetch('/motion/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ distance, rotate })
+        });
+      } catch (e) { console.warn('Błąd wysyłki', e); }
+    }
+
+    window.addEventListener('devicemotion', (event) => {
+      const a = event.accelerationIncludingGravity;
+      if (!a || a.x == null) return;
+      const tilt = a.y; // dla dłuższej krawędzi
+      const GRAVITY = 9.81;
+      rotate = Math.max(-ROTATE_MAX, Math.min(ROTATE_MAX, (tilt / GRAVITY) * ROTATE_MAX));
+
+      distance = forwardPressed ? DIST_STEP : backwardPressed ? -DIST_STEP : 0;
+
+      const now = Date.now();
+      if (now - lastSend >= SAMPLE_MS) {
+        lastSend = now;
+        rotateEl.textContent = rotate.toFixed(1);
+        distanceEl.textContent = distance;
+        sendData();
+      }
+    });
+
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      DeviceMotionEvent.requestPermission().then(res => {
+        if (res !== 'granted') alert('Brak zgody na czujniki ruchu');
+      });
+    }
+  </script>
+</body>
+
+</html>

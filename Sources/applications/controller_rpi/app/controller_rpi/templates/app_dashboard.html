@@ -1,71 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Application Dashboard</title>
-<script src="/static/tailwind.js"></script>
-<style>
-body {
-  background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
-  background-size: 400% 400%;
-  animation: gradient 10s ease infinite;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-family: 'Inter', sans-serif;
-}
-.card {
-  background: white;
-  border-radius: 20px;
-  padding: 40px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  width: 700px;
-  text-align: center;
-}
-h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 1rem; color: #4f46e5; }
-.btn { font-size: 1.1rem; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; margin: 0.25rem; cursor: pointer; }
-.btn-primary { background-color:#4f46e5; color:white; } .btn-primary:hover { background-color:#4338ca; }
-.btn-secondary { background-color:#6b7280; color:white; } .btn-secondary:hover { background-color:#4b5563; }
-.btn-success { background-color:#16a34a; color:white; } .btn-success:hover { background-color:#15803d; }
-pre { background:#111; color:#4ade80; padding:10px; border-radius:10px; height:220px; overflow-y:auto; text-align:left; }
-</style>
+  <meta charset="UTF-8">
+  <title>Application Dashboard</title>
+  <script src="/static/tailwind.js"></script>
+  <style>
+    body {
+      background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
+      background-size: 400% 400%;
+      animation: gradient 10s ease infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 700px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: #4f46e5;
+    }
+
+    .btn {
+      font-size: 1.1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      margin: 0.25rem;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: #4f46e5;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #4338ca;
+    }
+
+    .btn-secondary {
+      background-color: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #4b5563;
+    }
+
+    .btn-success {
+      background-color: #16a34a;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #15803d;
+    }
+
+    pre {
+      background: #111;
+      color: #4ade80;
+      padding: 10px;
+      border-radius: 10px;
+      height: 220px;
+      overflow-y: auto;
+      text-align: left;
+    }
+  </style>
 </head>
+
 <body>
-<div class="card">
-<h1>Application Dashboard</h1>
+  <div class="card">
+    <h1>Application Dashboard</h1>
 
-<input type="text" id="bleAddress" placeholder="Enter BLE Address" class="border p-2 rounded mb-4 w-full">
-<div class="flex flex-wrap justify-center mb-4">
-  <button id="connectBtn" class="btn btn-primary">CONNECT</button>
-  <button id="disconnectBtn" class="btn btn-secondary">DISCONNECT</button>
-  <button id="startAppBtn" class="btn btn-success">START APPLICATION</button>
-  <button id="showLogsBtn" class="btn btn-primary">SHOW DEVICE LOGS</button>
-  <button id="hideLogsBtn" class="btn btn-secondary">HIDE DEVICE LOGS</button>
-</div>
+    <input type="text" id="bleAddress" placeholder="Enter BLE Address" class="border p-2 rounded mb-4 w-full">
+    <div class="flex flex-wrap justify-center mb-4">
+      <button id="connectBtn" class="btn btn-primary">CONNECT</button>
+      <button id="disconnectBtn" class="btn btn-secondary">DISCONNECT</button>
+      <button id="startAppBtn" class="btn btn-success">START APPLICATION</button>
+      <button id="showLogsBtn" class="btn btn-primary">SHOW DEVICE LOGS</button>
+      <button id="hideLogsBtn" class="btn btn-secondary">HIDE DEVICE LOGS</button>
+      <a href="/motion" class="btn btn-primary">Robot Controller</a> <!-- nowy przycisk -->
+    </div>
 
-<pre id="logBox"></pre>
-</div>
+    <pre id="logBox"></pre>
+  </div>
 
-<script>
-const bleAddress = document.getElementById('bleAddress');
-const logBox = document.getElementById('logBox');
+  <script>
+    const bleAddress = document.getElementById('bleAddress');
+    const logBox = document.getElementById('logBox');
 
-async function post(path, data={}) {
-  const res = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
-  return await res.json();
-}
+    async function post(path, data = {}) {
+      const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      return await res.json();
+    }
 
-document.getElementById('connectBtn').onclick = async () => {
-  const addr = bleAddress.value.trim();
-  if(!addr) { alert("Enter BLE address"); return; }
-  await post('/nus/connect', {address: addr});
-};
+    document.getElementById('connectBtn').onclick = async () => {
+      const addr = bleAddress.value.trim();
+      if (!addr) { alert("Enter BLE address"); return; }
+      await post('/nus/connect', { address: addr });
+    };
 
-document.getElementById('disconnectBtn').onclick = async () => { await post('/nus/disconnect'); };
-document.getElementById('startAppBtn').onclick = async () => { await post('/nus/send', {data:'ds'}); };
-document.getElementById('showLogsBtn').onclick = async () => { await post('/nus/notify_on'); };
-document.getElementById('hideLogsBtn').onclick = async () => { await post('/nus/notify_off'); };
-</script>
+    document.getElementById('disconnectBtn').onclick = async () => { await post('/nus/disconnect'); };
+    document.getElementById('startAppBtn').onclick = async () => { await post('/nus/send', { data: 'ds' }); };
+    document.getElementById('showLogsBtn').onclick = async () => { await post('/nus/notify_on'); };
+    document.getElementById('hideLogsBtn').onclick = async () => { await post('/nus/notify_off'); };
+  </script>
 </body>
+
 </html>

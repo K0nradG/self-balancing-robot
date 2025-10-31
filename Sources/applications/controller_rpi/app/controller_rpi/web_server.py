@@ -122,6 +122,9 @@ def index():
 def app_dashboard():
     return render_template_string(open("templates/app_dashboard.html").read())
 
+@app.route("/motion")
+def motion_page():
+    return render_template_string(open("templates/motion.html").read())
 
 # --- DFU endpoints ---
 @app.route("/upload", methods=["POST"])
@@ -213,6 +216,12 @@ def nus_notify_off():
     run_in_nus_loop(async_notify_off())
     return jsonify({"status": "notify_off"})
 
+# --- Motion endpoints ---
+@app.route("/motion/data", methods=["POST"])
+def motion_data():
+    payload = request.json
+    print(f"Otrzymano dane z telefonu: {payload}")
+    return jsonify(status="ok")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

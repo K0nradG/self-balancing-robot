@@ -104,6 +104,15 @@
     <h1>Robot Controller</h1>
     <p>Hold the phone horizontally and tilt left/right</p>
 
+    <div class="mb-4">
+      <img id="cameraStream" src="" alt="Camera stream" style="max-width:100%; border-radius:10px; display:none;">
+    </div>
+
+    <div class="flex justify-center flex-wrap mb-4">
+      <button id="camStart" class="btn btn-primary">START CAMERA</button>
+      <button id="camStop" class="btn btn-secondary" style="display:none;">STOP CAMERA</button>
+    </div>
+
     <div class="flex justify-center flex-wrap mb-4">
       <button id="startBtn" class="btn btn-primary">START CONTROL</button>
       <button id="stopBtn" class="btn btn-secondary" style="display:none;">STOP CONTROL</button>
@@ -126,6 +135,10 @@
     const SAMPLE_MS = 500;
     let lastSend = 0;
 
+    const camStart = document.getElementById('camStart');
+    const camStop = document.getElementById('camStop');
+    const camStream = document.getElementById('cameraStream');
+
     let controlActive = false;
 
     const startBtn = document.getElementById('startBtn');
@@ -141,6 +154,22 @@
       controlActive = false;
       stopBtn.style.display = 'none';
       startBtn.style.display = 'inline-block';
+    };
+
+    camStart.onclick = async () => {
+      await fetch('/camera/start', { method: 'POST' });
+      camStream.src = '/camera/stream';
+      camStream.style.display = 'block';
+      camStart.style.display = 'none';
+      camStop.style.display = 'inline-block';
+    };
+
+    camStop.onclick = async () => {
+      await fetch('/camera/stop', { method: 'POST' });
+      camStream.src = '';
+      camStream.style.display = 'none';
+      camStop.style.display = 'none';
+      camStart.style.display = 'inline-block';
     };
 
     async function send_data_over_nus() {

@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, render_template_string, Response
 import subprocess, threading, re, os, asyncio
 from nus_service import NUSClient
 import zipfile
+from camera_driver import CameraDriver
+import time
 
 app = Flask(__name__)
 
@@ -121,6 +123,22 @@ async def async_notify_off():
 def run_in_nus_loop(coro):
     """Uruchamia coroutine w tle w tym samym loop Bleak"""
     return asyncio.run_coroutine_threadsafe(coro, nus_loop)
+
+
+# --- Camera setup ---
+camera = CameraDriver()
+
+def generate_camera_stream():
+    boundary = "--frame"
+    while camera.running:
+        frame = camera.get_frame()
+        if not frame:
+            time.sleep(0.05)
+            continue
+        yield (b"%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" %
+               (boundary.encode(), len(frame)))
+        yield frame
+        yield b"\r\n"
 
 
 # --- Routes ---
@@ -265,6 +283,23 @@ def motion_data():
     payload = request.json
     print(f"Otrzymano dane z telefonu: {payload}")
     return jsonify(status="ok")
+
+@app.route("/camera/start", methods=["POST"])
+def camera_start():
+    camera.start()
+    return jsonify({"status": "started"})
+
+@app.route("/camera/stop", methods=["POST"])
+def camera_stop():
+    camera.stop()
+    return jsonify({"status": "stopped"})
+
+@app.route("/camera/stream")
+def camera_stream():
+    if not camera.running:
+        return "Camera not started", 400
+    return Response(generate_camera_stream(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

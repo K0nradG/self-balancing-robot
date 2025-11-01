@@ -135,6 +135,9 @@
     const SAMPLE_MS = 500;
     let lastSend = 0;
 
+    let sendQueue = [];
+    let waitingAck = false;
+
     const camStart = document.getElementById('camStart');
     const camStop = document.getElementById('camStop');
     const camStream = document.getElementById('cameraStream');
@@ -174,16 +177,17 @@
 
     async function send_data_over_nus() {
       const payload = `r${rotate.toFixed(1)}d${distance.toFixed(1)}`;
-      try {
-        await fetch('/nus/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: payload })
-        });
-      } catch (e) {
-        console.warn('Błąd wysyłki do NUS:', e);
+      sendQueue.push(payload);
+      processQueue();
+    }
+
+    function handleNUSLogLine(line) {
+      if (line.includes("Finished")) {
+        waitingAck = false;
+        processQueue();
       }
     }
+
 
 
     const rotateEl = document.getElementById('rotate');
@@ -200,15 +204,27 @@
     document.getElementById('backward').addEventListener('touchstart', e => { e.preventDefault(); backwardPressed = true; });
     document.getElementById('backward').addEventListener('touchend', e => { e.preventDefault(); backwardPressed = false; });
 
-    async function sendData() {
+    async function processQueue() {
+      if (waitingAck) return;       // wait for trajectory to finish
+      if (sendQueue.length === 0) return;
+
+      const dataToSend = sendQueue.shift(); // get first trajectory
+      waitingAck = true;
+
       try {
-        await fetch('/motion/data', {
+        await fetch('/nus/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ distance, rotate })
+          body: JSON.stringify({ data: dataToSend })
         });
-      } catch (e) { console.warn('Błąd wysyłki', e); }
+      } catch (e) {
+        console.warn('Error send over NUS:', e);
+        waitingAck = false;
+        sendQueue.unshift(dataToSend);
+        setTimeout(processQueue, 200);
+      }
     }
+
 
     window.addEventListener('devicemotion', (event) => {
 
@@ -237,6 +253,17 @@
         if (res !== 'granted') alert('Brak zgody na czujniki ruchu');
       });
     }
+
+    setInterval(async () => {
+      try {
+        const res = await fetch('/nus/logs');
+        const data = await res.json();
+        data.logs.forEach(handleNUSLogLine);
+      } catch (e) {
+        console.warn('Error fetching NUS logs:', e);
+      }
+    }, 200);  // checking nus log with 200ms interval
+
   </script>
 </body>
 

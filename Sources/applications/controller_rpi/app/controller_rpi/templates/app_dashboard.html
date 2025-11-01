@@ -116,7 +116,20 @@
   <div class="card">
     <h1>Application Dashboard</h1>
 
-    <div id="status">Connection: disconnected | Application: wait for DFU</div>
+    <div id="status">
+      <span id="connIndicator" style="
+        display:inline-block;
+        width:12px;
+        height:12px;
+        border-radius:50%;
+        background:red;
+        margin-right:8px;
+        vertical-align:middle;">
+      </span>
+      <span id="connText">Connection: disconnected</span> |
+      <span id="appText">Application: wait for DFU</span> |
+      <span id="deviceText">Device: none</span>
+    </div>
 
     <div class="flex flex-wrap justify-center mb-4">
       <button id="connectBtn" class="btn btn-primary">CONNECT</button>
@@ -175,6 +188,38 @@
       }
     }, 1000);
 
+    async function fetchConnectionStatus() {
+      try {
+        const res = await fetch('/nus/status');
+        const data = await res.json();
+
+        if (data.connected) {
+          connectionStatus = "connected";
+        } else {
+          connectionStatus = "disconnected";
+          applicationStatus = "wait for DFU";
+        }
+
+        window.currentDeviceName = data.device_name || "Unknown";
+
+        if (data.notify_active) {
+          showLogsBtn.style.display = "none";
+          hideLogsBtn.style.display = "inline-block";
+        } else if (connectionStatus === "connected") {
+          showLogsBtn.style.display = "inline-block";
+          hideLogsBtn.style.display = "none";
+        }
+
+        updateUI();
+        saveState();
+      } catch (e) {
+        console.warn('NUS conn error:', e);
+      }
+    }
+
+    setInterval(fetchConnectionStatus, 1000);
+
+
 
     // --- POST HELP ---
     async function post(path, data = {}) {
@@ -182,25 +227,29 @@
       return await res.json();
     }
 
-    // --- UPDATE UI ---
     function updateUI() {
-      // connect/disconnect buttons
       connectBtn.style.display = (connectionStatus === "disconnected") ? "inline-block" : "none";
       disconnectBtn.style.display = (connectionStatus === "connected") ? "inline-block" : "none";
 
-      // start application & show logs visible only if connected
       startAppBtn.style.display = (connectionStatus === "connected") ? "inline-block" : "none";
       showLogsBtn.style.display = (connectionStatus === "connected" && hideLogsBtn.style.display === "none") ? "inline-block" : "none";
-
-      // hide logs button
-      hideLogsBtn.style.display = hideLogsBtn.style.display;
 
       // robot controller only if connected AND application work
       robotControllerBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work") ? "inline-block" : "none";
 
-      // status text
-      statusEl.textContent = `Connection: ${connectionStatus} | Application: ${applicationStatus}`;
+      // status texts
+      const connIndicator = document.getElementById('connIndicator');
+      const connText = document.getElementById('connText');
+      const appText = document.getElementById('appText');
+      const deviceText = document.getElementById('deviceText');
+
+      connText.textContent = `Connection: ${connectionStatus}`;
+      appText.textContent = `Application: ${applicationStatus}`;
+      deviceText.textContent = `Device: ${window.currentDeviceName || "none"}`;
+
+      connIndicator.style.background = (connectionStatus === "connected") ? "limegreen" : "red";
     }
+
 
     async function setConnectionStatus(status) {
       connectionStatus = status;
@@ -218,8 +267,6 @@
     connectBtn.onclick = async () => {
       await setConnectionStatus("connecting");
       await post('/nus/connect', { address: addr });
-      // symulacja połączenia
-      setTimeout(() => setConnectionStatus("connected"), 1000);
     };
 
     disconnectBtn.onclick = async () => {

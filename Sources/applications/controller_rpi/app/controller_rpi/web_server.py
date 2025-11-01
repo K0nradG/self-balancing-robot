@@ -229,6 +229,17 @@ def nus_notify_off():
 def nus_logs():
     return jsonify({"logs": nus_log_buffer[-200:]})
 
+@app.route("/nus/status")
+def nus_status():
+    if nus_client:
+        return jsonify(nus_client.get_status())
+    return jsonify({
+        "connected": False,
+        "notify_active": False,
+        "address": None,
+        "device_name": None
+    })
+
 # --- Motion endpoints ---
 @app.route("/motion/data", methods=["POST"])
 def motion_data():

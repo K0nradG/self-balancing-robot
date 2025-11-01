@@ -20,6 +20,7 @@ class NUSClient:
         self.connected = False
         self._notify_active = False
         self.on_data = None
+        self.device_name = None 
 
     async def connect(self):
         try:
@@ -27,7 +28,13 @@ class NUSClient:
             await self.client.connect()
             self.connected = self.client.is_connected if isinstance(self.client.is_connected, bool) else await self.client.is_connected()
             if self.connected:
-                logger.info("Połączono z %s", self.address)
+                try:
+                    self.device_name = await self.client.read_gatt_char("00002a00-0000-1000-8000-00805f9b34fb")
+                    self.device_name = self.device_name.decode("utf-8", errors="ignore")
+                    logger.info("Połączono z %s (device name: %s)", self.address, self.device_name)
+                except Exception:
+                    self.device_name = None
+                    logger.warning("Nie udało się pobrać nazwy urządzenia.")
             else:
                 logger.error("Nie udało się połączyć.")
         except Exception as e:
@@ -95,6 +102,15 @@ class NUSClient:
                 self.on_data(text)
             except Exception as e:
                 logger.warning("Błąd callbacka on_data: %s", e)
+
+    
+    def get_status(self) -> dict:
+        return {
+            "connected": self.connected,
+            "notify_active": self._notify_active,
+            "address": self.address,
+            "device_name": self.device_name or "Unknown device"
+        }
 
 
 # Asynchroniczny input (non-blocking)

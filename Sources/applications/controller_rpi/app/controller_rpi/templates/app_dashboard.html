@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Application Dashboard</title>
-  <script src="/static/tailwind.js"></script>
+  <script src="/static/chart.min.js"></script>
   <style>
     body {
       background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
@@ -143,6 +143,14 @@
     </div>
 
     <pre id="logBox"></pre>
+
+    <div class="mt-6">
+      <canvas id="chartBattery" height="100"></canvas>
+      <canvas id="chartAngles" height="100"></canvas>
+      <canvas id="chartSpeeds" height="100"></canvas>
+      <canvas id="chartPWM" height="100"></canvas>
+    </div>
+
   </div>
 
   <script>
@@ -162,6 +170,65 @@
     let applicationStatus = "wait for DFU";
     let isEnabled = false;
 
+    const chartData = {
+      time: [],
+      bat_lvl: [],
+      bs: [],
+      ab: [],
+      s0: [],
+      s1: [],
+      pwm0: [],
+      pwm1: []
+    };
+
+    const chartBattery = new Chart(document.getElementById('chartBattery'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Battery (%)',
+          data: [],
+          borderColor: 'rgb(34,197,94)',
+          tension: 0.2
+        }]
+      },
+      options: { scales: { y: { beginAtZero: true, max: 100 } } }
+    });
+
+    const chartAngles = new Chart(document.getElementById('chartAngles'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'bs (set)', data: [], borderColor: 'rgb(59,130,246)', tension: 0.2 },
+          { label: 'ab (actual)', data: [], borderColor: 'rgb(249,115,22)', tension: 0.2 }
+        ]
+      }
+    });
+
+    const chartSpeeds = new Chart(document.getElementById('chartSpeeds'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 's0', data: [], borderColor: 'rgb(99,102,241)', tension: 0.2 },
+          { label: 's1', data: [], borderColor: 'rgb(147,51,234)', tension: 0.2 }
+        ]
+      }
+    });
+
+    const chartPWM = new Chart(document.getElementById('chartPWM'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'pwm0', data: [], borderColor: 'rgb(220,38,38)', tension: 0.2 },
+          { label: 'pwm1', data: [], borderColor: 'rgb(234,179,8)', tension: 0.2 }
+        ]
+      },
+      options: { scales: { y: { min: -100, max: 100 } } }
+    });
+
     // --- LOCAL STORAGE ---
     function saveState() {
       localStorage.setItem('connectionStatus', connectionStatus);
@@ -176,17 +243,85 @@
       updateUI();
     }
 
+    function parseLogLine(line) {
+      if (line.includes("bat lvl")) {
+        const match = line.match(/bat lvl (\d+)/);
+        if (match) chartData.bat_lvl.push(parseInt(match[1]));
+      }
+      if (line.includes("bs:")) {
+        const regex = /bs:\s*([-0-9.]+).*ab:\s*([-0-9.]+).*s0:\s*([-0-9.]+).*s1:\s*([-0-9.]+).*pwm0:\s*([-0-9.]+).*pwm1:\s*([-0-9.]+)/;
+        const m = line.match(regex);
+        if (m) {
+          chartData.bs.push(parseFloat(m[1]));
+          chartData.ab.push(parseFloat(m[2]));
+          chartData.s0.push(parseFloat(m[3]));
+          chartData.s1.push(parseFloat(m[4]));
+          chartData.pwm0.push(parseFloat(m[5]));
+          chartData.pwm1.push(parseFloat(m[6]));
+          chartData.time.push(new Date().toLocaleTimeString());
+        }
+      }
+      if (chartData.time.length > 50) {  // 🧹 utrzymuj 50 punktów
+        for (const key in chartData) chartData[key].splice(0, 1);
+      }
+    }
+
     async function fetchNUSLogs() {
       try {
         const res = await fetch('/nus/logs');
         const data = await res.json();
         if (Array.isArray(data.logs)) {
+          const lines = data.logs.slice(-10);
+          lines.forEach(parseLogLine);
           logBox.textContent = data.logs.join('\n');
           logBox.scrollTop = logBox.scrollHeight;
+          updateCharts();
         }
       } catch (err) {
         console.warn('Błąd logów NUS:', err);
       }
+    }
+
+    function updateCharts() {
+      chartBattery.data.labels = chartData.time;
+      chartBattery.data.datasets[0].data = chartData.bat_lvl;
+      chartBattery.update();
+
+      chartAngles.data.labels = chartData.time;
+      chartAngles.data.datasets[0].data = chartData.bs;
+      chartAngles.data.datasets[1].data = chartData.ab;
+      chartAngles.update();
+
+      chartSpeeds.data.labels = chartData.time;
+      chartSpeeds.data.datasets[0].data = chartData.s0;
+      chartSpeeds.data.datasets[1].data = chartData.s1;
+      chartSpeeds.update();
+
+      chartPWM.data.labels = chartData.time;
+      chartPWM.data.datasets[0].data = chartData.pwm0;
+      chartPWM.data.datasets[1].data = chartData.pwm1;
+      chartPWM.update();
+    }
+
+    function updateCharts() {
+      chartBattery.data.labels = chartData.time;
+      chartBattery.data.datasets[0].data = chartData.bat_lvl;
+      chartBattery.update();
+
+      chartAngles.data.labels = chartData.time;
+      chartAngles.data.datasets[0].data = chartData.bs;
+      chartAngles.data.datasets[1].data = chartData.ab;
+      chartAngles.update();
+
+      chartSpeeds.data.labels = chartData.time;
+      chartSpeeds.data.datasets[0].data = chartData.s0;
+      chartSpeeds.data.datasets[1].data = chartData.s1;
+      chartSpeeds.update();
+
+      chartPWM.data.labels = chartData.time;
+      chartPWM.data.datasets[0].data = chartData.pwm0;
+      chartPWM.data.datasets[1].data = chartData.pwm1;
+      chartPWM.update();
     }
 
     setInterval(() => {

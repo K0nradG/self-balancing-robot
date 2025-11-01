@@ -140,7 +140,9 @@
       <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
       <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
       <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
-      <a id="robotControllerBtn" href="/motion" class="btn btn-primary">Robot Controller</a>
+      <a id="robotControllerBtn" href="/motion" class="btn btn-primary">ROBOT CONTROLLER</a>
+      <a id="backBtn" href="/" class="btn btn-primary">BACK</a>
+
     </div>
 
     <pre id="logBox"></pre>
@@ -167,6 +169,7 @@
     const enableBtn = document.getElementById('enableBtn');
     const disableBtn = document.getElementById('disableBtn');
     const downloadBtn = document.getElementById('downloadBtn');
+    const backBtn = document.getElementById('backBtn');
 
     let connectionStatus = "disconnected";
     let applicationStatus = "wait for DFU";

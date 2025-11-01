@@ -139,6 +139,7 @@
       <button id="hideLogsBtn" class="btn btn-secondary" style="display:none;">HIDE DEVICE LOGS</button>
       <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
       <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
+      <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
       <a id="robotControllerBtn" href="/motion" class="btn btn-primary">Robot Controller</a>
     </div>
 
@@ -165,10 +166,13 @@
     const robotControllerBtn = document.getElementById('robotControllerBtn');
     const enableBtn = document.getElementById('enableBtn');
     const disableBtn = document.getElementById('disableBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
 
     let connectionStatus = "disconnected";
     let applicationStatus = "wait for DFU";
     let isEnabled = false;
+    let chartUpdating = false;
+    downloadBtn.style.display = "none";
 
     const chartData = {
       time: [],
@@ -325,7 +329,7 @@
     }
 
     setInterval(() => {
-      if (hideLogsBtn.style.display === "inline-block") {
+      if (hideLogsBtn.style.display === "inline-block" && chartUpdating) {
         fetchNUSLogs();
       }
     }, 1000);
@@ -397,6 +401,21 @@
       connIndicator.style.background = (connectionStatus === "connected") ? "limegreen" : "red";
     }
 
+    downloadBtn.onclick = () => {
+      const dataToSave = {
+        logs: logBox.textContent,
+        chartData: chartData
+      };
+      const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard_data_${new Date().toISOString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+
 
     async function setConnectionStatus(status) {
       connectionStatus = status;
@@ -414,12 +433,15 @@
     connectBtn.onclick = async () => {
       await setConnectionStatus("connecting");
       await post('/nus/connect', { address: addr });
+      chartUpdating = true;
     };
 
     disconnectBtn.onclick = async () => {
       await post('/nus/disconnect');
       setConnectionStatus("disconnected");
       setApplicationStatus("wait for DFU");
+      chartUpdating = false;
+      downloadBtn.style.display = "inline-block";
     };
 
     startAppBtn.onclick = async () => {
@@ -442,6 +464,8 @@
     enableBtn.onclick = async () => {
       await post('/nus/send', { data: 'mb' });
       isEnabled = true;
+      chartUpdating = true;
+      downloadBtn.style.display = "none";
       updateUI();
       saveState();
     };
@@ -449,6 +473,8 @@
     disableBtn.onclick = async () => {
       await post('/nus/send', { data: 'ms' });
       isEnabled = false;
+      chartUpdating = false;
+      downloadBtn.style.display = "inline-block";
       updateUI();
       saveState();
     };

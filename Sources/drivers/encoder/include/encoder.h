@@ -23,6 +23,8 @@ typedef struct
     encoder_data encoder_0;
     encoder_data encoder_1;
     float robot_angle_rad;
+    float robot_distance_m;
+    float robot_linear_speed;
 } encoders_data;
 
 int

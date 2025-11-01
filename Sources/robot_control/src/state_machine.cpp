@@ -17,23 +17,19 @@ State_Machine::update()
         case READY_TO_START:
             if(m_flags.start)
             {
-                m_state       = NORMAL_OPERATION;
-                m_flags.start = false;
+                m_state = NORMAL_OPERATION;
             }
             break;
         case NORMAL_OPERATION:
             if(m_flags.disable_motors_command || m_flags.stop)
             {
-                m_state                        = SOFT_STOP;
-                m_flags.stop                   = false;
-                m_flags.disable_motors_command = false;
+                m_state = SOFT_STOP;
             }
             break;
         case SOFT_STOP:
             if(m_flags.motors_stopped)
             {
-                m_state                = RESET_AFTER_STOP;
-                m_flags.motors_stopped = false;
+                m_state = RESET_AFTER_STOP;
             }
             break;
         case RESET_AFTER_STOP:
@@ -42,6 +38,8 @@ State_Machine::update()
         default:
             break;
     }
+
+    m_flags.reset();
 }
 
 State_Machine::State
@@ -80,10 +78,16 @@ State_Machine::parse_nus_commands(char const* data)
     switch(command)
     {
         case STATE_MACHINE_START:
-            m_flags.start = true;
+            if(m_state == READY_TO_START)
+            {
+                m_flags.start = true;
+            }
             break;
         case STATE_MACHINE_STOP:
-            m_flags.stop = true;
+            if(m_state == NORMAL_OPERATION)
+            {
+                m_flags.stop = true;
+            }
             break;
         default:
             break;

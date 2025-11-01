@@ -137,6 +137,8 @@
       <button id="startAppBtn" class="btn btn-success" style="display:none;">START APPLICATION</button>
       <button id="showLogsBtn" class="btn btn-primary" style="display:none;">SHOW DEVICE LOGS</button>
       <button id="hideLogsBtn" class="btn btn-secondary" style="display:none;">HIDE DEVICE LOGS</button>
+      <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
+      <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
       <a id="robotControllerBtn" href="/motion" class="btn btn-primary">Robot Controller</a>
     </div>
 
@@ -153,19 +155,24 @@
     const showLogsBtn = document.getElementById('showLogsBtn');
     const hideLogsBtn = document.getElementById('hideLogsBtn');
     const robotControllerBtn = document.getElementById('robotControllerBtn');
+    const enableBtn = document.getElementById('enableBtn');
+    const disableBtn = document.getElementById('disableBtn');
 
     let connectionStatus = "disconnected";
     let applicationStatus = "wait for DFU";
+    let isEnabled = false;
 
     // --- LOCAL STORAGE ---
     function saveState() {
       localStorage.setItem('connectionStatus', connectionStatus);
       localStorage.setItem('applicationStatus', applicationStatus);
+      localStorage.setItem('isEnabled', isEnabled);
     }
 
     function loadState() {
       connectionStatus = localStorage.getItem('connectionStatus') || "disconnected";
       applicationStatus = localStorage.getItem('applicationStatus') || "wait for DFU";
+      isEnabled = (localStorage.getItem('isEnabled') === 'true');
       updateUI();
     }
 
@@ -198,6 +205,7 @@
         } else {
           connectionStatus = "disconnected";
           applicationStatus = "wait for DFU";
+          isEnabled = false;
         }
 
         window.currentDeviceName = data.device_name || "Unknown";
@@ -231,8 +239,11 @@
       connectBtn.style.display = (connectionStatus === "disconnected") ? "inline-block" : "none";
       disconnectBtn.style.display = (connectionStatus === "connected") ? "inline-block" : "none";
 
-      startAppBtn.style.display = (connectionStatus === "connected") ? "inline-block" : "none";
+      startAppBtn.style.display = (connectionStatus === "connected" && applicationStatus !== "application work") ? "inline-block" : "none";
       showLogsBtn.style.display = (connectionStatus === "connected" && hideLogsBtn.style.display === "none") ? "inline-block" : "none";
+
+      enableBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work" && !isEnabled) ? "inline-block" : "none";
+      disableBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work" && isEnabled) ? "inline-block" : "none";
 
       // robot controller only if connected AND application work
       robotControllerBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work") ? "inline-block" : "none";
@@ -242,6 +253,7 @@
       const connText = document.getElementById('connText');
       const appText = document.getElementById('appText');
       const deviceText = document.getElementById('deviceText');
+      connIndicator.style.background = (connectionStatus === "connected") ? "limegreen" : "red";
 
       connText.textContent = `Connection: ${connectionStatus}`;
       appText.textContent = `Application: ${applicationStatus}`;
@@ -290,6 +302,20 @@
       await post('/nus/notify_off');
       hideLogsBtn.style.display = "none";
       showLogsBtn.style.display = "inline-block";
+    };
+
+    enableBtn.onclick = async () => {
+      await post('/nus/send', { data: 'mb' });
+      isEnabled = true;
+      updateUI();
+      saveState();
+    };
+
+    disableBtn.onclick = async () => {
+      await post('/nus/send', { data: 'ms' });
+      isEnabled = false;
+      updateUI();
+      saveState();
     };
 
     // --- INIT ---

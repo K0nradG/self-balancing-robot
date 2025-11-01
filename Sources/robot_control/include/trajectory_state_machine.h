@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Robot_Control
+{
+
 class Trajectory_State_Machine
 {
     struct Transition_Flags
@@ -65,3 +68,5 @@ private:
     State m_state {IDLE};
     Transition_Flags m_flags {};
 };
+
+}  // namespace Robot_Control

@@ -1,6 +1,9 @@
 #include "ramp.h"
 #include <math.h>
 
+namespace Robot_Control
+{
+
 void
 Ramp::update(float dt)
 {
@@ -50,3 +53,5 @@ Ramp::reset()
     m_target        = 0.0f;
     m_current_value = 0.0f;
 }
+
+}  // namespace Robot_Control

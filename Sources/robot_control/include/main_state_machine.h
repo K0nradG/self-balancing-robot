@@ -3,25 +3,25 @@
 namespace Robot_Control
 {
 
-struct Transition_Flags
-{
-    bool start {};
-    bool stop {};
-    bool disable_motors_command {};
-    bool motors_stopped {};
-
-    void
-    reset()
-    {
-        start                  = false;
-        stop                   = false;
-        disable_motors_command = false;
-        motors_stopped         = false;
-    }
-};
-
 class Main_State_Machine
 {
+    struct Transition_Flags
+    {
+        bool start {};
+        bool stop {};
+        bool disable_motors_command {};
+        bool motors_stopped {};
+
+        void
+        reset()
+        {
+            start                  = false;
+            stop                   = false;
+            disable_motors_command = false;
+            motors_stopped         = false;
+        }
+    };
+
 public:
     enum State
     {

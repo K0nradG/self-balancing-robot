@@ -1,5 +1,8 @@
 #include "trajectory_state_machine.h"
 
+namespace Robot_Control
+{
+
 void
 Trajectory_State_Machine::update()
 {
@@ -96,3 +99,5 @@ Trajectory_State_Machine::reset()
     m_state = IDLE;
     m_flags.reset();
 }
+
+}  // namespace Robot_Control

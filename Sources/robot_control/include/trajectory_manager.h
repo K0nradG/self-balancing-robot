@@ -6,6 +6,9 @@
 #include "ramp.h"
 #include "trajectory_state_machine.h"
 
+namespace Robot_Control
+{
+
 class Trajectory_Manager
 {
     static constexpr uint8_t min_cycles_to_complete_stage  = 20u;
@@ -53,3 +56,5 @@ private:
     void
     acknowledge_trajectory_completed();
 };
+
+}  // namespace Robot_Control

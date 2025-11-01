@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Robot_Control
+{
+
 class Saturation
 {
 public:
@@ -12,3 +15,5 @@ private:
     float m_lower_limit;
     float m_upper_limit;
 };
+
+}  // namespace Robot_Control

@@ -43,7 +43,7 @@ parse_nus_commands_callback(char const* data)
 int
 control_loop_init(void)
 {
-    Drivers_Initializer::init();
+    Robot_Control::Drivers_Initializer::init();
 
 #ifdef CONFIG_BLUETOOTH_DRV
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);

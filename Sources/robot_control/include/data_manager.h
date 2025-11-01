@@ -3,6 +3,9 @@
 #include "encoder.h"
 #include "imu.h"
 
+namespace Robot_Control
+{
+
 class DataManager
 {
     static constexpr float alpha_rotation = 0.8f;
@@ -38,3 +41,5 @@ private:
     encoders_data m_encoders_data {};
     float m_rotation_angle {};
 };
+
+}  // namespace Robot_Control

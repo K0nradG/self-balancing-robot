@@ -8,6 +8,9 @@
 #include "logger.h"
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 
+namespace Robot_Control
+{
+
 Trajectory_Manager::Trajectory_Manager(float& distance_setpoint, Ramp& rotation_setpoint_ramp)
     : m_state_machine(),
       m_distance_setpoint(distance_setpoint),
@@ -198,3 +201,5 @@ Trajectory_Manager::control_distance(float current_distance)
 
     m_stage_skip_cycles_counter++;
 }
+
+}  // namespace Robot_Control

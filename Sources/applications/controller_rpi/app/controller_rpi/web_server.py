@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template_string, Response
 import subprocess, threading, re, os, asyncio
 from nus_service import NUSClient
+import zipfile
 
 app = Flask(__name__)
 
@@ -141,7 +142,9 @@ def upload():
     f = request.files.get("file")
     if not f:
         return jsonify({"error": "no file"}), 400
-    path = os.path.join(UPLOAD_FOLDER, f.filename)
+
+    filename = f.filename
+    path = os.path.join(UPLOAD_FOLDER, filename)
     f.save(path)
 
     log_buffer.clear()
@@ -154,6 +157,22 @@ def upload():
         "avg_speed": 0.0,
         "size": 0.0
     })
+
+    extracted_bin = None
+    if filename.lower().endswith(".zip"):
+        try:
+            with zipfile.ZipFile(path, 'r') as z:
+                z.extractall(UPLOAD_FOLDER)
+                for name in z.namelist():
+                    if name.lower().endswith(".bin"):
+                        extracted_bin = os.path.join(UPLOAD_FOLDER, name)
+                        break
+            if not extracted_bin or not os.path.exists(extracted_bin):
+                return jsonify({"error": "no .bin file found in ZIP"}), 400
+            os.remove(path)
+            path = extracted_bin
+        except Exception as e:
+            return jsonify({"error": f"zip extract failed: {e}"}), 500
 
     return jsonify({"file_path": path})
 

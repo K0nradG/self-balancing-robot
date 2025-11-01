@@ -19,6 +19,7 @@ class NUSClient:
         self.client = BleakClient(address)
         self.connected = False
         self._notify_active = False
+        self.on_data = None
 
     async def connect(self):
         try:
@@ -80,8 +81,7 @@ class NUSClient:
         except Exception as e:
             logger.exception("Błąd przy wyłączaniu notify: %s", e)
 
-    @staticmethod
-    def notify_handler(sender_handle, data: bytearray):
+    def notify_handler(self,sender_handle, data: bytearray):
         try:
             text = data.decode("utf-8", errors="replace")
         except Exception:
@@ -89,6 +89,12 @@ class NUSClient:
         hex_data = " ".join(f"{b:02x}" for b in data)
         logger.info("NOTIFY [%s]: hex=%s text=%r", sender_handle, hex_data, text)
         print(f"NOTIFY: {text}")
+
+        if self.on_data and text:
+            try:
+                self.on_data(text)
+            except Exception as e:
+                logger.warning("Błąd callbacka on_data: %s", e)
 
 
 # Asynchroniczny input (non-blocking)

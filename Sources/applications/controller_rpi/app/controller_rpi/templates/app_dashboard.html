@@ -156,6 +156,26 @@
       updateUI();
     }
 
+    async function fetchNUSLogs() {
+      try {
+        const res = await fetch('/nus/logs');
+        const data = await res.json();
+        if (Array.isArray(data.logs)) {
+          logBox.textContent = data.logs.join('\n');
+          logBox.scrollTop = logBox.scrollHeight;
+        }
+      } catch (err) {
+        console.warn('Błąd logów NUS:', err);
+      }
+    }
+
+    setInterval(() => {
+      if (hideLogsBtn.style.display === "inline-block") {
+        fetchNUSLogs();
+      }
+    }, 1000);
+
+
     // --- POST HELP ---
     async function post(path, data = {}) {
       const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
@@ -213,12 +233,14 @@
       setApplicationStatus("application work");
     };
 
-    showLogsBtn.onclick = () => {
+    showLogsBtn.onclick = async () => {
+      await post('/nus/notify_on');
       showLogsBtn.style.display = "none";
       hideLogsBtn.style.display = "inline-block";
     };
 
-    hideLogsBtn.onclick = () => {
+    hideLogsBtn.onclick = async () => {
+      await post('/nus/notify_off');
       hideLogsBtn.style.display = "none";
       showLogsBtn.style.display = "inline-block";
     };

@@ -89,6 +89,15 @@ def run_dfu(path):
 async def async_connect(addr):
     global nus_client
     nus_client = NUSClient(addr)
+
+    def on_data(text):
+        print(f"[NUS_LOG] {text}")
+        nus_log_buffer.append(text)
+        if len(nus_log_buffer) > 500:
+            nus_log_buffer.pop(0)
+
+    nus_client.on_data = on_data
+
     await nus_client.connect()
 
 async def async_disconnect():
@@ -215,6 +224,10 @@ def nus_notify_on():
 def nus_notify_off():
     run_in_nus_loop(async_notify_off())
     return jsonify({"status": "notify_off"})
+
+@app.route("/nus/logs")
+def nus_logs():
+    return jsonify({"logs": nus_log_buffer[-200:]})
 
 # --- Motion endpoints ---
 @app.route("/motion/data", methods=["POST"])

@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Robot_Control
+{
+
 class Ramp
 {
 public:
@@ -26,3 +29,5 @@ private:
     float m_target {};
     float m_current_value {};
 };
+
+}  // namespace Robot_Control

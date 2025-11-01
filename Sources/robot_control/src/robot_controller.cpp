@@ -15,6 +15,7 @@ Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint_ramp(rotate_setpoint_rate),
+      m_trajectory_manager(m_distance_setpoint, m_rotate_setpoint_ramp),
       m_distance_pid(
           distance_pid_parameters, Saturation(-max_linear_speed, max_linear_speed), distance_pid_filter_alpha,
           distance_pid_hysteresis),
@@ -56,6 +57,8 @@ Robot_Controller::normal_motors_control()
 
     if(!disable_motors_command)
     {
+        m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
+
         float const target_linear_speed =
             m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
 
@@ -84,18 +87,21 @@ Robot_Controller::normal_motors_control()
             target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
-        platform_log(
-            "APP", LOG_LEVEL_INF,
-            "ds: %f, d: %f, ts: %f, s: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, "
-            "pwm0: %f, pwm1: "
-            "%f",
-            (double)m_distance_setpoint, (double)encoders_data.robot_distance_m, (double)target_linear_speed,
-            (double)encoders_data.robot_linear_speed, (double)(balance_angle_deviation * radian_degrees / pi),
-            (double)(m_balance_setpoint * radian_degrees / pi), (double)(imu_data.angle_balance * radian_degrees / pi),
-            (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
-            (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
-            (double)encoders_data.encoder_0.angular_velocity_rad_s,
-            (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+        if(!m_trajectory_manager.stop_logs())
+        {
+            platform_log(
+                "APP", LOG_LEVEL_INF,
+                "ds: %f, d: %f, ts: %f, s: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: "
+                "%f,pwm0: %f, pwm1: %f",
+                (double)m_distance_setpoint, (double)encoders_data.robot_distance_m, (double)target_linear_speed,
+                (double)encoders_data.robot_linear_speed, (double)(balance_angle_deviation * radian_degrees / pi),
+                (double)(m_balance_setpoint * radian_degrees / pi),
+                (double)(imu_data.angle_balance * radian_degrees / pi),
+                (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
+                (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
+                (double)encoders_data.encoder_0.angular_velocity_rad_s,
+                (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+        }
 #endif  // CONFIG_ROBOT_CONTROL_LOG
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
@@ -133,6 +139,7 @@ Robot_Controller::reset()
     m_wheel1_speed_pid.reset();
     m_rotate_pid.reset();
     m_balance_pid.reset();
+    m_trajectory_manager.reset();
 }
 
 #ifdef CONFIG_BLUETOOTH_DRV
@@ -150,7 +157,7 @@ Robot_Controller::parse_nus_data(char const* data)
     switch(key)
     {
         case REG_DISTANCE_PID_PREFIX:
-            if(*payload == REG_SETPOINT_CMD)
+            if((*payload == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
             {
                 payload++;
 
@@ -191,7 +198,7 @@ Robot_Controller::parse_nus_data(char const* data)
             }
             break;
         case REG_ROTATE_PID_PREFIX:
-            if(*payload == REG_SETPOINT_CMD)
+            if((*payload == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
             {
                 payload++;
 
@@ -211,6 +218,11 @@ Robot_Controller::parse_nus_data(char const* data)
             m_wheel0_speed_pid.parse_nus_parameters(payload);
             m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
             break;
+        case TRAJECTORY_MANAGER_PREFIX:
+            if(!m_trajectory_manager.trajectory_started())
+            {
+                m_trajectory_manager.parse_trajectory_point(payload);
+            }
         default:
             break;
     }

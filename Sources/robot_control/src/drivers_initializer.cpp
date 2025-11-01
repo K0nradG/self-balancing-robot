@@ -25,6 +25,9 @@
 #include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+namespace Robot_Control
+{
+
 void
 Drivers_Initializer::init()
 {
@@ -69,3 +72,5 @@ Drivers_Initializer::reboot_on_error(int error)
         sys_reboot(SYS_REBOOT_COLD);
     }
 }
+
+}  // namespace Robot_Control

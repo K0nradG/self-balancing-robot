@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Robot_Control
+{
+
 class Drivers_Initializer
 {
 public:
@@ -10,3 +13,5 @@ private:
     static void
     reboot_on_error(int error);
 };
+
+}  // namespace Robot_Control

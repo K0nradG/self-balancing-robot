@@ -2,6 +2,7 @@
 
 #include "pid.h"
 #include "ramp.h"
+#include "trajectory_manager.h"
 
 #ifndef CONFIG_PID_ENABLED
 #include "lqr.h"
@@ -73,6 +74,8 @@ private:
     float m_distance_setpoint;
     float m_balance_setpoint;
     Ramp m_rotate_setpoint_ramp;
+
+    Trajectory_Manager m_trajectory_manager;
 
     PID m_distance_pid;
 

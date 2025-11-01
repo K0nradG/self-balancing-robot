@@ -1,5 +1,8 @@
 #include "data_manager.h"
 
+namespace Robot_Control
+{
+
 DataManager&
 DataManager::instance()
 {
@@ -41,3 +44,5 @@ DataManager::reset()
     reset_encoders();
     m_rotation_angle = 0.0f;
 }
+
+}  // namespace Robot_Control

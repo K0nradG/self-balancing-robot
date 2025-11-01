@@ -3,18 +3,8 @@
 namespace Robot_Control
 {
 
-class State_Machine
+class Main_State_Machine
 {
-public:
-    enum State
-    {
-        READY_TO_START = 0,
-        NORMAL_OPERATION,
-        IDENTIFICATION,
-        SOFT_STOP,
-        RESET_AFTER_STOP
-    };
-
     struct Transition_Flags
     {
         bool start {};
@@ -32,14 +22,21 @@ public:
         }
     };
 
+public:
+    enum State
+    {
+        READY_TO_START = 0,
+        NORMAL_OPERATION,
+        IDENTIFICATION,
+        SOFT_STOP,
+        RESET_AFTER_STOP
+    };
+
     void
     update();
 
     State
     get_state() const;
-
-    void
-    set_button_pressed(bool button_pressed);
 
     void
     set_disable_motors_command(bool disable_motors_command);

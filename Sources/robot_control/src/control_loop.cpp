@@ -1,9 +1,9 @@
 #include "control_loop.h"
 #include "drivers_initializer.h"
 #include "interface.h"
+#include "main_state_machine.h"
 #include "motor_controller.h"
 #include "robot_controller.h"
-#include "state_machine.h"
 #include "zephyr/kernel.h"
 
 #ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
@@ -19,11 +19,11 @@
 #endif  // CONFIG_BLUETOOTH_DRV
 
 static Robot_Control::Robot_Controller s_robot_controller {};
-static Robot_Control::State_Machine s_state_machine {};
+static Robot_Control::Main_State_Machine s_main_state_machine {};
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 send_identification_data_cb_t g_send_identification_data_cb = nullptr;
-s_state_machine.set_identification_state();
+s_main_state_machine.set_identification_state();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_BLUETOOTH_DRV
@@ -36,7 +36,7 @@ nus_data_parse_callback(char const* data)
 void
 parse_nus_commands_callback(char const* data)
 {
-    s_state_machine.parse_nus_commands(data);
+    s_main_state_machine.parse_nus_commands(data);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 
@@ -66,24 +66,26 @@ control_loop_work_handler(struct k_work* work)
     feed_watchdog();
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
-    s_state_machine.update();
-    Robot_Control::State_Machine::State const state = s_state_machine.get_state();
+    using State = Robot_Control::Main_State_Machine::State;
+
+    s_main_state_machine.update();
+    State const state = s_main_state_machine.get_state();
     switch(state)
     {
-        case Robot_Control::State_Machine::State::IDENTIFICATION:
-        case Robot_Control::State_Machine::State::NORMAL_OPERATION:
+        case State::IDENTIFICATION:
+        case State::NORMAL_OPERATION:
         {
             bool const disable_motors_command = s_robot_controller.normal_motors_control();
-            s_state_machine.set_disable_motors_command(disable_motors_command);
+            s_main_state_machine.set_disable_motors_command(disable_motors_command);
             break;
         }
-        case Robot_Control::State_Machine::State::SOFT_STOP:
+        case State::SOFT_STOP:
         {
             bool const motors_stopped = s_robot_controller.soft_stop_motors();
-            s_state_machine.set_motors_stopped(motors_stopped);
+            s_main_state_machine.set_motors_stopped(motors_stopped);
             break;
         }
-        case Robot_Control::State_Machine::State::RESET_AFTER_STOP:
+        case State::RESET_AFTER_STOP:
             s_robot_controller.reset();
             break;
         default:

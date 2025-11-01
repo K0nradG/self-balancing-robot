@@ -2,10 +2,23 @@
 #include <math.h>
 #include <stdlib.h>
 #include "ble_commands.h"
+#include "trajectory_state_machine.h"
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
 #include "logger.h"
 #endif  // CONFIG_ROBOT_CONTROL_LOG
+
+Trajectory_Manager::Trajectory_Manager(float& distance_setpoint, Ramp& rotation_setpoint_ramp)
+    : m_state_machine(),
+      m_distance_setpoint(distance_setpoint),
+      m_rotation_setpoint_ramp(rotation_setpoint_ramp),
+      m_stage_completion_cycles_counter(0u),
+      m_stage_skip_cycles_counter(0u),
+      m_rotation_angle_setpoint_increment(0.0f),
+      m_distance_setpoint_increment(0.0f),
+      m_stop_logs(false)
+{
+}
 
 void
 Trajectory_Manager::parse_trajectory_point(char const* data)
@@ -15,9 +28,9 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
         return;
     }
 
-    static constexpr float abs_diff = 1e-3f;
-    float new_rotation_target       = 0.0f;
-    float new_distance_target       = 0.0f;
+    static constexpr float abs_diff             = 1e-3f;
+    float new_rotation_angle_setpoint_increment = 0.0f;
+    float new_distance_setpoint_increment       = 0.0f;
 
     while(*data)
     {
@@ -37,10 +50,10 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
             switch(key)
             {
                 case TRAJECTORY_MANAGER_ROTATION:
-                    new_rotation_target = value * deg_to_rad;
+                    new_rotation_angle_setpoint_increment = value * deg_to_rad;
                     break;
                 case TRAJECTORY_MANAGER_DISTANCE:
-                    new_distance_target = value;
+                    new_distance_setpoint_increment = value;
                     break;
                 default:
                     break;
@@ -52,63 +65,51 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
         }
     }
 
-    if((fabsf(m_rotation_angle_target - new_rotation_target) > abs_diff) ||
-       (fabsf(m_distance_target - new_distance_target) > abs_diff))
+    if((fabsf(m_rotation_angle_setpoint_increment - new_rotation_angle_setpoint_increment) > abs_diff) ||
+       (fabsf(m_distance_setpoint_increment - new_distance_setpoint_increment) > abs_diff))
     {
-        m_rotation_angle_target = new_rotation_target;
-        m_distance_target       = new_distance_target;
-        m_trajectory_started    = true;
+        m_rotation_angle_setpoint_increment = new_rotation_angle_setpoint_increment;
+        m_distance_setpoint_increment       = new_distance_setpoint_increment;
+        m_state_machine.set_start();
     }
 }
 
-void
-Trajectory_Manager::control_rotation_angle_target(float current_rotation_angle)
+bool
+Trajectory_Manager::trajectory_started() const
 {
-    if(m_rotation_angle_target_reached)
-    {
-        return;
-    }
-
-    if(m_stage_completion_cycles_counter >= min_cycles_to_complete_stage)
-    {
-        m_rotation_angle_target_reached   = true;
-        m_stage_completion_cycles_counter = 0u;
-        return;
-    }
-
-    if(fabsf((m_rotation_angle_target + m_initial_rotation_angle) - current_rotation_angle) <=
-       rotation_angle_acceptable_range)
-    {
-        m_stage_completion_cycles_counter++;
-    }
-    else
-    {
-        m_stage_completion_cycles_counter = 0u;
-    }
+    return m_state_machine.get_state() > Trajectory_State_Machine::State::IDLE;
 }
 
 void
-Trajectory_Manager::control_distance_target(float current_distance)
+Trajectory_Manager::update(float current_rotation_angle, float current_distance)
 {
-    if(m_distance_target_reached)
-    {
-        return;
-    }
+    using State = Trajectory_State_Machine::State;
 
-    if(m_stage_completion_cycles_counter >= min_cycles_to_complete_stage)
+    m_state_machine.update();
+    State const state = m_state_machine.get_state();
+    switch(state)
     {
-        m_distance_target_reached         = true;
-        m_stage_completion_cycles_counter = 0u;
-        return;
-    }
-
-    if(fabsf((m_distance_target + m_initial_distance) - current_distance) <= distance_acceptable_range)
-    {
-        m_stage_completion_cycles_counter++;
-    }
-    else
-    {
-        m_stage_completion_cycles_counter = 0u;
+        case State::UPDATE_ROTATION_ANGLE_SETPOINT:
+            m_rotation_setpoint_ramp.set_target(
+                m_rotation_setpoint_ramp.get_target() + m_rotation_angle_setpoint_increment);
+            m_state_machine.set_rotation_angle_setpoint_updated();
+            break;
+        case State::CONTROL_ROTATION_ANGLE:
+            control_rotation_angle(current_rotation_angle);
+            break;
+        case State::UPDATE_DISTANCE_SETPOINT:
+            m_distance_setpoint += m_distance_setpoint_increment;
+            m_state_machine.set_distance_setpoint_updated();
+            break;
+        case State::CONTROL_DISTANCE:
+            control_distance(current_distance);
+            break;
+        case State::TRAJECTORY_COMPLETED:
+            acknowledge_trajectory_completed();
+            break;
+        case State::IDLE:
+        default:
+            break;
     }
 }
 
@@ -119,85 +120,81 @@ Trajectory_Manager::acknowledge_trajectory_completed()
     platform_log("TRAJECTORY", LOG_LEVEL_INF, "finished");
 #endif  // CONFIG_ROBOT_CONTROL_LOG
     reset();
+    m_state_machine.set_trajectory_acknowledged();
 }
 
 bool
-Trajectory_Manager::trajectory_started() const
+Trajectory_Manager::stop_logs() const
 {
-    return m_trajectory_started;
-}
-
-bool
-Trajectory_Manager::rotation_target_given() const
-{
-    return m_rotation_angle_target_given;
-}
-
-bool
-Trajectory_Manager::rotation_angle_target_reached() const
-{
-    return m_rotation_angle_target_reached;
-}
-
-bool
-Trajectory_Manager::distance_target_given() const
-{
-    return m_distance_target_given;
-}
-
-bool
-Trajectory_Manager::trajectory_completed() const
-{
-    return (m_rotation_angle_target_reached && m_distance_target_reached);
-}
-
-void
-Trajectory_Manager::set_initial_rotation_angle(float initial_rotation_angle)
-{
-    m_initial_rotation_angle = initial_rotation_angle;
-}
-
-float
-Trajectory_Manager::get_rotation_angle_target()
-{
-    return m_rotation_angle_target;
-}
-
-void
-Trajectory_Manager::set_rotation_angle_target_given()
-{
-    m_rotation_angle_target_given = true;
-}
-
-void
-Trajectory_Manager::set_initial_distance(float initial_distance)
-{
-    m_initial_distance = initial_distance;
-}
-
-float
-Trajectory_Manager::get_distance_target()
-{
-    return m_distance_target;
-}
-
-void
-Trajectory_Manager::set_distance_target_given()
-{
-    m_distance_target_given = true;
+    return m_stop_logs;
 }
 
 void
 Trajectory_Manager::reset()
 {
-    m_trajectory_started              = false;
-    m_rotation_angle_target_given     = false;
-    m_distance_target_given           = false;
-    m_rotation_angle_target_reached   = false;
-    m_distance_target_reached         = false;
-    m_stage_completion_cycles_counter = 0u;
-    m_initial_rotation_angle          = 0.0f;
-    m_rotation_angle_target           = 0.0f;
-    m_distance_target                 = 0.0f;
-    m_initial_distance                = 0.0f;
+    m_state_machine.reset();
+    m_stage_completion_cycles_counter   = 0u;
+    m_stage_skip_cycles_counter         = 0u;
+    m_rotation_angle_setpoint_increment = 0.0f;
+    m_distance_setpoint_increment       = 0.0f;
+    m_stop_logs                         = false;
+}
+
+void
+Trajectory_Manager::control_rotation_angle(float current_rotation_angle)
+{
+    // Skip the state through direct counter setting
+    if(m_stage_skip_cycles_counter >= max_allowed_cycles)
+    {
+        m_stage_skip_cycles_counter       = 0u;
+        m_stage_completion_cycles_counter = min_cycles_to_complete_stage;
+    }
+
+    if(m_stage_completion_cycles_counter >= min_cycles_to_complete_stage)
+    {
+        m_state_machine.set_rotation_angle_target_reached();
+        m_stage_completion_cycles_counter = 0u;
+        return;
+    }
+
+    if(fabsf(m_rotation_setpoint_ramp.get_target() - current_rotation_angle) <= rotation_angle_acceptable_range)
+    {
+        m_stage_completion_cycles_counter++;
+    }
+    else
+    {
+        m_stage_completion_cycles_counter = 0u;
+    }
+
+    m_stage_skip_cycles_counter++;
+}
+
+void
+Trajectory_Manager::control_distance(float current_distance)
+{
+    // Skip the state through direct counter setting
+    if(m_stage_skip_cycles_counter >= max_allowed_cycles)
+    {
+        m_stage_skip_cycles_counter       = 0u;
+        m_stage_completion_cycles_counter = min_cycles_to_complete_stage;
+    }
+
+    if(m_stage_completion_cycles_counter >= min_cycles_to_complete_stage)
+    {
+        m_state_machine.set_distance_target_reached();
+        m_stage_completion_cycles_counter = 0u;
+        m_stop_logs                       = true;
+        return;
+    }
+
+    if(fabsf(m_distance_setpoint - current_distance) <= distance_acceptable_range)
+    {
+        m_stage_completion_cycles_counter++;
+    }
+    else
+    {
+        m_stage_completion_cycles_counter = 0u;
+    }
+
+    m_stage_skip_cycles_counter++;
 }

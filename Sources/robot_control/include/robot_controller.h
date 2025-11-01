@@ -104,9 +104,6 @@ private:
     bool
     ramp_pwm_to_stop(float& pwm);
 
-    bool
-    manage_trajectory(float rotation_angle, float robot_distance_m);
-
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data m_identification_data {};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV

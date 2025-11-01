@@ -1,11 +1,11 @@
-#include "state_machine.h"
+#include "main_state_machine.h"
 #include "ble_commands.h"
 
 namespace Robot_Control
 {
 
 void
-State_Machine::update()
+Main_State_Machine::update()
 {
     if(m_state == IDENTIFICATION)
     {
@@ -42,32 +42,32 @@ State_Machine::update()
     m_flags.reset();
 }
 
-State_Machine::State
-State_Machine::get_state() const
+Main_State_Machine::State
+Main_State_Machine::get_state() const
 {
     return m_state;
 }
 
 void
-State_Machine::set_disable_motors_command(bool disable_motors_command)
+Main_State_Machine::set_disable_motors_command(bool disable_motors_command)
 {
     m_flags.disable_motors_command = disable_motors_command;
 }
 
 void
-State_Machine::set_motors_stopped(bool motors_stopped)
+Main_State_Machine::set_motors_stopped(bool motors_stopped)
 {
     m_flags.motors_stopped = motors_stopped;
 }
 
 void
-State_Machine::set_identification_state()
+Main_State_Machine::set_identification_state()
 {
     m_state = IDENTIFICATION;
 }
 
 void
-State_Machine::parse_nus_commands(char const* data)
+Main_State_Machine::parse_nus_commands(char const* data)
 {
     if(data == nullptr || *data == '\0')
     {

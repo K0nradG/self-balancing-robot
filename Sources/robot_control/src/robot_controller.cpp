@@ -15,7 +15,7 @@ Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint_ramp(rotate_setpoint_rate),
-      m_trajectory_manager(),
+      m_trajectory_manager(m_distance_setpoint, m_rotate_setpoint_ramp),
       m_distance_pid(
           distance_pid_parameters, Saturation(-max_linear_speed, max_linear_speed), distance_pid_filter_alpha,
           distance_pid_hysteresis),
@@ -57,11 +57,7 @@ Robot_Controller::normal_motors_control()
 
     if(!disable_motors_command)
     {
-        bool stop_logs = false;
-        if(m_trajectory_manager.trajectory_started())
-        {
-            stop_logs = manage_trajectory(rotation_angle, encoders_data.robot_distance_m);
-        }
+        m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
 
         float const target_linear_speed =
             m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
@@ -91,7 +87,7 @@ Robot_Controller::normal_motors_control()
             target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
 #ifdef CONFIG_ROBOT_CONTROL_LOG
-        if(!stop_logs)
+        if(!m_trajectory_manager.stop_logs())
         {
             platform_log(
                 "APP", LOG_LEVEL_INF,
@@ -289,39 +285,6 @@ Robot_Controller::ramp_pwm_to_stop(float& pwm)
     }
 
     return motor_stopped;
-}
-
-bool
-Robot_Controller::manage_trajectory(float rotation_angle, float robot_distance_m)
-{
-    bool stop_logs = false;
-    if(m_trajectory_manager.trajectory_completed())
-    {
-        m_trajectory_manager.acknowledge_trajectory_completed();
-        stop_logs = true;
-    }
-    else if(!m_trajectory_manager.rotation_target_given())
-    {
-        m_trajectory_manager.set_initial_rotation_angle(m_rotate_setpoint_ramp.get_target());
-        m_rotate_setpoint_ramp.set_target(
-            m_rotate_setpoint_ramp.get_target() + m_trajectory_manager.get_rotation_angle_target());
-        m_trajectory_manager.set_rotation_angle_target_given();
-    }
-    else if(m_trajectory_manager.rotation_angle_target_reached() && !m_trajectory_manager.distance_target_given())
-    {
-        m_trajectory_manager.set_initial_distance(m_distance_setpoint);
-        m_distance_setpoint += m_trajectory_manager.get_distance_target();
-        m_trajectory_manager.set_distance_target_given();
-    }
-    else
-    {
-        m_trajectory_manager.control_rotation_angle_target(rotation_angle);
-        if(m_trajectory_manager.rotation_angle_target_reached())
-        {
-            m_trajectory_manager.control_distance_target(robot_distance_m);
-        }
-    }
-    return stop_logs;
 }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV

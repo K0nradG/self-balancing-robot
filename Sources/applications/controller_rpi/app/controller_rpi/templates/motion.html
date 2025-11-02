@@ -131,8 +131,7 @@
   <script>
     let rotate = 0, distance = 0;
     let forwardPressed = false, backwardPressed = false;
-    const ROTATE_MAX = 200, DIST_STEP = 2;
-    const SAMPLE_MS = 500;
+    const ROTATE_MAX = 200, DIST_STEP = 0.25;
 
     const rotateEl = document.getElementById('rotate');
     const distanceEl = document.getElementById('distance');
@@ -218,10 +217,15 @@
 
         const GRAVITY = 9.81;
         rotate = Math.max(-ROTATE_MAX, Math.min(ROTATE_MAX, (tilt / GRAVITY) * ROTATE_MAX));
-        distance = forwardPressed ? DIST_STEP : backwardPressed ? -DIST_STEP : 0;
+
+        if (forwardPressed) {
+          distance += DIST_STEP;
+        } else if (backwardPressed) {
+          distance -= DIST_STEP;
+        }
 
         rotateEl.textContent = rotate.toFixed(1);
-        distanceEl.textContent = distance;
+        distanceEl.textContent = distance.toFixed(1);
 
         const payload = `tr${rotate.toFixed(1)}d${distance.toFixed(1)}`;
         console.log("Sending:", payload);
@@ -252,8 +256,6 @@
         } else {
           console.warn("Trajectory ack timeout");
         }
-
-        await new Promise(r => setTimeout(r, SAMPLE_MS));
       }
       console.log("Control loop stopped");
     }

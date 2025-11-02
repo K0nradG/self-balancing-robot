@@ -20,7 +20,8 @@ class NUSClient:
         self.connected = False
         self._notify_active = False
         self.on_data = None
-        self.device_name = None 
+        self.device_name = None
+        self.on_trajectory_ack = None 
 
     async def connect(self):
         try:
@@ -97,11 +98,22 @@ class NUSClient:
         logger.info("NOTIFY [%s]: hex=%s text=%r", sender_handle, hex_data, text)
         print(f"NOTIFY: {text}")
 
-        if self.on_data and text:
+        if not text:
+            return
+
+        if self.on_data:
             try:
                 self.on_data(text)
             except Exception as e:
-                logger.warning("Błąd callbacka on_data: %s", e)
+                logger.warning("Error NUS on_data callback: %s", e)
+
+        # special callback for wathcing trajectory ack in latest logs
+        if "tc" in text.lower():
+            if self.on_trajectory_ack:
+                try:
+                    self.on_trajectory_ack(text)
+                except Exception as e:
+                    logger.warning("Error NUS on_trajectory_ack callback: %s", e)
 
     
     def get_status(self) -> dict:
@@ -111,7 +123,9 @@ class NUSClient:
             "address": self.address,
             "device_name": self.device_name or "Unknown device"
         }
-
+    
+    def set_trajectory_callback(self, callback):
+        self.on_trajectory_ack = callback
 
 # Asynchroniczny input (non-blocking)
 async def async_input(prompt: str = "") -> str:

@@ -1,7 +1,8 @@
 #ifndef BLE_CMD_H
 #define BLE_CMD_H
 
-/*These are the commands which comes from the ble central (control device - phone or 7002DK) to interact with robot*/
+/*These are the commands which comes from the ble central (control device - phone or 7002DK or rpi) to interact with
+ * robot*/
 
 // DFU commands
 #define DFU_PREFIX 'd'
@@ -31,7 +32,8 @@
 // Trajectory manager commands
 #define TRAJECTORY_MANAGER_PREFIX 't'
 
-#define TRAJECTORY_MANAGER_ROTATION 'r'
-#define TRAJECTORY_MANAGER_DISTANCE 'f'
+#define TRAJECTORY_MANAGER_ROTATION             'r'
+#define TRAJECTORY_MANAGER_DISTANCE             'f'
+#define TRAJECTORY_MANAGER_TRAJECTORY_COMPLETED 'c'
 
 #endif /*BLE_CMD_H*/

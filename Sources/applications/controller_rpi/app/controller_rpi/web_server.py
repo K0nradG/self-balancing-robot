@@ -4,12 +4,18 @@ from nus_service import NUSClient
 import zipfile
 from camera_driver import CameraDriver
 import time
+import asyncio
+
+
+trajectory_ack_event = asyncio.Event()
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 DFU_SCRIPT = "dfu_ble.py"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+trajectory_ack_event = asyncio.Event()
 
 # --- DFU state ---
 dfu = {
@@ -100,6 +106,7 @@ async def async_connect(addr):
             nus_log_buffer.pop(0)
 
     nus_client.on_data = on_data
+    nus_client.on_trajectory_ack = lambda text: trajectory_ack_event.set()
 
     await nus_client.connect()
 
@@ -276,6 +283,19 @@ def nus_status():
         "address": None,
         "device_name": None
     })
+
+# --- Trajectory endpoints ---
+
+@app.route("/nus/wait_ack")
+def wait_ack():
+    """Czeka na ACK z trajektorii (blokujące, synchronizowane)"""
+    try:
+        fut = asyncio.run_coroutine_threadsafe(trajectory_ack_event.wait(), nus_loop)
+        fut.result(timeout=4)  # czekamy max 4 sekundy
+        trajectory_ack_event.clear()
+        return jsonify({"ack": True})
+    except asyncio.TimeoutError:
+        return jsonify({"ack": False})
 
 # --- Motion endpoints ---
 @app.route("/motion/data", methods=["POST"])

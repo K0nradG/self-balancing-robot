@@ -291,7 +291,7 @@ def wait_ack():
     """Czeka na ACK z trajektorii (blokujące, synchronizowane)"""
     try:
         fut = asyncio.run_coroutine_threadsafe(trajectory_ack_event.wait(), nus_loop)
-        fut.result(timeout=4)  # czekamy max 4 sekundy
+        fut.result() 
         trajectory_ack_event.clear()
         return jsonify({"ack": True})
     except asyncio.TimeoutError:

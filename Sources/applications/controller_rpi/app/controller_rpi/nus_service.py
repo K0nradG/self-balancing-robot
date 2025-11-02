@@ -123,9 +123,6 @@ class NUSClient:
             "address": self.address,
             "device_name": self.device_name or "Unknown device"
         }
-    
-    def set_trajectory_callback(self, callback):
-        self.on_trajectory_ack = callback
 
 # Asynchroniczny input (non-blocking)
 async def async_input(prompt: str = "") -> str:

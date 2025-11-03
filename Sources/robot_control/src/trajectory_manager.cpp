@@ -17,8 +17,8 @@ Trajectory_Manager::Trajectory_Manager(float& distance_setpoint, Ramp& rotation_
       m_rotation_setpoint_ramp(rotation_setpoint_ramp),
       m_stage_completion_cycles_counter(0u),
       m_stage_skip_cycles_counter(0u),
-      m_rotation_angle_setpoint_increment(0.0f),
-      m_distance_setpoint_increment(0.0f),
+      m_new_rotation_angle_setpoint(0.0f),
+      m_new_distance_setpoint(0.0f),
       m_stop_logs(false)
 {
 }
@@ -31,9 +31,9 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
         return;
     }
 
-    static constexpr float abs_diff             = 1e-3f;
-    float new_rotation_angle_setpoint_increment = 0.0f;
-    float new_distance_setpoint_increment       = 0.0f;
+    static constexpr float abs_diff   = 1e-3f;
+    float new_rotation_angle_setpoint = 0.0f;
+    float new_distance_setpoint       = 0.0f;
 
     while(*data)
     {
@@ -53,10 +53,10 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
             switch(key)
             {
                 case TRAJECTORY_MANAGER_ROTATION:
-                    new_rotation_angle_setpoint_increment = value * deg_to_rad;
+                    new_rotation_angle_setpoint = value * deg_to_rad;
                     break;
                 case TRAJECTORY_MANAGER_DISTANCE:
-                    new_distance_setpoint_increment = value;
+                    new_distance_setpoint = value;
                     break;
                 default:
                     break;
@@ -68,11 +68,11 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
         }
     }
 
-    if((fabsf(m_rotation_angle_setpoint_increment - new_rotation_angle_setpoint_increment) > abs_diff) ||
-       (fabsf(m_distance_setpoint_increment - new_distance_setpoint_increment) > abs_diff))
+    if((fabsf(m_new_rotation_angle_setpoint - new_rotation_angle_setpoint) > abs_diff) ||
+       (fabsf(m_new_distance_setpoint - new_distance_setpoint) > abs_diff))
     {
-        m_rotation_angle_setpoint_increment = new_rotation_angle_setpoint_increment;
-        m_distance_setpoint_increment       = new_distance_setpoint_increment;
+        m_new_rotation_angle_setpoint = new_rotation_angle_setpoint;
+        m_new_distance_setpoint       = new_distance_setpoint;
         m_state_machine.set_start();
     }
 }
@@ -93,15 +93,14 @@ Trajectory_Manager::update(float current_rotation_angle, float current_distance)
     switch(state)
     {
         case State::UPDATE_ROTATION_ANGLE_SETPOINT:
-            m_rotation_setpoint_ramp.set_target(
-                m_rotation_setpoint_ramp.get_target() + m_rotation_angle_setpoint_increment);
+            m_rotation_setpoint_ramp.set_target(m_new_rotation_angle_setpoint);
             m_state_machine.set_rotation_angle_setpoint_updated();
             break;
         case State::CONTROL_ROTATION_ANGLE:
             control_rotation_angle(current_rotation_angle);
             break;
         case State::UPDATE_DISTANCE_SETPOINT:
-            m_distance_setpoint += m_distance_setpoint_increment;
+            m_distance_setpoint = m_new_distance_setpoint;
             m_state_machine.set_distance_setpoint_updated();
             break;
         case State::CONTROL_DISTANCE:
@@ -136,11 +135,11 @@ void
 Trajectory_Manager::reset()
 {
     m_state_machine.reset();
-    m_stage_completion_cycles_counter   = 0u;
-    m_stage_skip_cycles_counter         = 0u;
-    m_rotation_angle_setpoint_increment = 0.0f;
-    m_distance_setpoint_increment       = 0.0f;
-    m_stop_logs                         = false;
+    m_stage_completion_cycles_counter = 0u;
+    m_stage_skip_cycles_counter       = 0u;
+    m_new_rotation_angle_setpoint     = m_rotation_setpoint_ramp.get_target();
+    m_new_distance_setpoint           = m_distance_setpoint;
+    m_stop_logs                       = false;
 }
 
 void

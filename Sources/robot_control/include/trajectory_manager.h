@@ -43,8 +43,8 @@ private:
 
     uint8_t m_stage_completion_cycles_counter;
     uint16_t m_stage_skip_cycles_counter;
-    float m_rotation_angle_setpoint_increment;
-    float m_distance_setpoint_increment;
+    float m_new_rotation_angle_setpoint;
+    float m_new_distance_setpoint;
     bool m_stop_logs;
 
     void

@@ -164,9 +164,9 @@ Robot_Controller::parse_nus_data(char const* data)
                 char buffer[16];
                 snprintf(buffer, sizeof(buffer), "%s", payload);
 
-                char* endptr = nullptr;
-                float val    = strtof(buffer, &endptr);
-                m_distance_setpoint += val;
+                char* endptr        = nullptr;
+                float val           = strtof(buffer, &endptr);
+                m_distance_setpoint = val;
             }
             else
             {
@@ -207,7 +207,7 @@ Robot_Controller::parse_nus_data(char const* data)
 
                 char* endptr = nullptr;
                 float val    = strtof(buffer, &endptr);
-                m_rotate_setpoint_ramp.set_target(m_rotate_setpoint_ramp.get_target() + (val * (pi / radian_degrees)));
+                m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
             }
             else
             {

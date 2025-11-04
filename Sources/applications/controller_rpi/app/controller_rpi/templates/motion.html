@@ -131,7 +131,9 @@
   <script>
     let rotate = 0, distance = 0;
     let forwardPressed = false, backwardPressed = false;
-    const ROTATE_MAX = 200, DIST_STEP = 0.25;
+    const ROTATE_MAX = 180, DIST_STEP = 0.35;
+    const SAMPLE_MS = 50; // wysyłanie co 50 ms
+    const GRAVITY = 9.81;
 
     const rotateEl = document.getElementById('rotate');
     const distanceEl = document.getElementById('distance');
@@ -141,12 +143,17 @@
     const camStream = document.getElementById('cameraStream');
 
     let controlActive = false;
-
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
 
-    // accelerometer data
-    let latestMotion = null;
+    let filteredY = 0;
+    const ALPHA = 0.15;
+    let prev_rotate = 0;
+
+    function applyLowPassFilter(newY) {
+      filteredY = ALPHA * newY + (1 - ALPHA) * filteredY;
+      return filteredY;
+    }
 
     startBtn.onclick = () => {
       controlActive = true;
@@ -177,33 +184,23 @@
       camStart.style.display = 'inline-block';
     };
 
-    function handleNUSLogLine(line) {
-      if (line.includes("tc")) {
-        if (!waitingAck) return;
-        waitingAck = false;
-      }
-    }
-
     document.getElementById('forward').addEventListener('mousedown', () => forwardPressed = true);
     document.getElementById('forward').addEventListener('mouseup', () => forwardPressed = false);
     document.getElementById('backward').addEventListener('mousedown', () => backwardPressed = true);
     document.getElementById('backward').addEventListener('mouseup', () => backwardPressed = false);
 
-    // touch support
     document.getElementById('forward').addEventListener('touchstart', e => { e.preventDefault(); forwardPressed = true; });
     document.getElementById('forward').addEventListener('touchend', e => { e.preventDefault(); forwardPressed = false; });
     document.getElementById('backward').addEventListener('touchstart', e => { e.preventDefault(); backwardPressed = true; });
     document.getElementById('backward').addEventListener('touchend', e => { e.preventDefault(); backwardPressed = false; });
 
+    let latestMotion = null;
 
     window.addEventListener('devicemotion', (event) => {
       const a = event.accelerationIncludingGravity;
       if (!a) return;
-      latestMotion = a;
+      latestMotion = a.y;
     });
-
-    // for chrome searcher we need to manulay approve access to montion sensors
-    // DeviceMotionEvent.requestPermission()
 
     if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
       DeviceMotionEvent.requestPermission().then(res => {
@@ -213,54 +210,43 @@
 
     async function mainLoop() {
       while (controlActive) {
-        const tilt = latestMotion?.y ?? 0;
+        const rawY = latestMotion ?? 0;
+        const smoothY = applyLowPassFilter(rawY);
 
-        const GRAVITY = 9.81;
-        rotate = Math.max(-ROTATE_MAX, Math.min(ROTATE_MAX, (tilt / GRAVITY) * ROTATE_MAX));
+        rotate = Math.max(-ROTATE_MAX, Math.min(ROTATE_MAX, (smoothY / GRAVITY) * ROTATE_MAX));
 
-        if (forwardPressed) {
-          distance += DIST_STEP;
-        } else if (backwardPressed) {
-          distance -= DIST_STEP;
+        if (Math.abs(rotate - prev_rotate) > 5) {
+
+          if (forwardPressed) distance += DIST_STEP;
+          else if (backwardPressed) distance -= DIST_STEP;
+
+          rotateEl.textContent = rotate.toFixed(1);
+          distanceEl.textContent = distance.toFixed(1);
+
+          const payload = `rs${rotate.toFixed(1)}fs${distance.toFixed(1)}`;
+          console.log("Sending:", payload);
+
+          try {
+            await fetch('/nus/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: payload })
+            });
+          } catch (e) {
+            console.warn('Send error:', e);
+            await new Promise(r => setTimeout(r, 500));
+            continue;
+          }
+
+          prev_rotate = rotate;
         }
 
-        rotateEl.textContent = rotate.toFixed(1);
-        distanceEl.textContent = distance.toFixed(1);
-
-        const payload = `tr${rotate.toFixed(1)}d${distance.toFixed(1)}`;
-        console.log("Sending:", payload);
-
-        try {
-          await fetch('/nus/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
-          });
-        } catch (e) {
-          console.warn('Send error:', e);
-          await new Promise(r => setTimeout(r, 500));
-          continue;
-        }
-
-        // --- wait for trajecoty_ack from NUS
-        let ackData = { ack: false };
-        try {
-          const ackRes = await fetch('/nus/wait_ack');
-          ackData = await ackRes.json();
-        } catch (e) {
-          console.warn("Trajectory ack wait error:", e);
-        }
-
-        if (ackData.ack) {
-          console.log("Trajectory ack received");
-        } else {
-          console.warn("Trajectory ack timeout");
-        }
+        await new Promise(r => setTimeout(r, SAMPLE_MS));
       }
       console.log("Control loop stopped");
     }
-
   </script>
+
 </body>
 
 </html>

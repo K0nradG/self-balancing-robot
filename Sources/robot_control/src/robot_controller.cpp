@@ -157,80 +157,88 @@ Robot_Controller::parse_nus_data(char const* data)
         return;
     }
 
-    char const key      = data[0];
-    char const* payload = data + 1;
-
-    switch(key)
+    while(*data)
     {
-        case REG_DISTANCE_PID_PREFIX:
-            if((*payload == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
-            {
-                payload++;
+        char const key      = data[0];
+        char const* payload = data + 1;
+        if(payload == nullptr)
+        {
+            return;
+        }
 
-                char buffer[16];
-                snprintf(buffer, sizeof(buffer), "%s", payload);
+        data++;  // payload
+        switch(key)
+        {
+            case REG_DISTANCE_PID_PREFIX:
+                if((*data == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
+                {
+                    data++;
 
-                char* endptr        = nullptr;
-                float val           = strtof(buffer, &endptr);
-                m_distance_setpoint = val;
-            }
-            else
-            {
-                m_distance_pid.parse_nus_parameters(payload);
-            }
-            break;
-        case REG_LINEAR_SPEED_PID_PREFIX:
-            m_linear_speed_pid.parse_nus_parameters(payload);
-            break;
-        case REG_BALANCE_PID_PREFIX:
-            if(*payload == REG_SETPOINT_CMD)
-            {
-                payload++;
+                    char buffer[16];
+                    snprintf(buffer, sizeof(buffer), "%s", data);
 
-                char buffer[16];
-                snprintf(buffer, sizeof(buffer), "%s", payload);
+                    char* endptr        = nullptr;
+                    float val           = strtof(buffer, &endptr);
+                    m_distance_setpoint = val;
+                }
+                else
+                {
+                    m_distance_pid.parse_nus_parameters(data);
+                }
+                break;
+            case REG_LINEAR_SPEED_PID_PREFIX:
+                m_linear_speed_pid.parse_nus_parameters(data);
+                break;
+            case REG_BALANCE_PID_PREFIX:
+                if(*data == REG_SETPOINT_CMD)
+                {
+                    data++;
 
-                char* endptr       = nullptr;
-                float val          = strtof(buffer, &endptr);
-                m_balance_setpoint = val * (pi / radian_degrees);
-            }
-            else
-            {
+                    char buffer[16];
+                    snprintf(buffer, sizeof(buffer), "%s", data);
+
+                    char* endptr       = nullptr;
+                    float val          = strtof(buffer, &endptr);
+                    m_balance_setpoint = val * (pi / radian_degrees);
+                }
+                else
+                {
 #ifdef CONFIG_PID_ENABLED
-                m_balance_pid.parse_nus_parameters(payload);
+                    m_balance_pid.parse_nus_parameters(data);
 #else
-                m_balance_lqr.parse_nus_parameters(payload);
+                    m_balance_lqr.parse_nus_parameters(data);
 #endif  // CONFIG_PID_ENABLED
-            }
-            break;
-        case REG_ROTATE_PID_PREFIX:
-            if((*payload == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
-            {
-                payload++;
+                }
+                break;
+            case REG_ROTATE_PID_PREFIX:
+                if((*data == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
+                {
+                    data++;
 
-                char buffer[16];
-                snprintf(buffer, sizeof(buffer), "%s", payload);
+                    char buffer[16];
+                    snprintf(buffer, sizeof(buffer), "%s", data);
 
-                char* endptr = nullptr;
-                float val    = strtof(buffer, &endptr);
-                m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
-            }
-            else
-            {
-                m_rotate_pid.parse_nus_parameters(payload);
-            }
-            break;
-        case REG_WHEEL_PID_PREFIX:
-            m_wheel0_speed_pid.parse_nus_parameters(payload);
-            m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
-            break;
-        case TRAJECTORY_MANAGER_PREFIX:
-            if(!m_trajectory_manager.trajectory_started())
-            {
-                m_trajectory_manager.parse_trajectory_point(payload);
-            }
-        default:
-            break;
+                    char* endptr = nullptr;
+                    float val    = strtof(buffer, &endptr);
+                    m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
+                }
+                else
+                {
+                    m_rotate_pid.parse_nus_parameters(data);
+                }
+                break;
+            case REG_WHEEL_PID_PREFIX:
+                m_wheel0_speed_pid.parse_nus_parameters(data);
+                m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
+                break;
+            case TRAJECTORY_MANAGER_PREFIX:
+                if(!m_trajectory_manager.trajectory_started())
+                {
+                    m_trajectory_manager.parse_trajectory_point(data);
+                }
+            default:
+                break;
+        }
     }
 }
 #endif  // CONFIG_BLUETOOTH_DRV

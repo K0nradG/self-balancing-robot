@@ -89,20 +89,26 @@ Robot_Controller::normal_motors_control()
 #ifdef CONFIG_ROBOT_CONTROL_LOG
         if(!m_trajectory_manager.stop_logs())
         {
-            platform_log(
-                "APP", LOG_LEVEL_INF,
-                "ds: %f, d: %f, ts: %f, s: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: "
-                "%f,pwm0: %f, pwm1: %f",
-                (double)m_distance_setpoint, (double)encoders_data.robot_distance_m, (double)target_linear_speed,
-                (double)encoders_data.robot_linear_speed, (double)(balance_angle_deviation * radian_degrees / pi),
-                (double)(m_balance_setpoint * radian_degrees / pi),
-                (double)(imu_data.angle_balance * radian_degrees / pi),
-                (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
-                (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
-                (double)encoders_data.encoder_0.angular_velocity_rad_s,
-                (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+            static float log_timer_ms = 0.0f;
+            log_timer_ms += imu_data.time_dt * 1000;
+
+            if(log_timer_ms >= CONFIG_ROBOT_CONTROL_LOG_NUS_PERIOD_MS)
+            {
+                log_timer_ms = 0.0f;
+
+                platform_log(
+                    "APP", LOG_LEVEL_INF,
+                    "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
+                    (double)(m_balance_setpoint * radian_degrees / pi),
+                    (double)(imu_data.angle_balance * radian_degrees / pi),
+                    (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
+                    (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
+                    (double)encoders_data.encoder_0.angular_velocity_rad_s,
+                    (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+            }
         }
 #endif  // CONFIG_ROBOT_CONTROL_LOG
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
             .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,

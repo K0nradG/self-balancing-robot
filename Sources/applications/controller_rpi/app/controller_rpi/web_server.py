@@ -1,12 +1,21 @@
 from flask import Flask, request, jsonify, render_template_string, Response
 import subprocess, threading, re, os, asyncio
 from nus_service import NUSClient
+import zipfile
+from camera_driver import CameraDriver
+import time
+import asyncio
+
+
+trajectory_ack_event = asyncio.Event()
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 DFU_SCRIPT = "dfu_ble.py"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+trajectory_ack_event = asyncio.Event()
 
 # --- DFU state ---
 dfu = {
@@ -89,6 +98,16 @@ def run_dfu(path):
 async def async_connect(addr):
     global nus_client
     nus_client = NUSClient(addr)
+
+    def on_data(text):
+        print(f"[NUS_LOG] {text}")
+        nus_log_buffer.append(text)
+        if len(nus_log_buffer) > 500:
+            nus_log_buffer.pop(0)
+
+    nus_client.on_data = on_data
+    nus_client.on_trajectory_ack = lambda text: trajectory_ack_event.set()
+
     await nus_client.connect()
 
 async def async_disconnect():
@@ -113,6 +132,22 @@ def run_in_nus_loop(coro):
     return asyncio.run_coroutine_threadsafe(coro, nus_loop)
 
 
+# --- Camera setup ---
+camera = CameraDriver()
+
+def generate_camera_stream():
+    boundary = "--frame"
+    while camera.running:
+        frame = camera.get_frame()
+        if not frame:
+            time.sleep(0.05)
+            continue
+        yield (b"%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" %
+               (boundary.encode(), len(frame)))
+        yield frame
+        yield b"\r\n"
+
+
 # --- Routes ---
 @app.route("/")
 def index():
@@ -122,6 +157,9 @@ def index():
 def app_dashboard():
     return render_template_string(open("templates/app_dashboard.html").read())
 
+@app.route("/motion")
+def motion_page():
+    return render_template_string(open("templates/motion.html").read())
 
 # --- DFU endpoints ---
 @app.route("/upload", methods=["POST"])
@@ -129,7 +167,9 @@ def upload():
     f = request.files.get("file")
     if not f:
         return jsonify({"error": "no file"}), 400
-    path = os.path.join(UPLOAD_FOLDER, f.filename)
+
+    filename = f.filename
+    path = os.path.join(UPLOAD_FOLDER, filename)
     f.save(path)
 
     log_buffer.clear()
@@ -142,6 +182,22 @@ def upload():
         "avg_speed": 0.0,
         "size": 0.0
     })
+
+    extracted_bin = None
+    if filename.lower().endswith(".zip"):
+        try:
+            with zipfile.ZipFile(path, 'r') as z:
+                z.extractall(UPLOAD_FOLDER)
+                for name in z.namelist():
+                    if name.lower().endswith(".bin"):
+                        extracted_bin = os.path.join(UPLOAD_FOLDER, name)
+                        break
+            if not extracted_bin or not os.path.exists(extracted_bin):
+                return jsonify({"error": "no .bin file found in ZIP"}), 400
+            os.remove(path)
+            path = extracted_bin
+        except Exception as e:
+            return jsonify({"error": f"zip extract failed: {e}"}), 500
 
     return jsonify({"file_path": path})
 
@@ -213,6 +269,57 @@ def nus_notify_off():
     run_in_nus_loop(async_notify_off())
     return jsonify({"status": "notify_off"})
 
+@app.route("/nus/logs")
+def nus_logs():
+    return jsonify({"logs": nus_log_buffer[-200:]})
+
+@app.route("/nus/status")
+def nus_status():
+    if nus_client:
+        return jsonify(nus_client.get_status())
+    return jsonify({
+        "connected": False,
+        "notify_active": False,
+        "address": None,
+        "device_name": None
+    })
+
+# --- Trajectory endpoints ---
+
+@app.route("/nus/wait_ack")
+def wait_ack():
+    """Czeka na ACK z trajektorii (blokujące, synchronizowane)"""
+    try:
+        fut = asyncio.run_coroutine_threadsafe(trajectory_ack_event.wait(), nus_loop)
+        fut.result() 
+        trajectory_ack_event.clear()
+        return jsonify({"ack": True})
+    except asyncio.TimeoutError:
+        return jsonify({"ack": False})
+
+# --- Motion endpoints ---
+@app.route("/motion/data", methods=["POST"])
+def motion_data():
+    payload = request.json
+    print(f"Otrzymano dane z telefonu: {payload}")
+    return jsonify(status="ok")
+
+@app.route("/camera/start", methods=["POST"])
+def camera_start():
+    camera.start()
+    return jsonify({"status": "started"})
+
+@app.route("/camera/stop", methods=["POST"])
+def camera_stop():
+    camera.stop()
+    return jsonify({"status": "stopped"})
+
+@app.route("/camera/stream")
+def camera_stream():
+    if not camera.running:
+        return "Camera not started", 400
+    return Response(generate_camera_stream(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

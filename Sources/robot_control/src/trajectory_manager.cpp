@@ -119,8 +119,10 @@ void
 Trajectory_Manager::acknowledge_trajectory_completed()
 {
 #ifdef CONFIG_ROBOT_CONTROL_LOG
-    platform_log("TRAJECTORY", LOG_LEVEL_INF, "finished");
-#endif  // CONFIG_ROBOT_CONTROL_LOG
+    platform_log(
+        "TRAJECTORY", LOG_LEVEL_INF, "%c%c", TRAJECTORY_MANAGER_PREFIX, TRAJECTORY_MANAGER_TRAJECTORY_COMPLETED);
+#endif
+
     reset();
     m_state_machine.set_trajectory_acknowledged();
 }

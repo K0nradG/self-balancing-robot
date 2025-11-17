@@ -4,7 +4,6 @@
 <head>
   <meta charset="UTF-8">
   <title>DFU Dashboard</title>
-  <script src="/static/tailwind.js"></script>
   <style>
     body {
       background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
@@ -101,7 +100,7 @@
       border-radius: 0.5rem;
       font-weight: 600;
       margin: 0.25rem;
-      transition: all 0.2s ease;
+      cursor: pointer;
       text-decoration: none;
       display: inline-block;
     }
@@ -139,14 +138,15 @@
   <div class="card">
     <h1>DFU Dashboard</h1>
 
-    <label class="block mb-3 font-medium text-lg text-gray-700">Select firmware file:</label>
+    <label>Select firmware file:</label>
     <input type="file" id="fileInput" class="border p-3 rounded w-full mb-4 text-lg">
     <p id="fileInfo" class="text-gray-600 mb-4"></p>
 
     <div class="flex justify-center flex-wrap">
-      <button id="startBtn" class="btn btn-primary hidden">Start DFU</button>
-      <button id="resetBtn" class="btn btn-secondary hidden">Upload Another Image</button>
-      <a id="downloadLogsBtn" href="/download_logs" class="btn btn-success hidden" download>Download Logs</a>
+      <button id="startBtn" class="btn btn-primary" style="display:none;">Start DFU</button>
+      <button id="resetBtn" class="btn btn-secondary" style="display:none;">Upload Another Image</button>
+      <a id="downloadLogsBtn" href="/download_logs" class="btn btn-success" style="display:none;" download>Download
+        Logs</a>
       <a href="/app" class="btn btn-primary">Application Dashboard</a>
     </div>
 
@@ -154,7 +154,7 @@
       <div id="progressBar">0%</div>
     </div>
     <div id="currentStep" class="step">Idle</div>
-    <div id="stats" class="stats hidden mt-3 text-gray-700"></div>
+    <div id="stats" class="stats" style="display:none; margin-top:10px; text-align:left;"></div>
     <pre id="logBox" class="mt-5"></pre>
   </div>
 
@@ -163,30 +163,42 @@
     const fileInfo = document.getElementById('fileInfo');
     const startBtn = document.getElementById('startBtn');
     const resetBtn = document.getElementById('resetBtn');
+    const downloadLogsBtn = document.getElementById('downloadLogsBtn');
     const progressBar = document.getElementById('progressBar');
+    const currentStep = document.getElementById('currentStep');
     const stats = document.getElementById('stats');
     const logBox = document.getElementById('logBox');
-    const currentStep = document.getElementById('currentStep');
-    const downloadLogsBtn = document.getElementById('downloadLogsBtn');
 
     let uploadedFilePath = null;
     let dfuRunning = false;
 
-    // Upload pliku
+    // --- OBSŁUGA WYBORU PLIKU ---
     fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
-      if (!file) return;
+      uploadedFilePath = null;
+      dfuRunning = false;
 
-      fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KiB)`;
       progressBar.style.width = '0%';
       progressBar.textContent = '0%';
       currentStep.textContent = 'Idle';
       currentStep.className = 'step';
-      stats.classList.add('hidden');
+      stats.style.display = 'none';
+      stats.innerHTML = '';
       logBox.textContent = '';
-      startBtn.classList.add('hidden');
-      downloadLogsBtn.classList.add('hidden');
-      resetBtn.classList.add('hidden');
+
+      startBtn.style.display = 'none';
+      resetBtn.style.display = 'none';
+      downloadLogsBtn.style.display = 'none';
+
+      if (!file) return;
+
+      const isZip = file.name.toLowerCase().endsWith('.zip');
+      if (!isZip) {
+        fileInfo.textContent = 'Please select a .zip firmware file.';
+        return;
+      }
+
+      fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KiB)`;
 
       const fd = new FormData();
       fd.append('file', file);
@@ -195,22 +207,24 @@
 
       if (res.ok) {
         uploadedFilePath = data.file_path;
-        startBtn.classList.remove('hidden');
+        startBtn.style.display = 'inline-block';
         fileInfo.textContent = `Ready to start DFU for ${file.name}`;
       } else {
         fileInfo.textContent = 'Upload failed!';
       }
     });
 
-    // Start DFU
+    // --- START DFU ---
     startBtn.addEventListener('click', async () => {
       if (!uploadedFilePath || dfuRunning) return;
       dfuRunning = true;
-      startBtn.classList.add('hidden');
-      resetBtn.classList.add('hidden');
-      downloadLogsBtn.classList.add('hidden');
+
+      startBtn.style.display = 'none';
+      resetBtn.style.display = 'none';
+      downloadLogsBtn.style.display = 'none';
       currentStep.textContent = 'Starting DFU...';
       fileInfo.textContent = '';
+
       await fetch('/start_dfu', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -218,46 +232,56 @@
       });
     });
 
-    // Upload another image (reset)
+    // --- RESET ---
     resetBtn.addEventListener('click', async () => {
       await fetch('/reset', { method: 'POST' });
       location.reload();
     });
 
+    // --- UPDATE DFU STATUS ---
     async function updateProgress() {
-      const r = await fetch('/status');
-      const d = await r.json();
+      try {
+        const r = await fetch('/status');
+        const d = await r.json();
 
-      progressBar.style.width = `${d.percent}%`;
-      progressBar.textContent = d.percent.toFixed(1) + '%';
-      if (d.percent > 10) progressBar.textContent += ` • ${d.speed.toFixed(1)} KiB/s`;
+        const percent = d.percent || 0;
+        const speed = d.speed || 0;
 
-      currentStep.textContent = d.current_step || 'Idle';
+        progressBar.style.width = `${percent}%`;
+        progressBar.textContent = `${percent.toFixed(1)}%${percent > 10 ? ` • ${speed.toFixed(1)} KiB/s` : ''}`;
+        currentStep.textContent = d.current_step || 'Idle';
 
-      if (d.status === 'finished') {
-        dfuRunning = false;
-        currentStep.className = 'step finished';
-        currentStep.textContent = 'DFU completed successfully ✅';
-        stats.classList.remove('hidden');
-        stats.innerHTML = `Total time: ${d.duration.toFixed(1)} s<br>
-                           Average speed: ${d.avg_speed.toFixed(1)} KiB/s<br>
-                           File size: ${d.size.toFixed(1)} KiB`;
-        resetBtn.classList.remove('hidden');
-        downloadLogsBtn.classList.remove('hidden');
-      } else if (d.status === 'error') {
-        dfuRunning = false;
-        currentStep.className = 'step error';
-        currentStep.textContent = 'Error during DFU ❌';
-        resetBtn.classList.remove('hidden');
-        downloadLogsBtn.classList.remove('hidden');
+        if (d.status === 'finished') {
+          dfuRunning = false;
+          currentStep.className = 'step finished';
+          currentStep.textContent = 'DFU completed successfully ✅';
+          stats.style.display = 'block';
+          stats.innerHTML = `Total time: ${d.duration.toFixed(1)} s<br>
+                             Average speed: ${d.avg_speed.toFixed(1)} KiB/s<br>
+                             File size: ${d.size.toFixed(1)} KiB`;
+          resetBtn.style.display = 'inline-block';
+          downloadLogsBtn.style.display = 'inline-block';
+        } else if (d.status === 'error') {
+          dfuRunning = false;
+          currentStep.className = 'step error';
+          currentStep.textContent = 'Error during DFU ❌';
+          resetBtn.style.display = 'inline-block';
+          downloadLogsBtn.style.display = 'inline-block';
+        }
+      } catch (e) {
+        console.warn('Error fetching DFU status:', e);
       }
     }
 
     async function updateLogs() {
-      const r = await fetch('/logs');
-      const d = await r.json();
-      logBox.textContent = d.logs.join('');
-      logBox.scrollTop = logBox.scrollHeight;
+      try {
+        const r = await fetch('/logs');
+        const d = await r.json();
+        logBox.textContent = d.logs.join('\n');
+        logBox.scrollTop = logBox.scrollHeight;
+      } catch (e) {
+        console.warn('Error fetching logs:', e);
+      }
     }
 
     setInterval(updateProgress, 1000);

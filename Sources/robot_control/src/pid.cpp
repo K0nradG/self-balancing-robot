@@ -67,8 +67,8 @@ PID::parse_nus_parameters(char const* data)
 
     while(*data)
     {
-        if((*data == REG_PID_K_GAIN_CMD) || (*data == REG_PID_I_GAIN_CMD) || (*data == REG_PID_D_GAIN_CMD) ||
-           (*data == REG_PID_FILTER_ALPHA_CMD))
+        if((*data == BLE_Commands::Regulator::PID_K_GAIN) || (*data == BLE_Commands::Regulator::PID_I_GAIN) ||
+           (*data == BLE_Commands::Regulator::PID_D_GAIN) || (*data == BLE_Commands::Regulator::PID_FILTER_ALPHA))
         {
             char key = *data;
             data++;
@@ -83,16 +83,16 @@ PID::parse_nus_parameters(char const* data)
 
             switch(key)
             {
-                case REG_PID_K_GAIN_CMD:
+                case BLE_Commands::Regulator::PID_K_GAIN:
                     m_parameters.Kp = value;
                     break;
-                case REG_PID_I_GAIN_CMD:
+                case BLE_Commands::Regulator::PID_I_GAIN:
                     m_parameters.Ki = value;
                     break;
-                case REG_PID_D_GAIN_CMD:
+                case BLE_Commands::Regulator::PID_D_GAIN:
                     m_parameters.Kd = value;
                     break;
-                case REG_PID_FILTER_ALPHA_CMD:
+                case BLE_Commands::Regulator::PID_FILTER_ALPHA:
                     m_filter.set_alpha(value);
                     break;
                 default:

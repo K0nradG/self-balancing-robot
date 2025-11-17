@@ -30,15 +30,15 @@ LOG_MODULE_REGISTER(dfu_ble, CONFIG_DFU_BLE_LOG_LEVEL);
 #define DFU_BLINKING_INTERVAL 100
 #define DEVICE_NAME           "SELF_BALANCING_ROBOT"
 
-static  bt_le_adv_param const* adv_param =
+static bt_le_adv_param const* adv_param =
     BT_LE_ADV_PARAM((BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_USE_IDENTITY), 800, 801, nullptr);
 
-static const  bt_data ad[] = {
+static const bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
     BT_DATA_BYTES(BT_DATA_UUID128_ALL, SMP_BT_SVC_UUID_VAL),
 };
 
-static const  bt_data sd[] = {
+static const bt_data sd[] = {
     BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, sizeof(DEVICE_NAME) - 1),
 };
 
@@ -56,7 +56,7 @@ static dfu_action_cb_t dfu_action_cb;
 K_SEM_DEFINE(dfu_sem, 0, 1);
 
 static void
-start_smp_adv_handler( k_work* work)
+start_smp_adv_handler(k_work* work)
 {
     int ret = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
     if(ret != 0)
@@ -78,14 +78,14 @@ start_dfu_smp_adv()
 static enum mgmt_cb_return
 upload_confirm_handler(uint32_t, enum mgmt_cb_return, int32_t* rc, uint16_t*, bool*, void* data, size_t)
 {
-    const  img_mgmt_upload_check* imgData = (const  img_mgmt_upload_check*)data;
+    const img_mgmt_upload_check* imgData = (const img_mgmt_upload_check*)data;
     LOG_INF(
         "DFU over SMP progress: %" PRIu64 " / %" PRIu64 " B (image: %u)", (uint64_t)imgData->req->off,
         (uint64_t)imgData->action->size, imgData->req->image);
     return MGMT_CB_OK;
 }
 
-static  mgmt_callback sUploadCallback = {
+static mgmt_callback sUploadCallback = {
     .callback = upload_confirm_handler,
     .event_id = MGMT_EVT_OP_IMG_MGMT_DFU_CHUNK,
 };
@@ -112,13 +112,13 @@ dfu_process_parser_cb(const char* payload)
 
     switch(key)
     {
-        case DFU_START_CMD:
+        case BLE_Commands::DFU::DFU_START:
             LOG_INF("DFU START command received");
             g_dfu_state = DFU_STATE_START;
             k_sem_give(&dfu_sem);
             break;
 
-        case DFU_SKIP_CMD:
+        case BLE_Commands::DFU::DFU_SKIP:
             LOG_INF("DFU SKIP command received");
             g_dfu_state = DFU_STATE_SKIP;
             k_sem_give(&dfu_sem);
@@ -131,7 +131,7 @@ dfu_process_parser_cb(const char* payload)
 }
 
 K_THREAD_STACK_DEFINE(dfu_wait_stack, 1024);
-static  k_thread dfu_wait_thread_data;
+static k_thread dfu_wait_thread_data;
 
 static void
 dfu_wait_thread(void* arg1, void* arg2, void* arg3)
@@ -205,8 +205,8 @@ dfu_smp_init()
 
     start_dfu_smp_adv();
     k_thread_create(
-        &dfu_wait_thread_data, dfu_wait_stack, K_THREAD_STACK_SIZEOF(dfu_wait_stack), dfu_wait_thread, nullptr, nullptr, nullptr,
-        7, 0, K_NO_WAIT);
+        &dfu_wait_thread_data, dfu_wait_stack, K_THREAD_STACK_SIZEOF(dfu_wait_stack), dfu_wait_thread, nullptr, nullptr,
+        nullptr, 7, 0, K_NO_WAIT);
 
     LOG_INF("DFU SMP initialization done");
     return 0;

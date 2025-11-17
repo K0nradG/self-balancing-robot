@@ -8,12 +8,12 @@ static Logging::Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identi
 float g_buffer[BUFFER_SIZE] {};
 
 static void
-identification_data_sending_work_handler( k_work* work);
+identification_data_sending_work_handler(k_work* work);
 
 static K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_data_sending_work_handler);
 
 static void
-identification_data_sending_work_handler( k_work* work)
+identification_data_sending_work_handler(k_work* work)
 {
     model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "model data sending start\n");
 
@@ -34,7 +34,8 @@ identification_data_sending_work_handler( k_work* work)
 
                 k_sleep(K_MSEC(1));
             }
-            model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "----------------------------------------------------\n");
+            model_identification_logger.platform_log(
+                Logging::LOG_LEVEL::INF, "----------------------------------------------------\n");
         }
     }
     model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "model data sending finished\n");
@@ -48,6 +49,7 @@ trigger_identification_data_sending()
     int const err = k_work_submit(&identification_data_sending_work.work);
     if(err != 0)
     {
-        model_identification_logger.platform_log(Logging::LOG_LEVEL::ERR, "Identification data send trigger failed, err: %d", err);
+        model_identification_logger.platform_log(
+            Logging::LOG_LEVEL::ERR, "Identification data send trigger failed, err: %d", err);
     }
 }

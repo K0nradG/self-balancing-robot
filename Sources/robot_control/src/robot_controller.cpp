@@ -153,8 +153,8 @@ Robot_Controller::parse_nus_data(char const* data)
 
     switch(key)
     {
-        case REG_DISTANCE_PID_PREFIX:
-            if((*payload == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
+        case BLE_Commands::Prefix::DISTANCE_PID:
+            if((*payload == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
             {
                 payload++;
 
@@ -170,11 +170,11 @@ Robot_Controller::parse_nus_data(char const* data)
                 m_distance_pid.parse_nus_parameters(payload);
             }
             break;
-        case REG_LINEAR_SPEED_PID_PREFIX:
+        case BLE_Commands::Prefix::LINEAR_SPEED_PID:
             m_linear_speed_pid.parse_nus_parameters(payload);
             break;
-        case REG_BALANCE_PID_PREFIX:
-            if(*payload == REG_SETPOINT_CMD)
+        case BLE_Commands::Prefix::BALANCE_PID:
+            if(*payload == BLE_Commands::Regulator::SETPOINT)
             {
                 payload++;
 
@@ -194,8 +194,8 @@ Robot_Controller::parse_nus_data(char const* data)
 #endif  // CONFIG_PID_ENABLED
             }
             break;
-        case REG_ROTATE_PID_PREFIX:
-            if((*payload == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
+        case BLE_Commands::Prefix::ROTATE_PID:
+            if((*payload == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
             {
                 payload++;
 
@@ -211,11 +211,11 @@ Robot_Controller::parse_nus_data(char const* data)
                 m_rotate_pid.parse_nus_parameters(payload);
             }
             break;
-        case REG_WHEEL_PID_PREFIX:
+        case BLE_Commands::Prefix::WHEEL_PID:
             m_wheel0_speed_pid.parse_nus_parameters(payload);
             m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
             break;
-        case TRAJECTORY_MANAGER_PREFIX:
+        case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
             if(!m_trajectory_manager.trajectory_started())
             {
                 m_trajectory_manager.parse_trajectory_point(payload);

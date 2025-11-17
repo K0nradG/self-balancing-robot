@@ -3,8 +3,8 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/init.h>
-#include "zephyr/kernel.h"
 #include "logger.h"
+#include "zephyr/kernel.h"
 
 #define N_GPIO_PINS                      5u
 #define DIRECTION_CONTROL_PINS_BEGIN_IDX 1u
@@ -15,19 +15,19 @@ static Logging::Logger<IS_ENABLED(CONFIG_MOTOR_CONTROLLER_LOG)> motor_controller
 static bool g_controller_enabled = false;
 static MOTORS_DATA g_motors_data = {.duty_cycle_percent_motor0 = 0u, .duty_cycle_percent_motor1 = 0u, .start = false};
 
-static  gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
-static  gpio_dt_spec a_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in2), gpios);
-static  gpio_dt_spec b_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in1), gpios);
-static  gpio_dt_spec b_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in2), gpios);
-static  gpio_dt_spec h_b_en = GPIO_DT_SPEC_GET(DT_NODELABEL(h_b_en), gpios);
+static gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
+static gpio_dt_spec a_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in2), gpios);
+static gpio_dt_spec b_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in1), gpios);
+static gpio_dt_spec b_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in2), gpios);
+static gpio_dt_spec h_b_en = GPIO_DT_SPEC_GET(DT_NODELABEL(h_b_en), gpios);
 
-static const  gpio_dt_spec* gpio_pins[] = {&h_b_en, &a_in1, &a_in2, &b_in1, &b_in2};
+static const gpio_dt_spec* gpio_pins[] = {&h_b_en, &a_in1, &a_in2, &b_in1, &b_in2};
 
-static const  pwm_dt_spec pwm_dc_1 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_1));
-static const  pwm_dt_spec pwm_dc_2 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_2));
+static const pwm_dt_spec pwm_dc_1 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_1));
+static const pwm_dt_spec pwm_dc_2 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_2));
 
 static void
-motor_controller_work_handler( k_work* work);
+motor_controller_work_handler(k_work* work);
 
 static K_WORK_DELAYABLE_DEFINE(motor_controller_work, motor_controller_work_handler);
 
@@ -109,7 +109,6 @@ stop_motors()
         {
             motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "stop motors failed");
         }
-
     }
 }
 
@@ -135,11 +134,10 @@ enable_controller()
     {
         motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "enable controller failed");
     }
-
 }
 
 static void
-run_backward_motor( gpio_dt_spec* in1,  gpio_dt_spec* in2)
+run_backward_motor(gpio_dt_spec* in1, gpio_dt_spec* in2)
 {
     int err = 0;
     err |= gpio_pin_set_dt(in1, 0);
@@ -149,11 +147,10 @@ run_backward_motor( gpio_dt_spec* in1,  gpio_dt_spec* in2)
     {
         motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "Running motors backward failed");
     }
-
 }
 
 static void
-run_forward_motor( gpio_dt_spec* in1,  gpio_dt_spec* in2)
+run_forward_motor(gpio_dt_spec* in1, gpio_dt_spec* in2)
 {
     int err = 0;
     err |= gpio_pin_set_dt(in1, 1);
@@ -163,7 +160,6 @@ run_forward_motor( gpio_dt_spec* in1,  gpio_dt_spec* in2)
     {
         motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "Running motors forward failed");
     }
-
 }
 
 static void
@@ -202,7 +198,6 @@ set_new_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_per
     {
         motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "set pwm failed");
     }
-
 }
 
 // First check start flag - stop the motors if false.
@@ -221,7 +216,7 @@ update_motors_control()
 }
 
 static void
-motor_controller_work_handler( k_work* work)
+motor_controller_work_handler(k_work* work)
 {
     ARG_UNUSED(work);
 

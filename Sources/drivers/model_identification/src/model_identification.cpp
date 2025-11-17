@@ -10,16 +10,16 @@
 
 static Logging::Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identification_logger("MODEL");
 
-static const  gpio_dt_spec button      = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
-static  gpio_callback g_button_data_cb {};
+static const gpio_dt_spec button = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+static gpio_callback g_button_data_cb {};
 
-static  ring_buf g_buffers[BUFFER_COUNT]                          {};
+static ring_buf g_buffers[BUFFER_COUNT] {};
 static uint8_t g_buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)] {};
-static uint16_t g_buffer_index[BUFFER_COUNT]                            {};
-static bool g_is_full[BUFFER_COUNT]                                     {};
+static uint16_t g_buffer_index[BUFFER_COUNT] {};
+static bool g_is_full[BUFFER_COUNT] {};
 
 static void
-model_identification_work_handler( k_work* work);
+model_identification_work_handler(k_work* work);
 
 static K_WORK_DELAYABLE_DEFINE(model_identification_work, model_identification_work_handler);
 
@@ -44,7 +44,7 @@ new_regulator_data_for_identification(identification_data data)
 }
 
 void
-button_pressed(const  device* dev,  gpio_callback* cb, uint32_t pins);
+button_pressed(const device* dev, gpio_callback* cb, uint32_t pins);
 
 int
 identification_init()
@@ -57,14 +57,16 @@ identification_init()
     int ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
     if(ret != 0)
     {
-        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "GPIO pin configuration failed, err: %d", ret);
+        model_identification_logger.platform_log(
+            Logging::LOG_LEVEL::ERR, "GPIO pin configuration failed, err: %d", ret);
         return ret;
     }
 
     ret |= gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
     if(ret != 0)
     {
-        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
+        model_identification_logger.platform_log(
+            Logging::LOG_LEVEL::ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
         return ret;
     }
 
@@ -73,7 +75,7 @@ identification_init()
 
     if(ret != 0)
     {
-        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "GPIO callback add failed, err: %d", ret);
+        model_identification_logger.platform_log(Logging::LOG_LEVEL::ERR, "GPIO callback add failed, err: %d", ret);
         return ret;
     }
 
@@ -97,7 +99,7 @@ static void
 model_identification_stop();
 
 static void
-model_identification_work_handler( k_work* work)
+model_identification_work_handler(k_work* work)
 {
     ARG_UNUSED(work);
 
@@ -129,7 +131,8 @@ trigger_collecting_identification_data()
     int const err = k_work_submit(&model_identification_work.work);
     if(err != 0)
     {
-        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "Identification data collecting failed, err: %d", err);
+        model_identification_logger.platform_log(
+            Logging::LOG_LEVEL::ERR, "Identification data collecting failed, err: %d", err);
     }
 }
 
@@ -202,7 +205,7 @@ static void
 state_machine_update();
 
 void
-button_pressed(const  device* dev,  gpio_callback* cb, uint32_t pins)
+button_pressed(const device* dev, gpio_callback* cb, uint32_t pins)
 {
     state_machine_update();
 }

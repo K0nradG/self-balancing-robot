@@ -77,13 +77,13 @@ Main_State_Machine::parse_nus_commands(char const* data)
     char const command = data[0];
     switch(command)
     {
-        case STATE_MACHINE_START:
+        case BLE_Commands::State_Machine::START:
             if(m_state == READY_TO_START)
             {
                 m_flags.start = true;
             }
             break;
-        case STATE_MACHINE_STOP:
+        case BLE_Commands::State_Machine::STOP:
             if(m_state == NORMAL_OPERATION)
             {
                 m_flags.stop = true;

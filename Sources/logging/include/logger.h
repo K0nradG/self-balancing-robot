@@ -34,7 +34,7 @@ public:
     void
     platform_log(int level, const char* fmt, ...) const
     {
-#ifdef CONFIG_LOGGER_DRV     
+#ifdef CONFIG_LOGGER_DRV
         if constexpr(module_logging_enabled)
         {
             char log_msg[LOG_MSG_MAX_SIZE] {};
@@ -61,23 +61,23 @@ public:
                     level_str = "UNK";
                     break;
             }
-#endif // CONFIG_LOG_OVER_SERIAL || CONFIG_BLUETOOTH_DRV
+#endif  // CONFIG_LOG_OVER_SERIAL || CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_LOG_OVER_SERIAL
             printk("[%s] %s: %s\n", level_str, m_module, log_msg);
-#endif // CONFIG_LOG_OVER_SERIAL
+#endif  // CONFIG_LOG_OVER_SERIAL
 
 #ifdef CONFIG_BLUETOOTH_DRV
             ble_send(log_msg);
-#endif // CONFIG_BLUETOOTH_DRV
+#endif  // CONFIG_BLUETOOTH_DRV
 
-        } // module_logging_enabled
-        
-#endif // CONFIG_LOGGER_DRV
+        }  // module_logging_enabled
+
+#endif  // CONFIG_LOGGER_DRV
     }
 
 private:
     const char* m_module;
 };
 
-} // namespace Logging
+}  // namespace Logging

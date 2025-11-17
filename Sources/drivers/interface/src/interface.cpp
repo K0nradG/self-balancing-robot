@@ -2,23 +2,23 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
-#include "utils.h"
 #include "logger.h"
+#include "utils.h"
 
 static Logging::Logger<IS_ENABLED(CONFIG_INTERFACE_LOG)> interface_logger("INTERFACE");
 
-static const  gpio_dt_spec led_dev = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
+static const gpio_dt_spec led_dev = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 
 static uint16_t g_blinking_interval     = 0u;
 static bool g_periodic_blinking_started = false;
 
 static void
-led_toggle_work_handler( k_work* work);
+led_toggle_work_handler(k_work* work);
 
 static K_WORK_DELAYABLE_DEFINE(led_toggle_work, led_toggle_work_handler);
 
 static void
-led_toggle_work_handler( k_work* work)
+led_toggle_work_handler(k_work* work)
 {
     int const ret = gpio_pin_toggle_dt(&led_dev);
 

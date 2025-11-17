@@ -7,7 +7,7 @@
 static Logging::Logger<true> app_version_logger("APP_VERSION");
 
 static void
-get_app_version_work_handler( k_work* work)
+get_app_version_work_handler(k_work* work)
 {
     mcuboot_img_header hdr;
     int rc = boot_read_bank_header(FLASH_AREA_ID(image_0), &hdr, sizeof(hdr));
@@ -18,7 +18,8 @@ get_app_version_work_handler( k_work* work)
         return;
     }
 
-    app_version_logger.platform_log(Logging::LOG_LEVEL::INF, "App version: %u.%u.%u+%u", hdr.h.v1.sem_ver.major, hdr.h.v1.sem_ver.minor,
+    app_version_logger.platform_log(
+        Logging::LOG_LEVEL::INF, "App version: %u.%u.%u+%u", hdr.h.v1.sem_ver.major, hdr.h.v1.sem_ver.minor,
         hdr.h.v1.sem_ver.revision, hdr.h.v1.sem_ver.build_num);
 }
 

@@ -29,7 +29,7 @@ set_notif_status(bool nus_notification_enabled)
 static void
 data_selector(const char* data)
 {
-    if(data[0] == DFU_PREFIX)
+    if(data[0] == BLE_Commands::Prefix::DFU)
     {
         if(s_dfu_process_parser_cb)
         {
@@ -38,9 +38,9 @@ data_selector(const char* data)
         return;
     }
 
-    if((data[0] == REG_DISTANCE_PID_PREFIX) || (data[0] == REG_LINEAR_SPEED_PID_PREFIX) ||
-       (data[0] == REG_BALANCE_PID_PREFIX) || (data[0] == REG_ROTATE_PID_PREFIX) || (data[0] == REG_WHEEL_PID_PREFIX) ||
-       (data[0] == TRAJECTORY_MANAGER_PREFIX))
+    if((data[0] == BLE_Commands::Prefix::DISTANCE_PID) || (data[0] == BLE_Commands::Prefix::LINEAR_SPEED_PID) ||
+       (data[0] == BLE_Commands::Prefix::BALANCE_PID) || (data[0] == BLE_Commands::Prefix::ROTATE_PID) ||
+       (data[0] == BLE_Commands::Prefix::WHEEL_PID) || (data[0] == BLE_Commands::Prefix::TRAJECTORY_MANAGER))
     {
         if(s_regulator_parameters_parser_cb)
         {
@@ -48,7 +48,7 @@ data_selector(const char* data)
         }
     }
 
-    if(data[0] == STATE_MACHINE_PREFIX)
+    if(data[0] == BLE_Commands::Prefix::STATE_MACHINE)
     {
         data++;
         if(s_state_machine_commands_parser_cb)

@@ -36,7 +36,8 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
 
     while(*data)
     {
-        if((*data == TRAJECTORY_MANAGER_ROTATION) || (*data == TRAJECTORY_MANAGER_DISTANCE))
+        if((*data == BLE_Commands::Trajectory_Manager::ROTATION) ||
+           (*data == BLE_Commands::Trajectory_Manager::DISTANCE))
         {
             char key = *data;
             data++;
@@ -51,10 +52,10 @@ Trajectory_Manager::parse_trajectory_point(char const* data)
 
             switch(key)
             {
-                case TRAJECTORY_MANAGER_ROTATION:
+                case BLE_Commands::Trajectory_Manager::ROTATION:
                     new_rotation_angle_setpoint = value * deg_to_rad;
                     break;
-                case TRAJECTORY_MANAGER_DISTANCE:
+                case BLE_Commands::Trajectory_Manager::DISTANCE:
                     new_distance_setpoint = value;
                     break;
                 default:

@@ -14,15 +14,15 @@
 
 static Logging::Logger<IS_ENABLED(CONFIG_ENCODER_LOG)> encoder_logger("ENCODER");
 
-static const  gpio_dt_spec encoder_0_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_a_gpios);
-static const  gpio_dt_spec encoder_0_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_b_gpios);
-static const  gpio_dt_spec encoder_1_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_a_gpios);
-static const  gpio_dt_spec encoder_1_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_b_gpios);
+static const gpio_dt_spec encoder_0_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_a_gpios);
+static const gpio_dt_spec encoder_0_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_b_gpios);
+static const gpio_dt_spec encoder_1_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_a_gpios);
+static const gpio_dt_spec encoder_1_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_b_gpios);
 
-static  gpio_callback encoder_0_a_data;
-static  gpio_callback encoder_0_b_data;
-static  gpio_callback encoder_1_a_data;
-static  gpio_callback encoder_1_b_data;
+static gpio_callback encoder_0_a_data;
+static gpio_callback encoder_0_b_data;
+static gpio_callback encoder_1_a_data;
+static gpio_callback encoder_1_b_data;
 
 encoders_data g_encoders_data {};
 
@@ -48,7 +48,7 @@ static int8_t const transition_table[16u] = {
 };
 
 void
-encoder_0_gpio_callback(const  device* dev,  gpio_callback* cb, uint32_t pins)
+encoder_0_gpio_callback(const device* dev, gpio_callback* cb, uint32_t pins)
 {
     static uint8_t prev_state = 0u;
 
@@ -65,7 +65,7 @@ encoder_0_gpio_callback(const  device* dev,  gpio_callback* cb, uint32_t pins)
 }
 
 void
-encoder_1_gpio_callback(const  device* dev,  gpio_callback* cb, uint32_t pins)
+encoder_1_gpio_callback(const device* dev, gpio_callback* cb, uint32_t pins)
 {
     static uint8_t prev_state = 0u;
 

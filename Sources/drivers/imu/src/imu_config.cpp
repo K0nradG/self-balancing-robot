@@ -18,7 +18,7 @@
 
 static Logging::Logger<IS_ENABLED(CONFIG_IMU_LOG)> imu_logger("IMU");
 
-static const  i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(HDC_2080_NODE);
+static const i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(HDC_2080_NODE);
 
 static void
 set_sensor_settings(uint8_t reg, uint8_t _configuration)
@@ -29,7 +29,8 @@ set_sensor_settings(uint8_t reg, uint8_t _configuration)
     if(ret != 0)
     {
         imu_logger.platform_log(
-            Logging::LOG_LEVEL::ERR, "Failed to write I2C device %x at Reg. %x", dev_i2c.addr, (double)configuration[0]);
+            Logging::LOG_LEVEL::ERR, "Failed to write I2C device %x at Reg. %x", dev_i2c.addr,
+            (double)configuration[0]);
     }
     else
     {

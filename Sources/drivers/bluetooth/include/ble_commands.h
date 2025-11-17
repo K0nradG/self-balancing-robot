@@ -1,5 +1,4 @@
-#ifndef BLE_CMD_H
-#define BLE_CMD_H
+#pragma once
 
 /*These are the commands which comes from the ble central (control device - phone or 7002DK) to interact with robot*/
 
@@ -33,5 +32,3 @@
 
 #define TRAJECTORY_MANAGER_ROTATION 'r'
 #define TRAJECTORY_MANAGER_DISTANCE 'f'
-
-#endif /*BLE_CMD_H*/

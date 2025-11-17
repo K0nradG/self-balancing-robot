@@ -1,2 +1,3 @@
 rsource "drivers/Kconfig"
 rsource "robot_control/Kconfig"
+rsource "logging/Kconfig"

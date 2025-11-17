@@ -6,46 +6,33 @@
 #include <zephyr/sys/ring_buffer.h>
 #include "control_loop.h"
 #include "identification_data_send.h"
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_LOG
 #include "logger.h"
-#endif  // CONFIG_MODEL_IDENTIFICATION_LOG
 
-static const struct gpio_dt_spec button      = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
-static struct gpio_callback g_button_data_cb = {0};
+static Logging::Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identification_logger("MODEL");
 
-static struct ring_buf g_buffers[BUFFER_COUNT]                          = {0};
-static uint8_t g_buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)] = {0};
-static uint16_t g_buffer_index[BUFFER_COUNT]                            = {0};
-static bool g_is_full[BUFFER_COUNT]                                     = {0};
+static const  gpio_dt_spec button      = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
+static  gpio_callback g_button_data_cb {};
 
-static struct k_work_delayable model_identification_work;
+static  ring_buf g_buffers[BUFFER_COUNT]                          {};
+static uint8_t g_buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)] {};
+static uint16_t g_buffer_index[BUFFER_COUNT]                            {};
+static bool g_is_full[BUFFER_COUNT]                                     {};
 
-typedef struct imu_parameters
-{
-    float angle;
-    float angle_dt;
+static void
+model_identification_work_handler( k_work* work);
 
-} imu_parameters;
+static K_WORK_DELAYABLE_DEFINE(model_identification_work, model_identification_work_handler);
 
-typedef struct regulator_parameters
-{
-    float dt;
-    float pwm;
-
-} regulator_parameters;
-
-typedef enum identification_state
+enum identification_state
 {
     IDENTIFICATION_STOPPED,
     IDENTIFICATION_STARTED,
     TRIGGER_SENDING
-} identification_state;
+};
 
 static identification_state state = IDENTIFICATION_STOPPED;
 
-#if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
-static identification_data g_identification_data = {0};
+static identification_data g_identification_data {};
 
 void
 new_regulator_data_for_identification(identification_data data)
@@ -55,13 +42,12 @@ new_regulator_data_for_identification(identification_data data)
     g_identification_data.angle    = data.angle;
     g_identification_data.angle_dt = data.angle_dt;
 }
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 void
-button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins);
+button_pressed(const  device* dev,  gpio_callback* cb, uint32_t pins);
 
 int
-identification_init(void)
+identification_init()
 {
     if(!device_is_ready(button.port))
     {
@@ -71,14 +57,14 @@ identification_init(void)
     int ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
     if(ret != 0)
     {
-        platform_log("MODEL", LOG_LEVEL_ERR, "GPIO pin configuration failed, err: %d", ret);
+        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "GPIO pin configuration failed, err: %d", ret);
         return ret;
     }
 
     ret |= gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
     if(ret != 0)
     {
-        platform_log("MODEL", LOG_LEVEL_ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
+        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
         return ret;
     }
 
@@ -87,7 +73,7 @@ identification_init(void)
 
     if(ret != 0)
     {
-        platform_log("MODEL", LOG_LEVEL_ERR, "GPIO callback add failed, err: %d", ret);
+        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "GPIO callback add failed, err: %d", ret);
         return ret;
     }
 
@@ -102,16 +88,16 @@ identification_init(void)
 }
 
 static bool
-buffer_all_full(void);
+buffer_all_full();
 
 static bool
 buffer_put(uint8_t buffer_id, float data);
 
 static void
-model_identification_stop(void);
+model_identification_stop();
 
 static void
-model_identification_work_handler(struct k_work* work)
+model_identification_work_handler( k_work* work)
 {
     ARG_UNUSED(work);
 
@@ -134,12 +120,8 @@ model_identification_work_handler(struct k_work* work)
         }
     }
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_LOG
-    platform_log("IDENTIFICATION", LOG_LEVEL_INF, "PWM %d", (int)g_identification_data.pwm);
-#endif  // CONFIG_MODEL_IDENTIFICATION_LOG
+    model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "PWM %d", (int)g_identification_data.pwm);
 }
-
-static K_WORK_DELAYABLE_DEFINE(model_identification_work, model_identification_work_handler);
 
 void
 trigger_collecting_identification_data()
@@ -147,18 +129,18 @@ trigger_collecting_identification_data()
     int const err = k_work_submit(&model_identification_work.work);
     if(err != 0)
     {
-        platform_log("MODEL", LOG_LEVEL_ERR, "Identification data collecting failed, err: %d", err);
+        model_identification_logger.platform_log( Logging::LOG_LEVEL::ERR, "Identification data collecting failed, err: %d", err);
     }
 }
 
 void
-model_identification_start(void)
+model_identification_start()
 {
     start_control_loop();
 }
 
 static void
-model_identification_stop(void)
+model_identification_stop()
 {
     stop_control_loop();
 }
@@ -204,7 +186,7 @@ buffer_get(uint8_t buffer_id, float* data, uint16_t max_len)
 }
 
 static bool
-buffer_all_full(void)
+buffer_all_full()
 {
     for(int i = 0; i < BUFFER_COUNT; i++)
     {
@@ -217,19 +199,19 @@ buffer_all_full(void)
 }
 
 static void
-state_machine_update(void);
+state_machine_update();
 
 void
-button_pressed(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
+button_pressed(const  device* dev,  gpio_callback* cb, uint32_t pins)
 {
     state_machine_update();
 }
 
 static void
-buffers_reset(void);
+buffers_reset();
 
 static void
-state_machine_update(void)
+state_machine_update()
 {
     switch(state)
     {
@@ -257,13 +239,13 @@ state_machine_update(void)
 }
 
 void
-notify_data_sent(void)  // Used by identification_data_send to show that data has already been sent.
+notify_data_sent()  // Used by identification_data_send to show that data has already been sent.
 {
     state = IDENTIFICATION_STOPPED;
 }
 
 static void
-buffers_reset(void)
+buffers_reset()
 {
     for(int i = 0; i < BUFFER_COUNT; i++)
     {

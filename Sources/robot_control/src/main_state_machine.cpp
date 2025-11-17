@@ -69,7 +69,7 @@ Main_State_Machine::set_identification_state()
 void
 Main_State_Machine::parse_nus_commands(char const* data)
 {
-    if(data == nullptr || *data == '\0')
+    if((data == nullptr) || (*data == '\0'))
     {
         return;
     }

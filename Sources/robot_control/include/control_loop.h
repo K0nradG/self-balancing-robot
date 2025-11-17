@@ -7,10 +7,10 @@ extern "C" {
 #endif
 
 void
-trigger_control_loop(void);
+trigger_control_loop();
 
 void
-stop_control_loop(void);
+stop_control_loop();
 
 int
 control_loop_init();

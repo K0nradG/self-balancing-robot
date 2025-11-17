@@ -26,7 +26,7 @@ LQR::parse_nus_parameters(char const* data)
 
     while(*data)
     {
-        if(*data == 'x' || *data == 'y')
+        if((*data == 'x') || (*data == 'y'))
         {
             char key = *data;
             data++;

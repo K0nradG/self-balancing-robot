@@ -1,5 +1,4 @@
-#ifndef BLE_CONNECTION_H
-#define BLE_CONNECTION_H
+#pragma once
 
 #include <stdbool.h>
 
@@ -8,5 +7,3 @@ get_con_status();
 
 void
 set_con_status(bool connected_flag);
-
-#endif /*BLE_CONNECTION_H*/

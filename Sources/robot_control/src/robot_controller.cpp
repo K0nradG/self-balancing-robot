@@ -1,12 +1,11 @@
 #include "robot_controller.h"
 #include "ble_commands.h"
 #include "data_manager.h"
+#include "logger.h"
 #include "motor_controller.h"
 #include "saturation.h"
 
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-#include "logger.h"
-#endif  // CONFIG_ROBOT_CONTROL_LOG
+static Logging::Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
 namespace Robot_Control
 {
@@ -86,11 +85,10 @@ Robot_Controller::normal_motors_control()
         m_pwm1 = m_wheel1_speed_pid.calculate_output(
             target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
-#ifdef CONFIG_ROBOT_CONTROL_LOG
         if(!m_trajectory_manager.stop_logs())
         {
-            platform_log(
-                "APP", LOG_LEVEL_INF,
+            robot_control_logger.platform_log(
+                Logging::LOG_LEVEL::INF,
                 "ds: %f, d: %f, ts: %f, s: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: "
                 "%f,pwm0: %f, pwm1: %f",
                 (double)m_distance_setpoint, (double)encoders_data.robot_distance_m, (double)target_linear_speed,
@@ -102,7 +100,6 @@ Robot_Controller::normal_motors_control()
                 (double)encoders_data.encoder_0.angular_velocity_rad_s,
                 (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
         }
-#endif  // CONFIG_ROBOT_CONTROL_LOG
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
             .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,

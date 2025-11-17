@@ -1,25 +1,19 @@
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wdouble-promotion"
-
 #include "imu.h"
 #include <zephyr/init.h>
 #include "control_loop.h"
 #include "imu_config.h"
-
-#ifdef CONFIG_IMU_LOG
 #include "logger.h"
-#endif  // CONFIG_IMU_LOG
 
 #ifdef CONFIG_IMU_CALIBRATE_GYRO
 #define GYRO_CALIBRATION_SAMPLES 100000
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
 #define ALPHA               0.997f
-#define M_PI                3.14159265358979323846f
+#define PI                3.14159265358979323846f
 #define MILLI_PARTS_CONVERT 1e-03f
 
 #define ANGLE_OFFSET         -90.0f
-#define DEG_TO_RAD           (M_PI / 180.0f)
+#define DEG_TO_RAD           (PI / 180.0f)
 #define ACCELEROMETER_OFFSET (ANGLE_OFFSET * DEG_TO_RAD)
 
 // "Balancing" position measurement:
@@ -29,7 +23,7 @@
 #define GYRO_Z_DRIFT 0.005287f
 
 #ifdef CONFIG_IMU_CALIBRATE_GYRO
-typedef struct gyro_calibration_data
+ gyro_calibration_data
 {
     int sample_count;
     float gyro_offset_x;
@@ -40,29 +34,29 @@ typedef struct gyro_calibration_data
 static gyro_calibration_data g_calibration_data = {0};
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
-struct device const* imu_dev      = DEVICE_DT_GET_ONE(invensense_mpu6050);
-imu_data s_imu_data               = {0};
+static Logging::Logger<IS_ENABLED(CONFIG_IMU_LOG)> imu_logger("IMU");
+
+device const* imu_dev      = DEVICE_DT_GET_ONE(invensense_mpu6050);
+imu_data s_imu_data              {};
 static bool s_reset_balance_angle = false;
 
 static int
-process_imu(struct device const* dev);
+process_imu( device const* dev);
 
 #ifdef CONFIG_MPU6050_TRIGGER
 
-static struct sensor_trigger trigger = {0};
+static  sensor_trigger trigger {};
 
 // Interrupt handler:
 static void
-handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
+handle_imu_drdy( device const* dev,  sensor_trigger const* trig)
 {
     int const ret = process_imu(dev);  // Read and process IMU data
 
     if(ret != 0)
     {
-#ifdef CONFIG_IMU_LOG
-        platform_log("IMU", LOG_LEVEL_ERR, "imu not reading/processing data");
-#endif  // CONFIG_IMU_LOG
-        (void)sensor_trigger_set(dev, trig, NULL);
+        imu_logger.platform_log( Logging::LOG_LEVEL::ERR, "imu not reading/processing data");
+        (void)sensor_trigger_set(dev, trig, nullptr);
     }
 }
 
@@ -70,7 +64,7 @@ handle_imu_drdy(struct device const* dev, struct sensor_trigger const* trig)
 
 #ifdef CONFIG_IMU_CALIBRATE_GYRO
 void
-calibrate_gyro(struct sensor_value* gyro_data)
+calibrate_gyro( sensor_value* gyro_data)
 {
     static bool calibration_finished = false;
     if(calibration_finished)
@@ -91,11 +85,9 @@ calibrate_gyro(struct sensor_value* gyro_data)
         g_calibration_data.gyro_offset_y /= (float)GYRO_CALIBRATION_SAMPLES;
         g_calibration_data.gyro_offset_z /= (float)GYRO_CALIBRATION_SAMPLES;
 
-#ifdef CONFIG_IMU_LOG
-        platform_log(
-            "IMU", LOG_LEVEL_INF, "Gyro calibration complete: X = %f, Y = %f, Z = %f", g_calibration_data.gyro_offset_x,
+        imu_logger.platform_log(
+             Logging::LOG_LEVEL::INF, "Gyro calibration complete: X = %f, Y = %f, Z = %f", g_calibration_data.gyro_offset_x,
             g_calibration_data.gyro_offset_y, g_calibration_data.gyro_offset_z);
-#endif  // CONFIG_IMU_LOG
 
         calibration_finished = true;
     }
@@ -103,43 +95,33 @@ calibrate_gyro(struct sensor_value* gyro_data)
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
 int
-imu_init(void)
+imu_init()
 {
     bool const is_imu_device_ready = device_is_ready(imu_dev);
 
     if(!is_imu_device_ready)
     {
-#ifdef CONFIG_IMU_LOG
-        platform_log("IMU", LOG_LEVEL_ERR, "imu not ready");
-#endif  // CONFIG_IMU_LOG
-
+        imu_logger.platform_log( Logging::LOG_LEVEL::ERR, "imu not ready");
         return -ENODEV;
     }
 
 #ifdef CONFIG_MPU6050_TRIGGER
-    trigger = (struct sensor_trigger) {
+    trigger = ( sensor_trigger) {
         .type = SENSOR_TRIG_DATA_READY,  // Trigger when data is ready
         .chan = SENSOR_CHAN_ALL,         // Apply to all channels
     };
 
     if(sensor_trigger_set(imu_dev, &trigger, handle_imu_drdy) < 0)
     {
-#ifdef CONFIG_IMU_LOG
-        platform_log("IMU", LOG_LEVEL_ERR, "imu cannot configure trigger");
-#endif  // CONFIG_IMU_LOG
+        imu_logger.platform_log( Logging::LOG_LEVEL::ERR, "imu cannot configure trigger");
         return -ENODEV;
     }
 #endif  // CONFIG_MPU6050_TRIGGER
 
     set_dlpf();
-#ifdef CONFIG_IMU_LOG
-    platform_log("IMU", LOG_LEVEL_INF, "imu dlpf set");
-#endif  // CONFIG_IMU_LOG
+    imu_logger.platform_log( Logging::LOG_LEVEL::INF, "imu dlpf set");
 
-#ifdef CONFIG_IMU_LOG
-    platform_log("IMU", LOG_LEVEL_INF, "imu init finished");
-#endif  // CONFIG_IMU_LOG
-
+    imu_logger.platform_log( Logging::LOG_LEVEL::INF, "imu init finished");
     return 0;
 }
 
@@ -152,13 +134,13 @@ unwrap_accelerometer_angle(float accel_angle)
     static float prev_angle = 0.0f;
     float const delta       = accel_angle - prev_angle;
 
-    if(delta > M_PI)
+    if(delta > PI)
     {
-        accel_angle -= 2.0f * M_PI;
+        accel_angle -= 2.0f * PI;
     }
-    else if(delta < -M_PI)
+    else if(delta < -PI)
     {
-        accel_angle += 2.0f * M_PI;
+        accel_angle += 2.0f * PI;
     }
 
     prev_angle = accel_angle;
@@ -166,7 +148,7 @@ unwrap_accelerometer_angle(float accel_angle)
 }
 
 static imu_data
-get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data, struct sensor_value* temperature)
+get_data( sensor_value* accelerometer_data,  sensor_value* gyro_data,  sensor_value* temperature)
 {
     ARG_UNUSED(temperature);
 
@@ -193,10 +175,10 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
     float const gyro_rate_x = sensor_value_to_float(&gyro_data[0]) - GYRO_X_DRIFT;
     float const gyro_rate_y = sensor_value_to_float(&gyro_data[1]) - GYRO_Y_DRIFT;
 
-#if defined(CONFIG_IMU_LOG) && !defined(IMU_CALIBRATE_GYRO)
-    platform_log("IMU", LOG_LEVEL_INF, "angle: %f", (double)accel_angle * (180.0f / M_PI));
-    platform_log("IMU", LOG_LEVEL_INF, "gx: %f, gy: %f", (double)gyro_rate_x, (double)gyro_rate_y);
-#endif  // CONFIG_IMU_LOG
+#ifndef CONFIG_IMU_CALIBRATE_GYRO
+    imu_logger.platform_log( Logging::LOG_LEVEL::INF, "angle: %f", (double)(accel_angle * (180.0f / PI)));
+    imu_logger.platform_log( Logging::LOG_LEVEL::INF, "gx: %f, gy: %f", (double)gyro_rate_x, (double)gyro_rate_y);
+#endif // not CONFIG_IMU_CALIBRATE_GYRO
 
     angle_balance = ALPHA * (angle_balance + gyro_rate_x * dt) + (1.0f - ALPHA) * accel_angle;
 
@@ -212,11 +194,11 @@ get_data(struct sensor_value* accelerometer_data, struct sensor_value* gyro_data
 #endif  // not CONFIG_IMU_CALIBRATE_GYRO
 
 static int
-process_imu(struct device const* dev)
+process_imu( device const* dev)
 {
-    static struct sensor_value accelerometer_data[3] = {0};
-    static struct sensor_value gyro_data[3]          = {0};
-    static struct sensor_value temperature           = {0};
+    static  sensor_value accelerometer_data[3] {};
+    static  sensor_value gyro_data[3]          {};
+    static  sensor_value temperature           {};
 
     int ret = sensor_sample_fetch(dev);  // Fetch new data
 
@@ -226,9 +208,7 @@ process_imu(struct device const* dev)
 
     if(ret != 0)
     {
-#ifdef CONFIG_IMU_LOG
-        platform_log("IMU", LOG_LEVEL_ERR, "imu processing failed");
-#endif  // CONFIG_IMU_LOG
+        imu_logger.platform_log( Logging::LOG_LEVEL::ERR, "imu processing failed");
         stop_control_loop();
         return -ENODEV;
     }
@@ -244,13 +224,13 @@ process_imu(struct device const* dev)
 }
 
 imu_data
-_get_imu_data(void)
+_get_imu_data()
 {
     return s_imu_data;
 }
 
 void
-reset_imu_balance_angle(void)
+reset_imu_balance_angle()
 {
     s_reset_balance_angle = true;
 }

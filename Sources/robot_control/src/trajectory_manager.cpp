@@ -2,11 +2,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include "ble_commands.h"
+#include "logger.h"
 #include "trajectory_state_machine.h"
 
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-#include "logger.h"
-#endif  // CONFIG_ROBOT_CONTROL_LOG
+static Logging::Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> trajectory_manager_logger("TRAJECTORY");
 
 namespace Robot_Control
 {
@@ -118,9 +117,7 @@ Trajectory_Manager::update(float current_rotation_angle, float current_distance)
 void
 Trajectory_Manager::acknowledge_trajectory_completed()
 {
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-    platform_log("TRAJECTORY", LOG_LEVEL_INF, "finished");
-#endif  // CONFIG_ROBOT_CONTROL_LOG
+    trajectory_manager_logger.platform_log(Logging::LOG_LEVEL::INF, "finished");
     reset();
     m_state_machine.set_trajectory_acknowledged();
 }

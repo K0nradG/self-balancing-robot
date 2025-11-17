@@ -1,18 +1,7 @@
-#ifndef WATCHDOG_CONTROLLER_H
-#define WATCHDOG_CONTROLLER_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 int
-watchdog_controller_init(void);
+watchdog_controller_init();
 
 void
-feed_watchdog(void);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif  // WATCHDOG_CONTROLLER_H
+feed_watchdog();

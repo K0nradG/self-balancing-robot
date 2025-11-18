@@ -32,14 +32,14 @@ public:
     Logger(const char* module) : m_module(module) {}
 
     void
-    platform_log(int level, const char* fmt, ...) const
+    platform_log([[maybe_unused]] int level, [[maybe_unused]] char const* fmt, ...) const
     {
 #ifdef CONFIG_LOGGER_DRV
         if constexpr(module_logging_enabled)
         {
-            char log_msg[LOG_MSG_MAX_SIZE] {};
-            const char* level_str = nullptr;
-            va_list args {};
+            [[maybe_unused]] char log_msg[LOG_MSG_MAX_SIZE] {};
+            [[maybe_unused]] const char* level_str = nullptr;
+            [[maybe_unused]] va_list args {};
 
 #if defined(CONFIG_LOG_OVER_SERIAL) || defined(CONFIG_BLUETOOTH_DRV)
             va_start(args, fmt);
@@ -77,7 +77,7 @@ public:
     }
 
 private:
-    const char* m_module;
+    [[maybe_unused]] char const* m_module;
 };
 
 }  // namespace Logging

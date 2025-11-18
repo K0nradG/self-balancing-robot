@@ -6,6 +6,7 @@
 
 #define INIT_ERR -1
 
+/* Below values in [Ω]*/
 #define VOLTAGE_DIVIDER_RESISTOR_UP   100000
 #define VOLTAGE_DIVIDER_RESISTOR_DOWN 200000
 
@@ -72,41 +73,41 @@ battery_charge_level(int16_t voltage_mv)
     int16_t slope        = 0u;
     int32_t intercept    = 0u;
 
-    if(voltage_mv > CONFIG_MAX_BATTERY_LEVEL)
+    if(voltage_mv > CONFIG_MAX_BATTERY_LEVEL)  // 100%
     {
         charge_level = 100;
     }
-    else if(voltage_mv > 7900)
+    else if(voltage_mv > 7900)  // 100% - 80%
     {
         slope        = (100 - 80) / (CONFIG_MAX_BATTERY_LEVEL - 7900);
         intercept    = 100 - slope * CONFIG_MAX_BATTERY_LEVEL;
         charge_level = slope * voltage_mv + intercept;
     }
-    else if(voltage_mv > 7400)
+    else if(voltage_mv > 7400)  // 80% - 60%
     {
         slope        = (80 - 60) / (7900 - 7400);
         intercept    = 80 - slope * 7900;
         charge_level = slope * voltage_mv + intercept;
     }
-    else if(voltage_mv > 7000)
+    else if(voltage_mv > 7000)  // 60% - 30%
     {
         slope        = (60 - 30) / (7400 - 7000);
         intercept    = 60 - slope * 7400;
         charge_level = slope * voltage_mv + intercept;
     }
-    else if(voltage_mv > 6600)
+    else if(voltage_mv > 6600)  // 30% - 10%
     {
         slope        = (30 - 10) / (7000 - 6600);
         intercept    = 30 - slope * 7000;
         charge_level = slope * voltage_mv + intercept;
     }
-    else if(voltage_mv > CONFIG_MIN_BATTERY_LEVEL)
+    else if(voltage_mv > CONFIG_MIN_BATTERY_LEVEL)  // 10% - 0%
     {
         slope        = (10 - 0) / (6600 - CONFIG_MIN_BATTERY_LEVEL);
         intercept    = 10 - slope * 6600;
         charge_level = slope * voltage_mv + intercept;
     }
-    else
+    else  // 0%
     {
         charge_level = 0;
     }
@@ -183,6 +184,7 @@ battery_measurement_work_handler(struct k_work* work)
         battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "get battery lvl err: %d", ret);
     }
 
+    /* Batter measurement work is calls itself every measurement_interval ms*/
     reschedule_work(&battery_measurement_work, K_MSEC(measurement_interval), "Battery level measurement");
 }
 

@@ -118,7 +118,9 @@ Trajectory_Manager::update(float current_rotation_angle, float current_distance)
 void
 Trajectory_Manager::acknowledge_trajectory_completed()
 {
-    trajectory_manager_logger.platform_log(Logging::LOG_LEVEL::INF, "finished");
+    trajectory_manager_logger.platform_log(
+        Logging::LOG_LEVEL::INF, "%c%c", BLE_Commands::Prefix::TRAJECTORY_MANAGER,
+        BLE_Commands::Trajectory_Manager::TRAJECTORY_COMPLETED);
     reset();
     m_state_machine.set_trajectory_acknowledged();
 }

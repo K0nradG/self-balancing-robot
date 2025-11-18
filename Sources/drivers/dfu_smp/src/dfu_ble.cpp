@@ -28,7 +28,6 @@
 LOG_MODULE_REGISTER(dfu_ble, CONFIG_DFU_BLE_LOG_LEVEL);
 
 #define DFU_BLINKING_INTERVAL 100
-#define DEVICE_NAME           "SELF_BALANCING_ROBOT"
 
 static bt_le_adv_param const* adv_param =
     BT_LE_ADV_PARAM((BT_LE_ADV_OPT_CONNECTABLE | BT_LE_ADV_OPT_USE_IDENTITY), 800, 801, nullptr);
@@ -39,7 +38,7 @@ static const bt_data ad[] = {
 };
 
 static const bt_data sd[] = {
-    BT_DATA(BT_DATA_NAME_COMPLETE, DEVICE_NAME, sizeof(DEVICE_NAME) - 1),
+    BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
 typedef enum

@@ -1,71 +1,490 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Application Dashboard</title>
-<script src="/static/tailwind.js"></script>
-<style>
-body {
-  background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
-  background-size: 400% 400%;
-  animation: gradient 10s ease infinite;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-family: 'Inter', sans-serif;
-}
-.card {
-  background: white;
-  border-radius: 20px;
-  padding: 40px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  width: 700px;
-  text-align: center;
-}
-h1 { font-size: 2.2rem; font-weight: 800; margin-bottom: 1rem; color: #4f46e5; }
-.btn { font-size: 1.1rem; padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 600; margin: 0.25rem; cursor: pointer; }
-.btn-primary { background-color:#4f46e5; color:white; } .btn-primary:hover { background-color:#4338ca; }
-.btn-secondary { background-color:#6b7280; color:white; } .btn-secondary:hover { background-color:#4b5563; }
-.btn-success { background-color:#16a34a; color:white; } .btn-success:hover { background-color:#15803d; }
-pre { background:#111; color:#4ade80; padding:10px; border-radius:10px; height:220px; overflow-y:auto; text-align:left; }
-</style>
+  <meta charset="UTF-8">
+  <title>Application Dashboard</title>
+  <script src="/static/chart.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
+      background-size: 400% 400%;
+      animation: gradient 10s ease infinite;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Inter', sans-serif;
+    }
+
+    a.btn {
+      text-decoration: none;
+      display: inline-block;
+      font-size: 1.1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      margin: 0.25rem;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    a.btn-primary {
+      background-color: #4f46e5;
+      color: white;
+    }
+
+    a.btn-primary:hover {
+      background-color: #4338ca;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      width: 700px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: #4f46e5;
+    }
+
+    .btn {
+      font-size: 1.1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      margin: 0.25rem;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background-color: #4f46e5;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: #4338ca;
+    }
+
+    .btn-secondary {
+      background-color: #6b7280;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background-color: #4b5563;
+    }
+
+    .btn-success {
+      background-color: #16a34a;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background-color: #15803d;
+    }
+
+    pre {
+      background: #111;
+      color: #4ade80;
+      padding: 10px;
+      border-radius: 10px;
+      height: 220px;
+      overflow-y: auto;
+      text-align: left;
+    }
+
+    #status {
+      font-weight: 700;
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+
+    #robotControllerBtn {
+      display: none;
+    }
+  </style>
 </head>
+
 <body>
-<div class="card">
-<h1>Application Dashboard</h1>
+  <div class="card">
+    <h1>Application Dashboard</h1>
 
-<input type="text" id="bleAddress" placeholder="Enter BLE Address" class="border p-2 rounded mb-4 w-full">
-<div class="flex flex-wrap justify-center mb-4">
-  <button id="connectBtn" class="btn btn-primary">CONNECT</button>
-  <button id="disconnectBtn" class="btn btn-secondary">DISCONNECT</button>
-  <button id="startAppBtn" class="btn btn-success">START APPLICATION</button>
-  <button id="showLogsBtn" class="btn btn-primary">SHOW DEVICE LOGS</button>
-  <button id="hideLogsBtn" class="btn btn-secondary">HIDE DEVICE LOGS</button>
-</div>
+    <div id="status">
+      <span id="connIndicator" style="
+        display:inline-block;
+        width:12px;
+        height:12px;
+        border-radius:50%;
+        background:red;
+        margin-right:8px;
+        vertical-align:middle;">
+      </span>
+      <span id="connText">Connection: disconnected</span> |
+      <span id="appText">Application: wait for DFU</span> |
+      <span id="deviceText">Device: none</span>
+    </div>
 
-<pre id="logBox"></pre>
-</div>
+    <div class="flex flex-wrap justify-center mb-4">
+      <button id="connectBtn" class="btn btn-primary">CONNECT</button>
+      <button id="disconnectBtn" class="btn btn-secondary" style="display:none;">DISCONNECT</button>
+      <button id="startAppBtn" class="btn btn-success" style="display:none;">START APPLICATION</button>
+      <button id="showLogsBtn" class="btn btn-primary" style="display:none;">SHOW DEVICE LOGS</button>
+      <button id="hideLogsBtn" class="btn btn-secondary" style="display:none;">HIDE DEVICE LOGS</button>
+      <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
+      <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
+      <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
+      <a id="robotControllerBtn" href="/motion" class="btn btn-primary">ROBOT CONTROLLER</a>
+      <a id="backBtn" href="/" class="btn btn-primary">BACK</a>
 
-<script>
-const bleAddress = document.getElementById('bleAddress');
-const logBox = document.getElementById('logBox');
+    </div>
 
-async function post(path, data={}) {
-  const res = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)});
-  return await res.json();
-}
+    <pre id="logBox"></pre>
 
-document.getElementById('connectBtn').onclick = async () => {
-  const addr = bleAddress.value.trim();
-  if(!addr) { alert("Enter BLE address"); return; }
-  await post('/nus/connect', {address: addr});
-};
+    <div class="mt-6">
+      <canvas id="chartBattery" height="100"></canvas>
+      <canvas id="chartAngles" height="100"></canvas>
+      <canvas id="chartSpeeds" height="100"></canvas>
+      <canvas id="chartPWM" height="100"></canvas>
+    </div>
 
-document.getElementById('disconnectBtn').onclick = async () => { await post('/nus/disconnect'); };
-document.getElementById('startAppBtn').onclick = async () => { await post('/nus/send', {data:'ds'}); };
-document.getElementById('showLogsBtn').onclick = async () => { await post('/nus/notify_on'); };
-document.getElementById('hideLogsBtn').onclick = async () => { await post('/nus/notify_off'); };
-</script>
+  </div>
+
+  <script>
+    const addr = "C6:57:6E:61:F2:06";
+    const logBox = document.getElementById('logBox');
+    const statusEl = document.getElementById('status');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const startAppBtn = document.getElementById('startAppBtn');
+    const showLogsBtn = document.getElementById('showLogsBtn');
+    const hideLogsBtn = document.getElementById('hideLogsBtn');
+    const robotControllerBtn = document.getElementById('robotControllerBtn');
+    const enableBtn = document.getElementById('enableBtn');
+    const disableBtn = document.getElementById('disableBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const backBtn = document.getElementById('backBtn');
+
+    let connectionStatus = "disconnected";
+    let applicationStatus = "wait for DFU";
+    let isEnabled = false;
+    let chartUpdating = false;
+    downloadBtn.style.display = "none";
+
+    const chartData = {
+      time: [],
+      bat_lvl: [],
+      bs: [],
+      ab: [],
+      s0: [],
+      s1: [],
+      pwm0: [],
+      pwm1: []
+    };
+
+    const chartBattery = new Chart(document.getElementById('chartBattery'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Battery (%)',
+          data: [],
+          borderColor: 'rgb(34,197,94)',
+          tension: 0.2
+        }]
+      },
+      options: { scales: { y: { beginAtZero: true, max: 100 } } }
+    });
+
+    const chartAngles = new Chart(document.getElementById('chartAngles'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'bs (set)', data: [], borderColor: 'rgb(59,130,246)', tension: 0.2 },
+          { label: 'ab (actual)', data: [], borderColor: 'rgb(249,115,22)', tension: 0.2 }
+        ]
+      }
+    });
+
+    const chartSpeeds = new Chart(document.getElementById('chartSpeeds'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 's0', data: [], borderColor: 'rgb(99,102,241)', tension: 0.2 },
+          { label: 's1', data: [], borderColor: 'rgb(147,51,234)', tension: 0.2 }
+        ]
+      }
+    });
+
+    const chartPWM = new Chart(document.getElementById('chartPWM'), {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'pwm0', data: [], borderColor: 'rgb(220,38,38)', tension: 0.2 },
+          { label: 'pwm1', data: [], borderColor: 'rgb(234,179,8)', tension: 0.2 }
+        ]
+      },
+      options: { scales: { y: { min: -100, max: 100 } } }
+    });
+
+    // --- LOCAL STORAGE ---
+    function saveState() {
+      localStorage.setItem('connectionStatus', connectionStatus);
+      localStorage.setItem('applicationStatus', applicationStatus);
+      localStorage.setItem('isEnabled', isEnabled);
+    }
+
+    function loadState() {
+      connectionStatus = localStorage.getItem('connectionStatus') || "disconnected";
+      applicationStatus = localStorage.getItem('applicationStatus') || "wait for DFU";
+      isEnabled = (localStorage.getItem('isEnabled') === 'true');
+      updateUI();
+    }
+
+    function parseLogLine(line) {
+      if (line.includes("bat lvl")) {
+        const match = line.match(/bat lvl (\d+)/);
+        if (match) chartData.bat_lvl.push(parseInt(match[1]));
+      }
+      if (line.includes("bs:")) {
+        const regex = /bs:\s*([-0-9.]+).*ab:\s*([-0-9.]+).*s0:\s*([-0-9.]+).*s1:\s*([-0-9.]+).*pwm0:\s*([-0-9.]+).*pwm1:\s*([-0-9.]+)/;
+        const m = line.match(regex);
+        if (m) {
+          chartData.bs.push(parseFloat(m[1]));
+          chartData.ab.push(parseFloat(m[2]));
+          chartData.s0.push(parseFloat(m[3]));
+          chartData.s1.push(parseFloat(m[4]));
+          chartData.pwm0.push(parseFloat(m[5]));
+          chartData.pwm1.push(parseFloat(m[6]));
+          chartData.time.push(new Date().toLocaleTimeString());
+        }
+      }
+      if (chartData.time.length > 50) {  // 🧹 utrzymuj 50 punktów
+        for (const key in chartData) chartData[key].splice(0, 1);
+      }
+    }
+
+    async function fetchNUSLogs() {
+      try {
+        const res = await fetch('/nus/logs');
+        const data = await res.json();
+        if (Array.isArray(data.logs)) {
+          const lines = data.logs.slice(-10);
+          lines.forEach(parseLogLine);
+          logBox.textContent = data.logs.join('\n');
+          logBox.scrollTop = logBox.scrollHeight;
+          updateCharts();
+        }
+      } catch (err) {
+        console.warn('Błąd logów NUS:', err);
+      }
+    }
+
+    function updateCharts() {
+      chartBattery.data.labels = chartData.time;
+      chartBattery.data.datasets[0].data = chartData.bat_lvl;
+      chartBattery.update();
+
+      chartAngles.data.labels = chartData.time;
+      chartAngles.data.datasets[0].data = chartData.bs;
+      chartAngles.data.datasets[1].data = chartData.ab;
+      chartAngles.update();
+
+      chartSpeeds.data.labels = chartData.time;
+      chartSpeeds.data.datasets[0].data = chartData.s0;
+      chartSpeeds.data.datasets[1].data = chartData.s1;
+      chartSpeeds.update();
+
+      chartPWM.data.labels = chartData.time;
+      chartPWM.data.datasets[0].data = chartData.pwm0;
+      chartPWM.data.datasets[1].data = chartData.pwm1;
+      chartPWM.update();
+    }
+
+    function updateCharts() {
+      chartBattery.data.labels = chartData.time;
+      chartBattery.data.datasets[0].data = chartData.bat_lvl;
+      chartBattery.update();
+
+      chartAngles.data.labels = chartData.time;
+      chartAngles.data.datasets[0].data = chartData.bs;
+      chartAngles.data.datasets[1].data = chartData.ab;
+      chartAngles.update();
+
+      chartSpeeds.data.labels = chartData.time;
+      chartSpeeds.data.datasets[0].data = chartData.s0;
+      chartSpeeds.data.datasets[1].data = chartData.s1;
+      chartSpeeds.update();
+
+      chartPWM.data.labels = chartData.time;
+      chartPWM.data.datasets[0].data = chartData.pwm0;
+      chartPWM.data.datasets[1].data = chartData.pwm1;
+      chartPWM.update();
+    }
+
+    setInterval(() => {
+      if (hideLogsBtn.style.display === "inline-block" && chartUpdating) {
+        fetchNUSLogs();
+      }
+    }, 1000);
+
+    async function fetchConnectionStatus() {
+      try {
+        const res = await fetch('/nus/status');
+        const data = await res.json();
+
+        if (data.connected) {
+          connectionStatus = "connected";
+        } else {
+          connectionStatus = "disconnected";
+          applicationStatus = "wait for DFU";
+          isEnabled = false;
+        }
+
+        window.currentDeviceName = data.device_name || "Unknown";
+
+        if (data.notify_active) {
+          showLogsBtn.style.display = "none";
+          hideLogsBtn.style.display = "inline-block";
+        } else if (connectionStatus === "connected") {
+          showLogsBtn.style.display = "inline-block";
+          hideLogsBtn.style.display = "none";
+        }
+
+        updateUI();
+        saveState();
+      } catch (e) {
+        console.warn('NUS conn error:', e);
+      }
+    }
+
+    setInterval(fetchConnectionStatus, 1000);
+
+
+
+    // --- POST HELP ---
+    async function post(path, data = {}) {
+      const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+      return await res.json();
+    }
+
+    function updateUI() {
+      connectBtn.style.display = (connectionStatus === "disconnected") ? "inline-block" : "none";
+      disconnectBtn.style.display = (connectionStatus === "connected") ? "inline-block" : "none";
+
+      startAppBtn.style.display = (connectionStatus === "connected" && applicationStatus !== "application work") ? "inline-block" : "none";
+      showLogsBtn.style.display = (connectionStatus === "connected" && hideLogsBtn.style.display === "none") ? "inline-block" : "none";
+
+      enableBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work" && !isEnabled) ? "inline-block" : "none";
+      disableBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work" && isEnabled) ? "inline-block" : "none";
+
+      // robot controller only if connected AND application work
+      robotControllerBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work") ? "inline-block" : "none";
+
+      // status texts
+      const connIndicator = document.getElementById('connIndicator');
+      const connText = document.getElementById('connText');
+      const appText = document.getElementById('appText');
+      const deviceText = document.getElementById('deviceText');
+      connIndicator.style.background = (connectionStatus === "connected") ? "limegreen" : "red";
+
+      connText.textContent = `Connection: ${connectionStatus}`;
+      appText.textContent = `Application: ${applicationStatus}`;
+      deviceText.textContent = `Device: ${window.currentDeviceName || "none"}`;
+
+      connIndicator.style.background = (connectionStatus === "connected") ? "limegreen" : "red";
+    }
+
+    downloadBtn.onclick = () => {
+      const dataToSave = {
+        logs: logBox.textContent,
+        chartData: chartData
+      };
+      const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dashboard_data_${new Date().toISOString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+
+
+    async function setConnectionStatus(status) {
+      connectionStatus = status;
+      updateUI();
+      saveState();
+    }
+
+    async function setApplicationStatus(status) {
+      applicationStatus = status;
+      updateUI();
+      saveState();
+    }
+
+    // --- BUTTON EVENTS ---
+    connectBtn.onclick = async () => {
+      await setConnectionStatus("connecting");
+      await post('/nus/connect', { address: addr });
+      chartUpdating = true;
+    };
+
+    disconnectBtn.onclick = async () => {
+      await post('/nus/disconnect');
+      setConnectionStatus("disconnected");
+      setApplicationStatus("wait for DFU");
+      chartUpdating = false;
+      downloadBtn.style.display = "inline-block";
+    };
+
+    startAppBtn.onclick = async () => {
+      await post('/nus/send', { data: 'ds' });
+      setApplicationStatus("application work");
+    };
+
+    showLogsBtn.onclick = async () => {
+      await post('/nus/notify_on');
+      showLogsBtn.style.display = "none";
+      hideLogsBtn.style.display = "inline-block";
+    };
+
+    hideLogsBtn.onclick = async () => {
+      await post('/nus/notify_off');
+      hideLogsBtn.style.display = "none";
+      showLogsBtn.style.display = "inline-block";
+    };
+
+    enableBtn.onclick = async () => {
+      await post('/nus/send', { data: 'mb' });
+      isEnabled = true;
+      chartUpdating = true;
+      downloadBtn.style.display = "none";
+      updateUI();
+      saveState();
+    };
+
+    disableBtn.onclick = async () => {
+      await post('/nus/send', { data: 'ms' });
+      isEnabled = false;
+      chartUpdating = false;
+      downloadBtn.style.display = "inline-block";
+      updateUI();
+      saveState();
+    };
+
+    // --- INIT ---
+    loadState();
+  </script>
 </body>
+
 </html>

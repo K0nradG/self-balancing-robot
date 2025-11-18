@@ -39,8 +39,9 @@ enum State_Machine
 
 enum Trajectory_Manager
 {
-    ROTATION = 'r',
-    DISTANCE = 'f'
+    ROTATION             = 'r',
+    DISTANCE             = 'f',
+    TRAJECTORY_COMPLETED = 'c'
 };
 
 }  // namespace BLE_Commands

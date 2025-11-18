@@ -87,19 +87,25 @@ Robot_Controller::normal_motors_control()
 
         if(!m_trajectory_manager.stop_logs())
         {
-            robot_control_logger.platform_log(
-                Logging::LOG_LEVEL::INF,
-                "ds: %f, d: %f, ts: %f, s: %f, ad: %f, bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: "
-                "%f,pwm0: %f, pwm1: %f",
-                (double)m_distance_setpoint, (double)encoders_data.robot_distance_m, (double)target_linear_speed,
-                (double)encoders_data.robot_linear_speed, (double)(balance_angle_deviation * radian_degrees / pi),
-                (double)(m_balance_setpoint * radian_degrees / pi),
-                (double)(imu_data.angle_balance * radian_degrees / pi),
-                (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
-                (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
-                (double)encoders_data.encoder_0.angular_velocity_rad_s,
-                (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+            static float log_timer_ms = 0.0f;
+            log_timer_ms += imu_data.time_dt * 1000;
+
+            if(log_timer_ms >= CONFIG_ROBOT_CONTROL_LOG_NUS_PERIOD_MS)
+            {
+                log_timer_ms = 0.0f;
+
+                robot_control_logger.platform_log(
+                    Logging::LOG_LEVEL::INF,
+                    "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
+                    (double)(m_balance_setpoint * radian_degrees / pi),
+                    (double)(imu_data.angle_balance * radian_degrees / pi),
+                    (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
+                    (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
+                    (double)encoders_data.encoder_0.angular_velocity_rad_s,
+                    (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+            }
         }
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
             .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
@@ -148,80 +154,88 @@ Robot_Controller::parse_nus_data(char const* data)
         return;
     }
 
-    char const key      = data[0];
-    char const* payload = data + 1;
-
-    switch(key)
+    while(*data)
     {
-        case BLE_Commands::Prefix::DISTANCE_PID:
-            if((*payload == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
-            {
-                payload++;
+        char const key      = data[0];
+        char const* payload = data + 1;
+        if(payload == nullptr)
+        {
+            return;
+        }
 
-                char buffer[16];
-                snprintf(buffer, sizeof(buffer), "%s", payload);
+        data++;  // payload
+        switch(key)
+        {
+            case BLE_Commands::Prefix::DISTANCE_PID:
+                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
+                {
+                    data++;
 
-                char* endptr        = nullptr;
-                float val           = strtof(buffer, &endptr);
-                m_distance_setpoint = val;
-            }
-            else
-            {
-                m_distance_pid.parse_nus_parameters(payload);
-            }
-            break;
-        case BLE_Commands::Prefix::LINEAR_SPEED_PID:
-            m_linear_speed_pid.parse_nus_parameters(payload);
-            break;
-        case BLE_Commands::Prefix::BALANCE_PID:
-            if(*payload == BLE_Commands::Regulator::SETPOINT)
-            {
-                payload++;
+                    char buffer[16];
+                    snprintf(buffer, sizeof(buffer), "%s", data);
 
-                char buffer[16];
-                snprintf(buffer, sizeof(buffer), "%s", payload);
+                    char* endptr        = nullptr;
+                    float val           = strtof(buffer, &endptr);
+                    m_distance_setpoint = val;
+                }
+                else
+                {
+                    m_distance_pid.parse_nus_parameters(data);
+                }
+                break;
+            case BLE_Commands::Prefix::LINEAR_SPEED_PID:
+                m_linear_speed_pid.parse_nus_parameters(data);
+                break;
+            case BLE_Commands::Prefix::BALANCE_PID:
+                if(*data == BLE_Commands::Regulator::SETPOINT)
+                {
+                    data++;
 
-                char* endptr       = nullptr;
-                float val          = strtof(buffer, &endptr);
-                m_balance_setpoint = val * (pi / radian_degrees);
-            }
-            else
-            {
+                    char buffer[16];
+                    snprintf(buffer, sizeof(buffer), "%s", data);
+
+                    char* endptr       = nullptr;
+                    float val          = strtof(buffer, &endptr);
+                    m_balance_setpoint = val * (pi / radian_degrees);
+                }
+                else
+                {
 #ifdef CONFIG_PID_ENABLED
-                m_balance_pid.parse_nus_parameters(payload);
+                    m_balance_pid.parse_nus_parameters(data);
 #else
-                m_balance_lqr.parse_nus_parameters(payload);
+                    m_balance_lqr.parse_nus_parameters(data);
 #endif  // CONFIG_PID_ENABLED
-            }
-            break;
-        case BLE_Commands::Prefix::ROTATE_PID:
-            if((*payload == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
-            {
-                payload++;
+                }
+                break;
+            case BLE_Commands::Prefix::ROTATE_PID:
+                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
+                {
+                    data++;
 
-                char buffer[16];
-                snprintf(buffer, sizeof(buffer), "%s", payload);
+                    char buffer[16];
+                    snprintf(buffer, sizeof(buffer), "%s", data);
 
-                char* endptr = nullptr;
-                float val    = strtof(buffer, &endptr);
-                m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
-            }
-            else
-            {
-                m_rotate_pid.parse_nus_parameters(payload);
-            }
-            break;
-        case BLE_Commands::Prefix::WHEEL_PID:
-            m_wheel0_speed_pid.parse_nus_parameters(payload);
-            m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
-            break;
-        case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
-            if(!m_trajectory_manager.trajectory_started())
-            {
-                m_trajectory_manager.parse_trajectory_point(payload);
-            }
-        default:
-            break;
+                    char* endptr = nullptr;
+                    float val    = strtof(buffer, &endptr);
+                    m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
+                }
+                else
+                {
+                    m_rotate_pid.parse_nus_parameters(data);
+                }
+                break;
+            case BLE_Commands::Prefix::WHEEL_PID:
+                m_wheel0_speed_pid.parse_nus_parameters(data);
+                m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
+                break;
+            case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
+                if(!m_trajectory_manager.trajectory_started())
+                {
+                    m_trajectory_manager.parse_trajectory_point(data);
+                }
+            default:
+                break;
+        }
     }
 }
 #endif  // CONFIG_BLUETOOTH_DRV

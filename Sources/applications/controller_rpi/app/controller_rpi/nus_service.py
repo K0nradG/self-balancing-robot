@@ -19,6 +19,9 @@ class NUSClient:
         self.client = BleakClient(address)
         self.connected = False
         self._notify_active = False
+        self.on_data = None
+        self.device_name = None
+        self.on_trajectory_ack = None 
 
     async def connect(self):
         try:
@@ -26,7 +29,13 @@ class NUSClient:
             await self.client.connect()
             self.connected = self.client.is_connected if isinstance(self.client.is_connected, bool) else await self.client.is_connected()
             if self.connected:
-                logger.info("Połączono z %s", self.address)
+                try:
+                    self.device_name = await self.client.read_gatt_char("00002a00-0000-1000-8000-00805f9b34fb")
+                    self.device_name = self.device_name.decode("utf-8", errors="ignore")
+                    logger.info("Połączono z %s (device name: %s)", self.address, self.device_name)
+                except Exception:
+                    self.device_name = None
+                    logger.warning("Nie udało się pobrać nazwy urządzenia.")
             else:
                 logger.error("Nie udało się połączyć.")
         except Exception as e:
@@ -80,8 +89,7 @@ class NUSClient:
         except Exception as e:
             logger.exception("Błąd przy wyłączaniu notify: %s", e)
 
-    @staticmethod
-    def notify_handler(sender_handle, data: bytearray):
+    def notify_handler(self,sender_handle, data: bytearray):
         try:
             text = data.decode("utf-8", errors="replace")
         except Exception:
@@ -90,6 +98,31 @@ class NUSClient:
         logger.info("NOTIFY [%s]: hex=%s text=%r", sender_handle, hex_data, text)
         print(f"NOTIFY: {text}")
 
+        if not text:
+            return
+
+        if self.on_data:
+            try:
+                self.on_data(text)
+            except Exception as e:
+                logger.warning("Error NUS on_data callback: %s", e)
+
+        # special callback for wathcing trajectory ack in latest logs
+        if "tc" in text.lower():
+            if self.on_trajectory_ack:
+                try:
+                    self.on_trajectory_ack(text)
+                except Exception as e:
+                    logger.warning("Error NUS on_trajectory_ack callback: %s", e)
+
+    
+    def get_status(self) -> dict:
+        return {
+            "connected": self.connected,
+            "notify_active": self._notify_active,
+            "address": self.address,
+            "device_name": self.device_name or "Unknown device"
+        }
 
 # Asynchroniczny input (non-blocking)
 async def async_input(prompt: str = "") -> str:

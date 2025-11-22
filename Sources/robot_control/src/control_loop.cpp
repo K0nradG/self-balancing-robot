@@ -15,10 +15,13 @@
 #include "ble_service.h"
 #endif  // CONFIG_BLUETOOTH_DRV
 
-static Logging::Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
+static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
-static Robot_Control::Robot_Controller s_robot_controller {};
-static Robot_Control::Main_State_Machine s_main_state_machine {};
+namespace Robot_Control
+{
+
+static Robot_Controller s_robot_controller {};
+static Main_State_Machine s_main_state_machine {};
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 send_identification_data_cb_t g_send_identification_data_cb = nullptr;
@@ -42,7 +45,7 @@ parse_nus_commands_callback(char const* data)
 int
 control_loop_init()
 {
-    Robot_Control::Drivers_Initializer::init();
+    Drivers_Initializer::init();
 
 #ifdef CONFIG_BLUETOOTH_DRV
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
@@ -51,7 +54,7 @@ control_loop_init()
 
     set_enable_controller(true);
 
-    robot_control_logger.platform_log(Logging::LOG_LEVEL::INF, "Robot control init finished");
+    robot_control_logger.platform_log(LOG_LEVEL::INF, "Robot control init finished");
 
     return 0;
 }
@@ -64,7 +67,7 @@ control_loop_work_handler(k_work* work)
     feed_watchdog();
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
-    using State = Robot_Control::Main_State_Machine::State;
+    using State = Main_State_Machine::State;
 
     s_main_state_machine.update();
     State const state = s_main_state_machine.get_state();
@@ -123,3 +126,5 @@ new_send_identification_data_cb_register(send_identification_data_cb_t new_send_
     }
 }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
+}  // namespace Robot_Control

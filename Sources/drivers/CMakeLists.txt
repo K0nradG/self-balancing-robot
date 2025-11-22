@@ -1,3 +1,5 @@
+add_subdirectory(logger)
+
 if(DEFINED CONFIG_BATTERY_LEVEL_DRV OR DEFINED CONFIG_INTERFACE_DRV OR DEFINED CONFIG_CONTROLLER_APP)
     add_subdirectory(utils)
 endif()

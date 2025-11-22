@@ -5,7 +5,7 @@
 #include "logger.h"
 #include "utils.h"
 
-static Logging::Logger<IS_ENABLED(CONFIG_INTERFACE_LOG)> interface_logger("INTERFACE");
+static Logger<IS_ENABLED(CONFIG_INTERFACE_LOG)> interface_logger("INTERFACE");
 
 static const gpio_dt_spec led_dev = GPIO_DT_SPEC_GET(DT_ALIAS(led0), gpios);
 
@@ -24,7 +24,7 @@ led_toggle_work_handler(k_work* work)
 
     if(ret != 0)
     {
-        interface_logger.platform_log(Logging::LOG_LEVEL::ERR, "LED toggle failed, err: %d", ret);
+        interface_logger.platform_log(LOG_LEVEL::ERR, "LED toggle failed, err: %d", ret);
         return;
     }
     reschedule_work(&led_toggle_work, K_MSEC(g_blinking_interval), "led blink");
@@ -35,7 +35,7 @@ interface_init()
 {
     if(!device_is_ready(led_dev.port))
     {
-        interface_logger.platform_log(Logging::LOG_LEVEL::ERR, "led not ready");
+        interface_logger.platform_log(LOG_LEVEL::ERR, "led not ready");
         return -ENODEV;
     }
 
@@ -43,11 +43,11 @@ interface_init()
 
     if(ret != 0)
     {
-        interface_logger.platform_log(Logging::LOG_LEVEL::ERR, "led pins not ready");
+        interface_logger.platform_log(LOG_LEVEL::ERR, "led pins not ready");
         return ret;
     }
 
-    interface_logger.platform_log(Logging::LOG_LEVEL::INF, "led init finished");
+    interface_logger.platform_log(LOG_LEVEL::INF, "led init finished");
     return ret;
 }
 
@@ -56,7 +56,7 @@ led_start_periodic_blinking(uint16_t blinking_interval)
 {
     if(g_periodic_blinking_started)
     {
-        interface_logger.platform_log(Logging::LOG_LEVEL::ERR, "led worker already started");
+        interface_logger.platform_log(LOG_LEVEL::ERR, "led worker already started");
     }
 
     g_periodic_blinking_started = true;
@@ -70,7 +70,7 @@ led_stop_periodic_blinking()
 {
     if(!g_periodic_blinking_started)
     {
-        interface_logger.platform_log(Logging::LOG_LEVEL::ERR, "led worker not started");
+        interface_logger.platform_log(LOG_LEVEL::ERR, "led worker not started");
     }
 
     g_periodic_blinking_started = false;
@@ -78,8 +78,8 @@ led_stop_periodic_blinking()
     int const ret = k_work_cancel_delayable(&led_toggle_work);
     if(ret != 0)
     {
-        interface_logger.platform_log(Logging::LOG_LEVEL::ERR, "cancel led work err:%d", ret);
+        interface_logger.platform_log(LOG_LEVEL::ERR, "cancel led work err:%d", ret);
         return;
     }
-    interface_logger.platform_log(Logging::LOG_LEVEL::DBG, "led blink work cancelled");
+    interface_logger.platform_log(LOG_LEVEL::DBG, "led blink work cancelled");
 }

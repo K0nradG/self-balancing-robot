@@ -1,3 +1,2 @@
 add_subdirectory(drivers)
 add_subdirectory(robot_control)
-add_subdirectory(logging)

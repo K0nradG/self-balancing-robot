@@ -10,7 +10,7 @@
 #define DIRECTION_CONTROL_PINS_BEGIN_IDX 1u
 #define PWM_PERIOD_NS                    PWM_USEC(CONFIG_PWM_PERIOD_US)
 
-static Logging::Logger<IS_ENABLED(CONFIG_MOTOR_CONTROLLER_LOG)> motor_controller_logger("MOTOR_CONTROLLER");
+static Logger<IS_ENABLED(CONFIG_MOTOR_CONTROLLER_LOG)> motor_controller_logger("MOTOR_CONTROLLER");
 
 static bool g_controller_enabled = false;
 static MOTORS_DATA g_motors_data = {.duty_cycle_percent_motor0 = 0u, .duty_cycle_percent_motor1 = 0u, .start = false};
@@ -77,7 +77,7 @@ motor_controller_init()
     if(!device_is_ready(a_in1.port) || !device_is_ready(a_in2.port) || !device_is_ready(b_in1.port) ||
        !device_is_ready(b_in2.port) || !device_is_ready(h_b_en.port) || !pwm_is_ready_dt(&pwm_dc_2))
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "motors pwm not ready");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "motors pwm not ready");
         return -ENODEV;
     }
 
@@ -90,11 +90,11 @@ motor_controller_init()
 
     if(ret != 0)
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "motors pins not ready");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "motors pins not ready");
         return ret;
     }
 
-    motor_controller_logger.platform_log(Logging::LOG_LEVEL::INF, "motors init finished");
+    motor_controller_logger.platform_log(LOG_LEVEL::INF, "motors init finished");
     return ret;
 }
 
@@ -107,7 +107,7 @@ stop_motors()
 
         if(ret != 0)
         {
-            motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "stop motors failed");
+            motor_controller_logger.platform_log(LOG_LEVEL::ERR, "stop motors failed");
         }
     }
 }
@@ -119,7 +119,7 @@ disable_controller()
 
     if(ret != 0)
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "stop controller failed");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "stop controller failed");
     }
 
     stop_motors();
@@ -132,7 +132,7 @@ enable_controller()
 
     if(ret != 0)
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "enable controller failed");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "enable controller failed");
     }
 }
 
@@ -145,7 +145,7 @@ run_backward_motor(gpio_dt_spec* in1, gpio_dt_spec* in2)
 
     if(err != 0)
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "Running motors backward failed");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "Running motors backward failed");
     }
 }
 
@@ -158,7 +158,7 @@ run_forward_motor(gpio_dt_spec* in1, gpio_dt_spec* in2)
 
     if(err != 0)
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "Running motors forward failed");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "Running motors forward failed");
     }
 }
 
@@ -196,7 +196,7 @@ set_new_duty_cycle_value(int8_t duty_cycle_percent_motor0, int8_t duty_cycle_per
 
     if(err != 0)
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "set pwm failed");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "set pwm failed");
     }
 }
 
@@ -238,6 +238,6 @@ trigger_motors_update()
 
     if(err != 0)
     {
-        motor_controller_logger.platform_log(Logging::LOG_LEVEL::ERR, "Motors update trigger failed");
+        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "Motors update trigger failed");
     }
 }

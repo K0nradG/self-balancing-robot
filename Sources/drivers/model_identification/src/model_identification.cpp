@@ -8,7 +8,7 @@
 #include "identification_data_send.h"
 #include "logger.h"
 
-static Logging::Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identification_logger("MODEL");
+static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identification_logger("MODEL");
 
 static const gpio_dt_spec button = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
 static gpio_callback g_button_data_cb {};
@@ -57,8 +57,7 @@ identification_init()
     int ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
     if(ret != 0)
     {
-        model_identification_logger.platform_log(
-            Logging::LOG_LEVEL::ERR, "GPIO pin configuration failed, err: %d", ret);
+        model_identification_logger.platform_log(LOG_LEVEL::ERR, "GPIO pin configuration failed, err: %d", ret);
         return ret;
     }
 
@@ -66,7 +65,7 @@ identification_init()
     if(ret != 0)
     {
         model_identification_logger.platform_log(
-            Logging::LOG_LEVEL::ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
+            LOG_LEVEL::ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
         return ret;
     }
 
@@ -75,7 +74,7 @@ identification_init()
 
     if(ret != 0)
     {
-        model_identification_logger.platform_log(Logging::LOG_LEVEL::ERR, "GPIO callback add failed, err: %d", ret);
+        model_identification_logger.platform_log(LOG_LEVEL::ERR, "GPIO callback add failed, err: %d", ret);
         return ret;
     }
 
@@ -122,7 +121,7 @@ model_identification_work_handler(k_work* work)
         }
     }
 
-    model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "PWM %d", (int)g_identification_data.pwm);
+    model_identification_logger.platform_log(LOG_LEVEL::INF, "PWM %d", (int)g_identification_data.pwm);
 }
 
 void
@@ -131,8 +130,7 @@ trigger_collecting_identification_data()
     int const err = k_work_submit(&model_identification_work.work);
     if(err != 0)
     {
-        model_identification_logger.platform_log(
-            Logging::LOG_LEVEL::ERR, "Identification data collecting failed, err: %d", err);
+        model_identification_logger.platform_log(LOG_LEVEL::ERR, "Identification data collecting failed, err: %d", err);
     }
 }
 

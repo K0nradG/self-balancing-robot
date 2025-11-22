@@ -31,7 +31,7 @@ namespace Robot_Control
 void
 Drivers_Initializer::init()
 {
-    int ret = 0;
+    [[maybe_unused]] int ret = 0;
 
 #ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
     ret = watchdog_controller_init();

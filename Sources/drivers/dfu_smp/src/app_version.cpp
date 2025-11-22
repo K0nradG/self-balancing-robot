@@ -4,7 +4,7 @@
 #include "dfu_ble.h"
 #include "logger.h"
 
-static Logging::Logger<true> app_version_logger("APP_VERSION");
+static Logger<true> app_version_logger("APP_VERSION");
 
 static void
 get_app_version_work_handler(k_work* work)
@@ -14,12 +14,12 @@ get_app_version_work_handler(k_work* work)
 
     if(rc != 0)
     {
-        app_version_logger.platform_log(Logging::LOG_LEVEL::INF, "Failed to read image header (rc=%d)", rc);
+        app_version_logger.platform_log(LOG_LEVEL::INF, "Failed to read image header (rc=%d)", rc);
         return;
     }
 
     app_version_logger.platform_log(
-        Logging::LOG_LEVEL::INF, "App version: %u.%u.%u+%u", hdr.h.v1.sem_ver.major, hdr.h.v1.sem_ver.minor,
+        LOG_LEVEL::INF, "App version: %u.%u.%u+%u", hdr.h.v1.sem_ver.major, hdr.h.v1.sem_ver.minor,
         hdr.h.v1.sem_ver.revision, hdr.h.v1.sem_ver.build_num);
 }
 

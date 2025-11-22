@@ -16,7 +16,7 @@
 
 #define HDC_2080_NODE DT_INST(0, invensense_mpu6050)
 
-static Logging::Logger<IS_ENABLED(CONFIG_IMU_LOG)> imu_logger("IMU");
+static Logger<IS_ENABLED(CONFIG_IMU_LOG)> imu_logger("IMU");
 
 static const i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(HDC_2080_NODE);
 
@@ -29,12 +29,11 @@ set_sensor_settings(uint8_t reg, uint8_t _configuration)
     if(ret != 0)
     {
         imu_logger.platform_log(
-            Logging::LOG_LEVEL::ERR, "Failed to write I2C device %x at Reg. %x", dev_i2c.addr,
-            (double)configuration[0]);
+            LOG_LEVEL::ERR, "Failed to write I2C device %x at Reg. %x", dev_i2c.addr, (double)configuration[0]);
     }
     else
     {
-        imu_logger.platform_log(Logging::LOG_LEVEL::INF, "I2C reg write successful.");
+        imu_logger.platform_log(LOG_LEVEL::INF, "I2C reg write successful.");
     }
 }
 
@@ -47,7 +46,7 @@ get_sensor_settings(uint8_t reg, uint8_t* value)
     ret = i2c_write_dt(&dev_i2c, &reg_addr, sizeof(reg_addr));
     if(ret != 0)
     {
-        imu_logger.platform_log(Logging::LOG_LEVEL::ERR, "Failed to write register address %x", reg);
+        imu_logger.platform_log(LOG_LEVEL::ERR, "Failed to write register address %x", reg);
         return ret;
     }
 
@@ -55,11 +54,11 @@ get_sensor_settings(uint8_t reg, uint8_t* value)
     ret = i2c_read_dt(&dev_i2c, value, sizeof(*value));
     if(ret != 0)
     {
-        imu_logger.platform_log(Logging::LOG_LEVEL::ERR, "Failed to read value from register %x", reg);
+        imu_logger.platform_log(LOG_LEVEL::ERR, "Failed to read value from register %x", reg);
         return ret;
     }
 
-    imu_logger.platform_log(Logging::LOG_LEVEL::INF, "I2C reg read successful: Reg %x, Value %x", reg, *value);
+    imu_logger.platform_log(LOG_LEVEL::INF, "I2C reg read successful: Reg %x, Value %x", reg, *value);
     return ret;
 }
 
@@ -70,7 +69,7 @@ mpu_reset(uint8_t conf)
     int const err = get_sensor_settings(PWR_MGMT_1, &tmp);
     if(err != 0)
     {
-        imu_logger.platform_log(Logging::LOG_LEVEL::ERR, "Failed to get MPU settings, err: %d", err);
+        imu_logger.platform_log(LOG_LEVEL::ERR, "Failed to get MPU settings, err: %d", err);
         return;
     }
 
@@ -86,7 +85,7 @@ set_dlpf()
     int const err = get_sensor_settings(DLPF_REG_ADDR, &tmp);
     if(err != 0)
     {
-        imu_logger.platform_log(Logging::LOG_LEVEL::ERR, "Failed to get MPU settings, err: %d", err);
+        imu_logger.platform_log(LOG_LEVEL::ERR, "Failed to get MPU settings, err: %d", err);
         return;
     }
 

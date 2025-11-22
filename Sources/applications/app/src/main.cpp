@@ -1,5 +1,7 @@
 #include "logger.h"
 
+static Logger<IS_ENABLED(CONFIG_APP_LOG)> app_logger("APP");
+
 #ifdef CONFIG_INTERFACE_DRV
 #include "interface.h"
 #define BLINKING_INTERVAL 500
@@ -9,13 +11,11 @@
 #include "battery_level.h"
 #define MEASUREMENT_INTERVAL 9000
 
-static Logging::Logger<IS_ENABLED(CONFIG_APP_LOG)> app_logger("APP");
-
 static void
 new_battery_level_callback(battery_level_data data)
 {
-    app_logger.platform_log(Logging::LOG_LEVEL::INF, "bat lvl %u", data.battery_level_percent);
-    app_logger.platform_log(Logging::LOG_LEVEL::INF, "bat lvl mv %u", data.battery_level_mv);
+    app_logger.platform_log(LOG_LEVEL::INF, "bat lvl %u", data.battery_level_percent);
+    app_logger.platform_log(LOG_LEVEL::INF, "bat lvl mv %u", data.battery_level_mv);
 }
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
@@ -47,22 +47,22 @@ main()
     // wait for dfu action from dfu module before starting main app
     k_sem_take(&start_app_sem, K_FOREVER);
 
-    app_logger.platform_log(Logging::LOG_LEVEL::INF, "Application started.");
+    app_logger.platform_log(LOG_LEVEL::INF, "Application started.");
 #ifdef CONFIG_INTERFACE_DRV
     led_start_periodic_blinking(BLINKING_INTERVAL);
-    app_logger.platform_log(Logging::LOG_LEVEL::INF, "Interface driver is enabled.");
+    app_logger.platform_log(LOG_LEVEL::INF, "Interface driver is enabled.");
 #endif  // CONFIG_INTERFACE_DRV
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
     new_battery_level_cb_register(new_battery_level_callback);
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
-    app_logger.platform_log(Logging::LOG_LEVEL::INF, "Battery level driver is enabled.");
+    app_logger.platform_log(LOG_LEVEL::INF, "Battery level driver is enabled.");
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_ROBOT_CONTROL
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     new_send_identification_data_cb_register(new_regulator_data_for_identification);
-    app_logger.platform_log(Logging::LOG_LEVEL::INF, "Model identification driver is enabled.");
+    app_logger.platform_log(LOG_LEVEL::INF, "Model identification driver is enabled.");
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 #endif  // CONFIG_ROBOT_CONTROL
 }

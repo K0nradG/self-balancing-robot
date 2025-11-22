@@ -3,7 +3,7 @@
 #include "logger.h"
 #include "model_identification.h"
 
-static Logging::Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identification_logger("MODEL");
+static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identification_logger("MODEL");
 
 float g_buffer[BUFFER_SIZE] {};
 
@@ -15,13 +15,13 @@ static K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_
 static void
 identification_data_sending_work_handler(k_work* work)
 {
-    model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "model data sending start\n");
+    model_identification_logger.platform_log(LOG_LEVEL::INF, "model data sending start\n");
 
     for(uint8_t i = 0u; i < BUFFER_COUNT; i++)
     {
         uint16_t len = buffer_get(i, g_buffer, BUFFER_SIZE);
 
-        model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "buffor data: %d\n", i);
+        model_identification_logger.platform_log(LOG_LEVEL::INF, "buffor data: %d\n", i);
 
         if(len > 0)
         {
@@ -30,15 +30,15 @@ identification_data_sending_work_handler(k_work* work)
                 char data_str[16];
                 snprintf(data_str, sizeof(data_str), "%.3f\n", (double)g_buffer[j]);
 
-                model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "%s\n", data_str);
+                model_identification_logger.platform_log(LOG_LEVEL::INF, "%s\n", data_str);
 
                 k_sleep(K_MSEC(1));
             }
             model_identification_logger.platform_log(
-                Logging::LOG_LEVEL::INF, "----------------------------------------------------\n");
+                LOG_LEVEL::INF, "----------------------------------------------------\n");
         }
     }
-    model_identification_logger.platform_log(Logging::LOG_LEVEL::INF, "model data sending finished\n");
+    model_identification_logger.platform_log(LOG_LEVEL::INF, "model data sending finished\n");
 
     notify_data_sent();
 }
@@ -50,6 +50,6 @@ trigger_identification_data_sending()
     if(err != 0)
     {
         model_identification_logger.platform_log(
-            Logging::LOG_LEVEL::ERR, "Identification data send trigger failed, err: %d", err);
+            LOG_LEVEL::ERR, "Identification data send trigger failed, err: %d", err);
     }
 }

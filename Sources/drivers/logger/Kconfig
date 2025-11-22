@@ -1,4 +1,3 @@
-
 config LOGGER_DRV
     bool "BLE and serial logger module"
     select LOG

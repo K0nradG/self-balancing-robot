@@ -146,7 +146,7 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
     if(g_dfu_state == DFU_STATE_SKIP)
     {
         LOG_INF("DFU skipped, starting main application...");
-        control_loop_init();
+        Robot_Control::control_loop_init();
         if(dfu_action_cb)
         {
             dfu_action_cb();

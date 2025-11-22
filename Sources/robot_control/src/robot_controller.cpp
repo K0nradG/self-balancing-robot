@@ -5,7 +5,7 @@
 #include "motor_controller.h"
 #include "saturation.h"
 
-static Logging::Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
+static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
 namespace Robot_Control
 {
@@ -95,7 +95,7 @@ Robot_Controller::normal_motors_control()
                 log_timer_ms = 0.0f;
 
                 robot_control_logger.platform_log(
-                    Logging::LOG_LEVEL::INF,
+                    LOG_LEVEL::INF,
                     "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
                     (double)(m_balance_setpoint * radian_degrees / pi),
                     (double)(imu_data.angle_balance * radian_degrees / pi),

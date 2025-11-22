@@ -1,3 +1,4 @@
+rsource "logger/Kconfig"
 rsource "utils/Kconfig"
 rsource "battery_level/Kconfig"
 rsource "motor_controller/Kconfig"

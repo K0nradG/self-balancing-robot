@@ -13,9 +13,6 @@
 // Used by the including modules
 #include "zephyr/sys/util_macro.h"
 
-namespace Logging
-{
-
 enum LOG_LEVEL
 {
     ERR = 0u,
@@ -79,5 +76,3 @@ public:
 private:
     [[maybe_unused]] char const* m_module;
 };
-
-}  // namespace Logging

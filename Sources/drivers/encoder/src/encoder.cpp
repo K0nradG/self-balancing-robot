@@ -12,7 +12,7 @@
 #define WHEEL_DIAMETER_M   (float)CONFIG_WHEEL_DIAMETER_MM* MILLI_TO_SI
 #define WHEEL_RADIUS_M     WHEEL_DIAMETER_M / 2.0f
 
-static Logging::Logger<IS_ENABLED(CONFIG_ENCODER_LOG)> encoder_logger("ENCODER");
+static Logger<IS_ENABLED(CONFIG_ENCODER_LOG)> encoder_logger("ENCODER");
 
 static const gpio_dt_spec encoder_0_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_a_gpios);
 static const gpio_dt_spec encoder_0_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_b_gpios);
@@ -87,7 +87,7 @@ encoders_init()
     if(!device_is_ready(encoder_0_a.port) || !device_is_ready(encoder_0_b.port) || !device_is_ready(encoder_1_a.port) ||
        !device_is_ready(encoder_1_b.port))
     {
-        encoder_logger.platform_log(Logging::LOG_LEVEL::ERR, "encoder not ready");
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "encoder not ready");
         return -ENODEV;
     }
 
@@ -98,7 +98,7 @@ encoders_init()
 
     if(ret != 0)
     {
-        encoder_logger.platform_log(Logging::LOG_LEVEL::ERR, "Encoder pins not ready");
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "Encoder pins not ready");
         return ret;
     }
 
@@ -110,7 +110,7 @@ encoders_init()
 
     if(ret != 0)
     {
-        encoder_logger.platform_log(Logging::LOG_LEVEL::ERR, "Failed to configure pins interrupts");
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "Failed to configure pins interrupts");
         return ret;
     }
 
@@ -126,11 +126,11 @@ encoders_init()
 
     if(ret != 0)
     {
-        encoder_logger.platform_log(Logging::LOG_LEVEL::ERR, "Failed to add gpios callbacks, err: %d", ret);
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "Failed to add gpios callbacks, err: %d", ret);
         return ret;
     }
 
-    encoder_logger.platform_log(Logging::LOG_LEVEL::INF, "encoder init finished");
+    encoder_logger.platform_log(LOG_LEVEL::INF, "encoder init finished");
     return ret;
 }
 

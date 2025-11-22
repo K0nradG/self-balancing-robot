@@ -5,7 +5,7 @@
 #include "logger.h"
 #include "trajectory_state_machine.h"
 
-static Logging::Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> trajectory_manager_logger("TRAJECTORY");
+static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> trajectory_manager_logger("TRAJECTORY");
 
 namespace Robot_Control
 {
@@ -119,7 +119,7 @@ void
 Trajectory_Manager::acknowledge_trajectory_completed()
 {
     trajectory_manager_logger.platform_log(
-        Logging::LOG_LEVEL::INF, "%c%c", BLE_Commands::Prefix::TRAJECTORY_MANAGER,
+        LOG_LEVEL::INF, "%c%c", BLE_Commands::Prefix::TRAJECTORY_MANAGER,
         BLE_Commands::Trajectory_Manager::TRAJECTORY_COMPLETED);
     reset();
     m_state_machine.set_trajectory_acknowledged();

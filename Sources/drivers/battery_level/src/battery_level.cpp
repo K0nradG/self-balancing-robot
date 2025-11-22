@@ -10,7 +10,7 @@
 #define VOLTAGE_DIVIDER_RESISTOR_UP   100000
 #define VOLTAGE_DIVIDER_RESISTOR_DOWN 200000
 
-static Logging::Logger<IS_ENABLED(CONFIG_BATTERY_LEVEL_LOG)> battery_logger("BATTERY_CONTROLLER");
+static Logger<IS_ENABLED(CONFIG_BATTERY_LEVEL_LOG)> battery_logger("BATTERY_CONTROLLER");
 
 static const adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
@@ -38,31 +38,31 @@ battery_level_init()
 
     if(!adc_is_ready_dt(&adc_channel))
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "ADC not ready");
+        battery_logger.platform_log(LOG_LEVEL::ERR, "ADC not ready");
         return INIT_ERR;
     }
 
     ret = adc_channel_setup_dt(&adc_channel);
     if(ret != 0)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "ADC channel setup failed: %d", ret);
+        battery_logger.platform_log(LOG_LEVEL::ERR, "ADC channel setup failed: %d", ret);
         return ret;
     }
 
     ret = adc_sequence_init_dt(&adc_channel, &sequence);
     if(ret != 0)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "ADC sequence init failed: %d", ret);
+        battery_logger.platform_log(LOG_LEVEL::ERR, "ADC sequence init failed: %d", ret);
         return ret;
     }
 
     if((sequence.buffer == nullptr) || (sequence.buffer_size == 0u))
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "Invalid ADC buffer");
+        battery_logger.platform_log(LOG_LEVEL::ERR, "Invalid ADC buffer");
         return INIT_ERR;
     }
 
-    battery_logger.platform_log(Logging::LOG_LEVEL::INF, "ADC init finished");
+    battery_logger.platform_log(LOG_LEVEL::INF, "ADC init finished");
     return ret;
 }
 
@@ -130,14 +130,14 @@ get_sample()
     int ret = adc_sequence_init_dt(&adc_channel, &sequence);
     if(ret != 0)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "init sequence err: %d", ret);
+        battery_logger.platform_log(LOG_LEVEL::ERR, "init sequence err: %d", ret);
         return ret;
     }
 
     ret = adc_read(adc_channel.dev, &sequence);
     if(ret != 0)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "adc read err: %d", ret);
+        battery_logger.platform_log(LOG_LEVEL::ERR, "adc read err: %d", ret);
         return ret;
     }
 
@@ -146,13 +146,13 @@ get_sample()
     ret = adc_raw_to_millivolts_dt(&adc_channel, &battery_level_mv);
     if(ret != 0)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "adc raw to mv err: %d", ret);
+        battery_logger.platform_log(LOG_LEVEL::ERR, "adc raw to mv err: %d", ret);
         return ret;
     }
 
     if(battery_level_mv > INT16_MAX)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "bat lvl range err");
+        battery_logger.platform_log(LOG_LEVEL::ERR, "bat lvl range err");
         return -1;
     }
 
@@ -181,7 +181,7 @@ battery_measurement_work_handler(struct k_work* work)
     int ret = get_sample();
     if(ret != 0)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "get battery lvl err: %d", ret);
+        battery_logger.platform_log(LOG_LEVEL::ERR, "get battery lvl err: %d", ret);
     }
 
     /* Batter measurement work is calls itself every measurement_interval ms*/
@@ -193,7 +193,7 @@ battery_start_periodic_measurement(uint16_t interval_ms)
 {
     if(periodic_measurement_started)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "battery worker already started");
+        battery_logger.platform_log(LOG_LEVEL::ERR, "battery worker already started");
     }
     periodic_measurement_started = true;
 
@@ -206,18 +206,18 @@ battery_stop_periodic_measurement()
 {
     if(!periodic_measurement_started)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "battery worker not started");
+        battery_logger.platform_log(LOG_LEVEL::ERR, "battery worker not started");
     }
     periodic_measurement_started = false;
 
     int const ret = k_work_cancel_delayable(&battery_measurement_work);
     if(ret != 0)
     {
-        battery_logger.platform_log(Logging::LOG_LEVEL::ERR, "cancel battery work err:%d", ret);
+        battery_logger.platform_log(LOG_LEVEL::ERR, "cancel battery work err:%d", ret);
         return;
     }
 
-    battery_logger.platform_log(Logging::LOG_LEVEL::DBG, "Battery level measurement work cancelled");
+    battery_logger.platform_log(LOG_LEVEL::DBG, "Battery level measurement work cancelled");
 }
 
 void

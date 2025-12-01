@@ -1,13 +1,8 @@
-#pragma GCC diagnostic ignored "-Wunused-variable"
-
 #include "battery_level.h"
 #include <zephyr/drivers/adc.h>
 #include <zephyr/init.h>
-#include "utils.h"
-
-#ifdef CONFIG_BATTERY_LEVEL_LOG
 #include "logger.h"
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+#include "utils.h"
 
 #define INIT_ERR -1
 
@@ -15,75 +10,68 @@
 #define VOLTAGE_DIVIDER_RESISTOR_UP   100000
 #define VOLTAGE_DIVIDER_RESISTOR_DOWN 200000
 
-static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
+static Logger<IS_ENABLED(CONFIG_BATTERY_LEVEL_LOG)> battery_logger("BATTERY_CONTROLLER");
 
-battery_level_updated_cb_t new_battery_level_cb = NULL;
+static const adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
+
+battery_level_updated_cb_t new_battery_level_cb = nullptr;
 
 static int16_t adc_battery_buffer;
 
-static struct adc_sequence sequence = {
+static adc_sequence sequence = {
     .buffer      = &adc_battery_buffer,
     .buffer_size = sizeof(adc_battery_buffer),
 };
 
-static struct k_work_delayable battery_measurement_work;
-
 static uint16_t measurement_interval;
 static bool periodic_measurement_started;
 
+static void
+battery_measurement_work_handler(k_work* work);
+
+static K_WORK_DELAYABLE_DEFINE(battery_measurement_work, battery_measurement_work_handler);
+
 int
-battery_level_init(void)
+battery_level_init()
 {
     int ret = 0;
 
     if(!adc_is_ready_dt(&adc_channel))
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "ADC not ready");
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "ADC not ready");
         return INIT_ERR;
     }
 
     ret = adc_channel_setup_dt(&adc_channel);
     if(ret != 0)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "ADC channel setup failed: %d", ret);
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "ADC channel setup failed: %d", ret);
         return ret;
     }
 
     ret = adc_sequence_init_dt(&adc_channel, &sequence);
     if(ret != 0)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "ADC sequence init failed: %d", ret);
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "ADC sequence init failed: %d", ret);
         return ret;
     }
 
-    if((sequence.buffer == NULL) || (sequence.buffer_size == 0u))
+    if((sequence.buffer == nullptr) || (sequence.buffer_size == 0u))
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "Invalid ADC buffer");
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "Invalid ADC buffer");
         return INIT_ERR;
     }
 
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-    platform_log("BATTERY_CONTROLLER", LOG_LEVEL_INF, "ADC init finished");
-#endif  // CONFIG_BATTERY_LEVEL_LOG
-
+    battery_logger.platform_log(LOG_LEVEL::INF, "ADC init finished");
     return ret;
 }
 
 static uint8_t
 battery_charge_level(int16_t voltage_mv)
 {
-    static uint8_t previous_charge_level = 100;
-    uint8_t charge_level                 = 0;
-    int16_t slope                        = 0;
-    int32_t intercept                    = 0;
+    uint8_t charge_level = 0u;
+    int16_t slope        = 0u;
+    int32_t intercept    = 0u;
 
     if(voltage_mv > CONFIG_MAX_BATTERY_LEVEL)  // 100%
     {
@@ -137,23 +125,19 @@ battery_charge_level(int16_t voltage_mv)
 }
 
 static int
-get_sample(void)
+get_sample()
 {
     int ret = adc_sequence_init_dt(&adc_channel, &sequence);
     if(ret != 0)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "init sequence err: %d", ret);
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "init sequence err: %d", ret);
         return ret;
     }
 
     ret = adc_read(adc_channel.dev, &sequence);
     if(ret != 0)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "adc read err: %d", ret);
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "adc read err: %d", ret);
         return ret;
     }
 
@@ -162,29 +146,25 @@ get_sample(void)
     ret = adc_raw_to_millivolts_dt(&adc_channel, &battery_level_mv);
     if(ret != 0)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "adc raw to mv err: %d", ret);
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "adc raw to mv err: %d", ret);
         return ret;
     }
 
     if(battery_level_mv > INT16_MAX)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "bat lvl range err");
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "bat lvl range err");
         return -1;
     }
+
     int64_t const corrected_battery_level_mv = (int64_t)battery_level_mv *
                                                (VOLTAGE_DIVIDER_RESISTOR_UP + VOLTAGE_DIVIDER_RESISTOR_DOWN) /
                                                VOLTAGE_DIVIDER_RESISTOR_UP;
 
-    static struct battery_level_data battery_level = {0};
+    static battery_level_data battery_level {};
 
     battery_level.battery_level_percent = battery_charge_level((int16_t)corrected_battery_level_mv);
     battery_level.battery_level_mv      = corrected_battery_level_mv;
 
-    /* give the battery level to the user by registered callback*/
     if(new_battery_level_cb)
     {
         new_battery_level_cb(battery_level);
@@ -201,54 +181,43 @@ battery_measurement_work_handler(struct k_work* work)
     int ret = get_sample();
     if(ret != 0)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "get battery lvl err: %d", ret);
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "get battery lvl err: %d", ret);
     }
+
     /* Batter measurement work is calls itself every measurement_interval ms*/
     reschedule_work(&battery_measurement_work, K_MSEC(measurement_interval), "Battery level measurement");
 }
-
-static K_WORK_DELAYABLE_DEFINE(battery_measurement_work, battery_measurement_work_handler);
 
 void
 battery_start_periodic_measurement(uint16_t interval_ms)
 {
     if(periodic_measurement_started)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "battery worker already started");
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "battery worker already started");
     }
     periodic_measurement_started = true;
 
     measurement_interval = interval_ms;
-    reschedule_work(&battery_measurement_work, K_NO_WAIT, "battery_level_measurement");
+    reschedule_work(&battery_measurement_work, K_NO_WAIT, "Battery level measurement");
 }
 
 void
-battery_stop_periodic_measurement(void)
+battery_stop_periodic_measurement()
 {
     if(!periodic_measurement_started)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "battery worker not started");
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "battery worker not started");
     }
     periodic_measurement_started = false;
 
     int const ret = k_work_cancel_delayable(&battery_measurement_work);
     if(ret != 0)
     {
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-        platform_log("BATTERY_CONTROLLER", LOG_LEVEL_ERR, "cancel battery work err:%d", ret);
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+        battery_logger.platform_log(LOG_LEVEL::ERR, "cancel battery work err:%d", ret);
         return;
     }
 
-#ifdef CONFIG_BATTERY_LEVEL_LOG
-    platform_log("BATTERY CONTROLLER", LOG_LEVEL_DBG, "Battery level measurement work cancelled");
-#endif  // CONFIG_BATTERY_LEVEL_LOG
+    battery_logger.platform_log(LOG_LEVEL::DBG, "Battery level measurement work cancelled");
 }
 
 void

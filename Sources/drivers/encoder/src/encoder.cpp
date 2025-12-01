@@ -2,10 +2,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
-
-#ifdef CONFIG_ENCODER_LOG
 #include "logger.h"
-#endif  // CONFIG_ENCODER_LOG
 
 #define M_PI        3.14159265358979323846f
 #define WRAP_TO_2PI (2.0f * M_PI / CONFIG_IMPULSES_FOR_SHAFT_ROTATION)
@@ -15,17 +12,19 @@
 #define WHEEL_DIAMETER_M   (float)CONFIG_WHEEL_DIAMETER_MM* MILLI_TO_SI
 #define WHEEL_RADIUS_M     WHEEL_DIAMETER_M / 2.0f
 
-static const struct gpio_dt_spec encoder_0_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_a_gpios);
-static const struct gpio_dt_spec encoder_0_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_b_gpios);
-static const struct gpio_dt_spec encoder_1_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_a_gpios);
-static const struct gpio_dt_spec encoder_1_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_b_gpios);
+static Logger<IS_ENABLED(CONFIG_ENCODER_LOG)> encoder_logger("ENCODER");
 
-static struct gpio_callback encoder_0_a_data;
-static struct gpio_callback encoder_0_b_data;
-static struct gpio_callback encoder_1_a_data;
-static struct gpio_callback encoder_1_b_data;
+static const gpio_dt_spec encoder_0_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_a_gpios);
+static const gpio_dt_spec encoder_0_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_0), channel_b_gpios);
+static const gpio_dt_spec encoder_1_a = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_a_gpios);
+static const gpio_dt_spec encoder_1_b = GPIO_DT_SPEC_GET(DT_NODELABEL(encoder_1), channel_b_gpios);
 
-encoders_data g_encoders_data = {0};
+static gpio_callback encoder_0_a_data;
+static gpio_callback encoder_0_b_data;
+static gpio_callback encoder_1_a_data;
+static gpio_callback encoder_1_b_data;
+
+encoders_data g_encoders_data {};
 
 // Lookup table: 16 entries for all possible transitions
 // -1 = CCW, +1 = CW, 0 = invalid/bounce
@@ -49,7 +48,7 @@ static int8_t const transition_table[16u] = {
 };
 
 void
-encoder_0_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
+encoder_0_gpio_callback(const device* dev, gpio_callback* cb, uint32_t pins)
 {
     static uint8_t prev_state = 0u;
 
@@ -66,7 +65,7 @@ encoder_0_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint
 }
 
 void
-encoder_1_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint32_t pins)
+encoder_1_gpio_callback(const device* dev, gpio_callback* cb, uint32_t pins)
 {
     static uint8_t prev_state = 0u;
 
@@ -83,14 +82,12 @@ encoder_1_gpio_callback(const struct device* dev, struct gpio_callback* cb, uint
 }
 
 int
-encoders_init(void)
+encoders_init()
 {
     if(!device_is_ready(encoder_0_a.port) || !device_is_ready(encoder_0_b.port) || !device_is_ready(encoder_1_a.port) ||
        !device_is_ready(encoder_1_b.port))
     {
-#ifdef CONFIG_ENCODER_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "encoder not ready");
-#endif  // CONFIG_ENCODER_LOG
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "encoder not ready");
         return -ENODEV;
     }
 
@@ -101,9 +98,7 @@ encoders_init(void)
 
     if(ret != 0)
     {
-#ifdef CONFIG_ENCODER_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "Encoder pins not ready");
-#endif  // CONFIG_ENCODER_LOG
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "Encoder pins not ready");
         return ret;
     }
 
@@ -115,9 +110,7 @@ encoders_init(void)
 
     if(ret != 0)
     {
-#ifdef CONFIG_ENCODER_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "Failed to configure pins interrupts");
-#endif  // CONFIG_ENCODER_LOG
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "Failed to configure pins interrupts");
         return ret;
     }
 
@@ -133,16 +126,11 @@ encoders_init(void)
 
     if(ret != 0)
     {
-#ifdef CONFIG_ENCODER_LOG
-        platform_log("ENCODER", LOG_LEVEL_ERR, "Failed to add gpios callbacks, err: %d", ret);
-#endif  // CONFIG_ENCODER_LOG
+        encoder_logger.platform_log(LOG_LEVEL::ERR, "Failed to add gpios callbacks, err: %d", ret);
         return ret;
     }
 
-#ifdef CONFIG_ENCODER_LOG
-    platform_log("ENCODER", LOG_LEVEL_INF, "encoder init finished");
-#endif  // CONFIG_ENCODER_LOG
-
+    encoder_logger.platform_log(LOG_LEVEL::INF, "encoder init finished");
     return ret;
 }
 
@@ -159,7 +147,7 @@ update_encoder(encoder_data* encoder, float prev_angle_rad, float dt)
 }
 
 encoders_data
-_get_encoders_data(void)
+_get_encoders_data()
 {
     static float prev_angle_rad_encoder_0 = 0.0f;
     static float prev_angle_rad_encoder_1 = 0.0f;
@@ -188,7 +176,7 @@ _get_encoders_data(void)
 }
 
 void
-reset_encoders(void)
+reset_encoders()
 {
-    g_encoders_data = (encoders_data) {0};
+    g_encoders_data = {};
 }

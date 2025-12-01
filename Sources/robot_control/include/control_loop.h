@@ -2,22 +2,17 @@
 
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace Robot_Control
+{
 
 void
-trigger_control_loop(void);
+trigger_control_loop();
 
 void
-stop_control_loop(void);
+stop_control_loop();
 
 int
 control_loop_init();
-
-#ifdef __cplusplus
-}
-#endif
 
 #ifdef CONFIG_BLUETOOTH_DRV
 void
@@ -33,3 +28,5 @@ void
 new_send_identification_data_cb_register(send_identification_data_cb_t new_send_identification_data_cb);
 
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
+}  // namespace Robot_Control

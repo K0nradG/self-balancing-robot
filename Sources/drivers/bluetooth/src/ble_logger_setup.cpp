@@ -9,12 +9,12 @@
 
 LOG_MODULE_REGISTER(ble_setup, CONFIG_LOGGER_LOG_LEVEL);
 
-struct bt_conn* my_conn = NULL;
+bt_conn* my_conn = nullptr;
 
-static struct bt_gatt_exchange_params exchange_params = {0};
+static bt_gatt_exchange_params exchange_params {};
 
 static void
-on_disconnected(struct bt_conn* conn, uint8_t reason)
+on_disconnected(bt_conn* conn, uint8_t reason)
 {
     LOG_INF("Disconnected: %d", reason);
     set_con_status(false);
@@ -22,9 +22,9 @@ on_disconnected(struct bt_conn* conn, uint8_t reason)
 }
 
 void
-on_le_data_len_updated(struct bt_conn* conn, struct bt_conn_le_data_len_info* info)
+on_le_data_len_updated(bt_conn* conn, bt_conn_le_data_len_info* info)
 {
-    if(info != NULL)
+    if(info != nullptr)
     {
         uint16_t tx_len  = info->tx_max_len;
         uint16_t tx_time = info->tx_max_time;
@@ -39,7 +39,7 @@ on_le_data_len_updated(struct bt_conn* conn, struct bt_conn_le_data_len_info* in
 }
 
 static void
-exchange_func(struct bt_conn* conn, uint8_t att_err, struct bt_gatt_exchange_params* params)
+exchange_func(bt_conn* conn, uint8_t att_err, bt_gatt_exchange_params* params)
 {
     LOG_INF("MTU exchange %s", att_err == 0 ? "successful" : "failed");
     if(att_err == 0u)
@@ -50,9 +50,9 @@ exchange_func(struct bt_conn* conn, uint8_t att_err, struct bt_gatt_exchange_par
 }
 
 static void
-update_data_length(struct bt_conn* conn)
+update_data_length(bt_conn* conn)
 {
-    struct bt_conn_le_data_len_param my_data_len = {
+    bt_conn_le_data_len_param my_data_len = {
         .tx_max_len  = BT_GAP_DATA_LEN_MAX,
         .tx_max_time = BT_GAP_DATA_TIME_MAX,
     };
@@ -65,7 +65,7 @@ update_data_length(struct bt_conn* conn)
 }
 
 static void
-update_mtu(struct bt_conn* conn)
+update_mtu(bt_conn* conn)
 {
     exchange_params.func = exchange_func;
     int const err        = bt_gatt_exchange_mtu(conn, &exchange_params);
@@ -76,12 +76,12 @@ update_mtu(struct bt_conn* conn)
 }
 
 static void
-update_phy(struct bt_conn* conn)
+update_phy(bt_conn* conn)
 {
-    struct bt_conn_le_phy_param const preferred_phy = {
+    bt_conn_le_phy_param const preferred_phy = {
         .options     = BT_CONN_LE_PHY_OPT_NONE,
-        .pref_rx_phy = BT_GAP_LE_PHY_2M,
         .pref_tx_phy = BT_GAP_LE_PHY_2M,
+        .pref_rx_phy = BT_GAP_LE_PHY_2M,
     };
 
     int const err = bt_conn_le_phy_update(conn, &preferred_phy);
@@ -92,7 +92,7 @@ update_phy(struct bt_conn* conn)
 }
 
 static void
-on_connected(struct bt_conn* conn, uint8_t err)
+on_connected(bt_conn* conn, uint8_t err)
 {
     if(err != 0)
     {
@@ -100,8 +100,8 @@ on_connected(struct bt_conn* conn, uint8_t err)
         return;
     }
 
-    my_conn                  = bt_conn_ref(conn);
-    struct bt_conn_info info = {0};
+    my_conn = bt_conn_ref(conn);
+    bt_conn_info info {};
 
     err = bt_conn_get_info(conn, &info);
     if(err != 0)
@@ -125,18 +125,18 @@ on_connected(struct bt_conn* conn, uint8_t err)
     LOG_INF("Connected");
 }
 
-struct bt_conn_cb connection_callbacks = {
+bt_conn_cb connection_callbacks = {
     .connected           = on_connected,
     .disconnected        = on_disconnected,
     .le_data_len_updated = on_le_data_len_updated,
 };
 
 int
-ble_init(void)
+ble_init()
 {
     bt_conn_cb_register(&connection_callbacks);
 
-    int const ret = bt_enable(NULL);
+    int const ret = bt_enable(nullptr);
     if(ret != 0)
     {
         LOG_ERR("Bluetooth init failed: %d", ret);

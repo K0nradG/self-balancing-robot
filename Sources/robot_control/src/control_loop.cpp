@@ -1,6 +1,7 @@
 #include "control_loop.h"
 #include "drivers_initializer.h"
 #include "interface.h"
+#include "logger.h"
 #include "main_state_machine.h"
 #include "motor_controller.h"
 #include "robot_controller.h"
@@ -10,16 +11,17 @@
 #include "watchdog_controller.h"
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-#include "logger.h"
-#endif  // CONFIG_ROBOT_CONTROL_LOG
-
 #ifdef CONFIG_BLUETOOTH_DRV
 #include "ble_service.h"
 #endif  // CONFIG_BLUETOOTH_DRV
 
-static Robot_Control::Robot_Controller s_robot_controller {};
-static Robot_Control::Main_State_Machine s_main_state_machine {};
+static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
+
+namespace Robot_Control
+{
+
+static Robot_Controller s_robot_controller {};
+static Main_State_Machine s_main_state_machine {};
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 send_identification_data_cb_t g_send_identification_data_cb = nullptr;
@@ -41,9 +43,9 @@ parse_nus_commands_callback(char const* data)
 #endif  // CONFIG_BLUETOOTH_DRV
 
 int
-control_loop_init(void)
+control_loop_init()
 {
-    Robot_Control::Drivers_Initializer::init();
+    Drivers_Initializer::init();
 
 #ifdef CONFIG_BLUETOOTH_DRV
     new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
@@ -52,21 +54,20 @@ control_loop_init(void)
 
     set_enable_controller(true);
 
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-    platform_log("ROBOT_CONTROL", LOG_LEVEL_INF, "Robot control init finished");
-#endif  // CONFIG_ROBOT_CONTROL_LOG
+    robot_control_logger.platform_log(LOG_LEVEL::INF, "Robot control init finished");
+
     return 0;
 }
 
 static void
-control_loop_work_handler(struct k_work* work)
+control_loop_work_handler(k_work* work)
 {
     ARG_UNUSED(work);
 #ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
     feed_watchdog();
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
-    using State = Robot_Control::Main_State_Machine::State;
+    using State = Main_State_Machine::State;
 
     s_main_state_machine.update();
     State const state = s_main_state_machine.get_state();
@@ -103,13 +104,13 @@ control_loop_work_handler(struct k_work* work)
 static K_WORK_DELAYABLE_DEFINE(s_control_work, control_loop_work_handler);
 
 void
-trigger_control_loop(void)
+trigger_control_loop()
 {
     k_work_submit(&s_control_work.work);
 }
 
 void
-stop_control_loop(void)
+stop_control_loop()
 {
     set_enable_controller(false);
     led_stop_periodic_blinking();
@@ -125,3 +126,5 @@ new_send_identification_data_cb_register(send_identification_data_cb_t new_send_
     }
 }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
+}  // namespace Robot_Control

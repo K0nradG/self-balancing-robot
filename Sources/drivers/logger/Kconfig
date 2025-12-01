@@ -1,4 +1,3 @@
-
 config LOGGER_DRV
     bool "BLE and serial logger module"
     select LOG
@@ -7,7 +6,7 @@ if LOGGER_DRV
 
 config LOG_OVER_SERIAL
     depends on LOGGER_DRV
-    bool "enable seding logs over serial"
+    bool "enable sending logs over serial"
 
 
 module = LOGGER

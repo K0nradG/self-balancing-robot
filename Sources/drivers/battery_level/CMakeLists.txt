@@ -1,7 +1,7 @@
 set(BATTERY_LVL_DRV_INC include)
 set(BATTERY_LVL_DRV_SRC_DIR src)
 
-file(GLOB BATTERY_LVL_DRV_SRC ${BATTERY_LVL_DRV_SRC_DIR}/*.c)
+file(GLOB BATTERY_LVL_DRV_SRC ${BATTERY_LVL_DRV_SRC_DIR}/*.cpp)
 
 zephyr_include_directories(${BATTERY_LVL_DRV_INC})
 zephyr_library_sources(${BATTERY_LVL_DRV_SRC})

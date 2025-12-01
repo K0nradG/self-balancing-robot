@@ -1,12 +1,11 @@
 #include "robot_controller.h"
 #include "ble_commands.h"
 #include "data_manager.h"
+#include "logger.h"
 #include "motor_controller.h"
 #include "saturation.h"
 
-#ifdef CONFIG_ROBOT_CONTROL_LOG
-#include "logger.h"
-#endif  // CONFIG_ROBOT_CONTROL_LOG
+static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
 namespace Robot_Control
 {
@@ -86,7 +85,6 @@ Robot_Controller::normal_motors_control()
         m_pwm1 = m_wheel1_speed_pid.calculate_output(
             target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
-#ifdef CONFIG_ROBOT_CONTROL_LOG
         if(!m_trajectory_manager.stop_logs())
         {
             static float log_timer_ms = 0.0f;
@@ -96,8 +94,8 @@ Robot_Controller::normal_motors_control()
             {
                 log_timer_ms = 0.0f;
 
-                platform_log(
-                    "APP", LOG_LEVEL_INF,
+                robot_control_logger.platform_log(
+                    LOG_LEVEL::INF,
                     "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
                     (double)(m_balance_setpoint * radian_degrees / pi),
                     (double)(imu_data.angle_balance * radian_degrees / pi),
@@ -107,7 +105,6 @@ Robot_Controller::normal_motors_control()
                     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
             }
         }
-#endif  // CONFIG_ROBOT_CONTROL_LOG
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
@@ -169,8 +166,8 @@ Robot_Controller::parse_nus_data(char const* data)
         data++;  // payload
         switch(key)
         {
-            case REG_DISTANCE_PID_PREFIX:
-                if((*data == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
+            case BLE_Commands::Prefix::DISTANCE_PID:
+                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
                 {
                     data++;
 
@@ -186,11 +183,11 @@ Robot_Controller::parse_nus_data(char const* data)
                     m_distance_pid.parse_nus_parameters(data);
                 }
                 break;
-            case REG_LINEAR_SPEED_PID_PREFIX:
+            case BLE_Commands::Prefix::LINEAR_SPEED_PID:
                 m_linear_speed_pid.parse_nus_parameters(data);
                 break;
-            case REG_BALANCE_PID_PREFIX:
-                if(*data == REG_SETPOINT_CMD)
+            case BLE_Commands::Prefix::BALANCE_PID:
+                if(*data == BLE_Commands::Regulator::SETPOINT)
                 {
                     data++;
 
@@ -210,8 +207,8 @@ Robot_Controller::parse_nus_data(char const* data)
 #endif  // CONFIG_PID_ENABLED
                 }
                 break;
-            case REG_ROTATE_PID_PREFIX:
-                if((*data == REG_SETPOINT_CMD) && !m_trajectory_manager.trajectory_started())
+            case BLE_Commands::Prefix::ROTATE_PID:
+                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
                 {
                     data++;
 
@@ -227,11 +224,11 @@ Robot_Controller::parse_nus_data(char const* data)
                     m_rotate_pid.parse_nus_parameters(data);
                 }
                 break;
-            case REG_WHEEL_PID_PREFIX:
+            case BLE_Commands::Prefix::WHEEL_PID:
                 m_wheel0_speed_pid.parse_nus_parameters(data);
                 m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
                 break;
-            case TRAJECTORY_MANAGER_PREFIX:
+            case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
                 if(!m_trajectory_manager.trajectory_started())
                 {
                     m_trajectory_manager.parse_trajectory_point(data);

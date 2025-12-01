@@ -10,9 +10,9 @@
 LOG_MODULE_REGISTER(ble_nus, CONFIG_LOGGER_LOG_LEVEL);
 
 static bool s_nus_notification_enabled                                       = false;
-static regulator_parameters_parser_cb_t s_regulator_parameters_parser_cb     = NULL;
-static dfu_process_parser_cb_t s_dfu_process_parser_cb                       = NULL;
-static state_machine_commands_parser_cb_t s_state_machine_commands_parser_cb = NULL;
+static regulator_parameters_parser_cb_t s_regulator_parameters_parser_cb     = nullptr;
+static dfu_process_parser_cb_t s_dfu_process_parser_cb                       = nullptr;
+static state_machine_commands_parser_cb_t s_state_machine_commands_parser_cb = nullptr;
 
 bool
 get_notif_status()
@@ -29,7 +29,7 @@ set_notif_status(bool nus_notification_enabled)
 static void
 data_selector(const char* data)
 {
-    if(data[0] == DFU_PREFIX)
+    if(data[0] == BLE_Commands::Prefix::DFU)
     {
         if(s_dfu_process_parser_cb)
         {
@@ -38,9 +38,9 @@ data_selector(const char* data)
         return;
     }
 
-    if((data[0] == REG_DISTANCE_PID_PREFIX) || (data[0] == REG_LINEAR_SPEED_PID_PREFIX) ||
-       (data[0] == REG_BALANCE_PID_PREFIX) || (data[0] == REG_ROTATE_PID_PREFIX) || (data[0] == REG_WHEEL_PID_PREFIX) ||
-       (data[0] == TRAJECTORY_MANAGER_PREFIX))
+    if((data[0] == BLE_Commands::Prefix::DISTANCE_PID) || (data[0] == BLE_Commands::Prefix::LINEAR_SPEED_PID) ||
+       (data[0] == BLE_Commands::Prefix::BALANCE_PID) || (data[0] == BLE_Commands::Prefix::ROTATE_PID) ||
+       (data[0] == BLE_Commands::Prefix::WHEEL_PID) || (data[0] == BLE_Commands::Prefix::TRAJECTORY_MANAGER))
     {
         if(s_regulator_parameters_parser_cb)
         {
@@ -48,7 +48,7 @@ data_selector(const char* data)
         }
     }
 
-    if(data[0] == STATE_MACHINE_PREFIX)
+    if(data[0] == BLE_Commands::Prefix::STATE_MACHINE)
     {
         data++;
         if(s_state_machine_commands_parser_cb)
@@ -77,7 +77,7 @@ nus_data_parser(const uint8_t* data, uint16_t len)
 }
 
 static void
-nus_data_received(struct bt_conn* conn, const uint8_t* data, uint16_t len)
+nus_data_received(bt_conn* conn, const uint8_t* data, uint16_t len)
 {
     nus_data_parser(data, len);
     LOG_INF("NUS received data: %.*s", len, data);
@@ -98,13 +98,13 @@ nus_notif_enabled(enum bt_nus_send_status status)
     }
 }
 
-static struct bt_nus_cb nus_callbacks = {
-    .send_enabled = nus_notif_enabled,
+static bt_nus_cb nus_callbacks = {
     .received     = nus_data_received,
+    .send_enabled = nus_notif_enabled,
 };
 
 int
-ble_service_init(void)
+ble_service_init()
 {
     int const err = bt_nus_init(&nus_callbacks);
     if(err != 0)
@@ -115,11 +115,11 @@ ble_service_init(void)
 }
 
 void
-ble_send(char* data)
+ble_send(char const* data)
 {
     if(get_con_status() && get_notif_status())
     {
-        int const err = bt_nus_send(NULL, data, strlen(data));
+        int const err = bt_nus_send(nullptr, reinterpret_cast<uint8_t const*>(data), strlen(data));
         if(err != 0)
         {
             LOG_ERR("NUS failed to send data: %d", err);

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 
+// https://chatgpt.com/c/692dace1-86a0-8332-9a9d-7a2d5b251fd8
+
 <head>
   <meta charset="UTF-8">
   <title>Application Dashboard</title>
@@ -109,12 +111,67 @@
     #robotControllerBtn {
       display: none;
     }
+
+    .regulator-box {
+      margin-top: 20px;
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: left;
+      font-size: 1rem;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .regulator-box h3 {
+      margin: 0 0 10px 0;
+      font-size: 1.3rem;
+      color: #4f46e5;
+    }
+
+    .reg-item {
+      padding: 8px 0;
+      border-bottom: 1px solid #ddd;
+    }
+
+    a.btn,
+    button.btn {
+      text-decoration: none;
+      display: inline-block;
+      font-size: 1.1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      margin: 0.25rem;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: #4f46e5;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #4338ca;
+    }
   </style>
 </head>
 
 <body>
   <div class="card">
     <h1>Application Dashboard</h1>
+
+    <div>
+      <button id="robotConfBtn" class="btn btn-primary">GET ROBOT CONF</button>
+    </div>
+
+    <div id="regulatorBox" class="regulator-box" style="display:none;">
+      <h3>Robot Regulators</h3>
+      <div class="reg-item" id="regDrive">Drive regulator: —</div>
+      <div class="reg-item" id="regLinear">Linear speed regulator: —</div>
+      <div class="reg-item" id="regRotate">Rotate angle regulator: —</div>
+      <div class="reg-item" id="regBalance">Balance angle regulator: —</div>
+      <div class="reg-item" id="regWheel">Wheel rotate speed regulator: —</div>
+    </div>
 
     <div id="status">
       <span id="connIndicator" style="
@@ -171,6 +228,13 @@
     const downloadBtn = document.getElementById('downloadBtn');
     const backBtn = document.getElementById('backBtn');
 
+    const regDriveEl = document.getElementById('regDrive');
+    const regLinearEl = document.getElementById('regLinear');
+    const regRotateEl = document.getElementById('regRotate');
+    const regBalanceEl = document.getElementById('regBalance');
+    const regWheelEl = document.getElementById('regWheel');
+    const regBox = document.getElementById('regulatorBox');
+
     let connectionStatus = "disconnected";
     let applicationStatus = "wait for DFU";
     let isEnabled = false;
@@ -187,6 +251,50 @@
       pwm0: [],
       pwm1: []
     };
+
+    function parseRegulator(line) {
+      const parts = line.match(/Kp([0-9.]+)_Ki_([0-9.]+)_Kd_([0-9.]+)/);
+      if (!parts) return null;
+      return { kp: parts[1], ki: parts[2], kd: parts[3] };
+    }
+
+    function prettyReg(reg) {
+      return `Kp=${reg.kp}, Ki=${reg.ki}, Kd=${reg.kd}`;
+    }
+
+    async function fetchRobotConf() {
+      try {
+        const res = await fetch('/nus/logs');
+        const data = await res.json();
+        if (!Array.isArray(data.logs)) return;
+
+
+        data.logs.forEach(line => {
+          if (line.includes("drive regulator")) {
+            const r = parseRegulator(line);
+            if (r) regDriveEl.textContent = `Drive regulator: ${prettyReg(r)}`;
+          }
+          if (line.includes("linear speed")) {
+            const r = parseRegulator(line);
+            if (r) regLinearEl.textContent = `Linear speed regulator: ${prettyReg(r)}`;
+          }
+          if (line.includes("rotate angle")) {
+            const r = parseRegulator(line);
+            if (r) regRotateEl.textContent = `Rotate angle regulator: ${prettyReg(r)}`;
+          }
+          if (line.includes("balance angle")) {
+            const r = parseRegulator(line);
+            if (r) regBalanceEl.textContent = `Balance angle regulator: ${prettyReg(r)}`;
+          }
+          if (line.includes("wheel rotate speed")) {
+            const r = parseRegulator(line);
+            if (r) regWheelEl.textContent = `Wheel rotate speed regulator: ${prettyReg(r)}`;
+          }
+        });
+      } catch (e) {
+        console.warn("conf err", e);
+      }
+    }
 
     const chartBattery = new Chart(document.getElementById('chartBattery'), {
       type: 'line',
@@ -481,6 +589,18 @@
       updateUI();
       saveState();
     };
+
+    robotConfBtn.onclick = async () => {
+      await post('/nus/send', { data: 'fgsgrgbgwg' });
+      regBox.style.display = "block";
+
+
+      const interval = setInterval(async () => {
+        await fetchRobotConf();
+        // tu można dodać warunek zakończenia gdy wszystkie dane odebrane
+      }, 1000);
+    };
+
 
     // --- INIT ---
     loadState();

@@ -3,6 +3,7 @@
 #include "pid.h"
 #include "ramp.h"
 #include "trajectory_manager.h"
+#include "zephyr/kernel.h"
 
 #ifndef CONFIG_PID_ENABLED
 #include "lqr.h"
@@ -60,6 +61,9 @@ public:
     void
     reset();
 
+    static void
+    regulator_data_sending_work_handler(k_work* work);
+
 #ifdef CONFIG_BLUETOOTH_DRV
     void
     parse_nus_data(char const* data);
@@ -77,20 +81,23 @@ private:
 
     Trajectory_Manager m_trajectory_manager;
 
-    PID m_distance_pid;
+    static PID s_distance_pid;
 
-    PID m_linear_speed_pid;
+    static PID s_linear_speed_pid;
 
 #ifdef CONFIG_PID_ENABLED
-    PID m_balance_pid;
+    static PID s_balance_pid;
 #else
     LQR m_balance_lqr;
 #endif  // CONFIG_PID_ENABLED
 
-    PID m_rotate_pid;
+    static PID s_rotate_pid;
 
-    PID m_wheel0_speed_pid;
-    PID m_wheel1_speed_pid;
+    static PID s_wheel0_speed_pid;
+    static PID s_wheel1_speed_pid;
+
+    static char m_regulators_data[250];
+    static bool m_regulator_message_sending_in_progress;
 
     float m_pwm0 {};
     float m_pwm1 {};

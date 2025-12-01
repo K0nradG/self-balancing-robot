@@ -10,33 +10,37 @@ static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_
 namespace Robot_Control
 {
 
+PID Robot_Controller::s_distance_pid(
+    distance_pid_parameters, Saturation(-max_linear_speed, max_linear_speed), distance_pid_filter_alpha,
+    distance_pid_hysteresis);
+PID Robot_Controller::s_linear_speed_pid(
+    linear_speed_pid_parameters, Saturation(angle_backward_max_deviation, angle_forward_max_deviation),
+    linear_speed_pid_filter_alpha);
+#ifdef CONFIG_PID_ENABLED
+PID Robot_Controller::s_balance_pid(
+    balance_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), balance_pid_filter_alpha);
+#endif  // CONFIG_PID_ENABLED
+PID Robot_Controller::s_rotate_pid(
+    rotate_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), rotate_pid_filter_alpha,
+    rotate_pid_hysteresis);
+PID Robot_Controller::s_wheel0_speed_pid(
+    wheel_speed_pid_parameters, Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
+    wheel_speed_pid_filter_alpha);
+PID Robot_Controller::s_wheel1_speed_pid(
+    wheel_speed_pid_parameters, Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
+    wheel_speed_pid_filter_alpha);
+
+char Robot_Controller::m_regulators_data[250];
+bool Robot_Controller::m_regulator_message_sending_in_progress {false};
+
 Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint_ramp(rotate_setpoint_rate),
-      m_trajectory_manager(m_distance_setpoint, m_rotate_setpoint_ramp),
-      m_distance_pid(
-          distance_pid_parameters, Saturation(-max_linear_speed, max_linear_speed), distance_pid_filter_alpha,
-          distance_pid_hysteresis),
-      m_linear_speed_pid(
-          linear_speed_pid_parameters, Saturation(angle_backward_max_deviation, angle_forward_max_deviation),
-          linear_speed_pid_filter_alpha),
-#ifdef CONFIG_PID_ENABLED
-      m_balance_pid(balance_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), balance_pid_filter_alpha),
-#else
+#ifndef CONFIG_PID_ENABLED
       m_balance_lqr(balance_lqr_parameters, max_speed_rad_s),
-#endif  // CONFIG_PID_ENABLED
-      m_rotate_pid(
-          rotate_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), rotate_pid_filter_alpha,
-          rotate_pid_hysteresis),
-      m_wheel0_speed_pid(
-          wheel_speed_pid_parameters,
-          Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
-          wheel_speed_pid_filter_alpha),
-      m_wheel1_speed_pid(
-          wheel_speed_pid_parameters,
-          Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
-          wheel_speed_pid_filter_alpha)
+#endif  // not CONFIG_PID_ENABLED
+      m_trajectory_manager(m_distance_setpoint, m_rotate_setpoint_ramp)
 {
 }
 
@@ -59,13 +63,13 @@ Robot_Controller::normal_motors_control()
         m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
 
         float const target_linear_speed =
-            m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
+            s_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
 
-        float const balance_angle_deviation = m_linear_speed_pid.calculate_output(
+        float const balance_angle_deviation = s_linear_speed_pid.calculate_output(
             target_linear_speed, encoders_data.robot_linear_speed, imu_data.time_dt);
 
 #ifdef CONFIG_PID_ENABLED
-        float const target_speed_balance = m_balance_pid.calculate_output(
+        float const target_speed_balance = s_balance_pid.calculate_output(
             m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, imu_data.time_dt);
 #else
         float const target_speed_balance =
@@ -74,15 +78,15 @@ Robot_Controller::normal_motors_control()
 
         m_rotate_setpoint_ramp.update(imu_data.time_dt);
         float const target_speed_rotate =
-            m_rotate_pid.calculate_output(m_rotate_setpoint_ramp.get_current_value(), rotation_angle, imu_data.time_dt);
+            s_rotate_pid.calculate_output(m_rotate_setpoint_ramp.get_current_value(), rotation_angle, imu_data.time_dt);
 
         static Saturation const target_wheel_speed_saturation {-max_speed_rad_s, max_speed_rad_s};
         float const target_speed0 = target_wheel_speed_saturation.saturate(target_speed_balance - target_speed_rotate);
         float const target_speed1 = target_wheel_speed_saturation.saturate(target_speed_balance + target_speed_rotate);
 
-        m_pwm0 = m_wheel0_speed_pid.calculate_output(
+        m_pwm0 = s_wheel0_speed_pid.calculate_output(
             target_speed0, encoders_data.encoder_0.angular_velocity_rad_s, imu_data.time_dt);
-        m_pwm1 = m_wheel1_speed_pid.calculate_output(
+        m_pwm1 = s_wheel1_speed_pid.calculate_output(
             target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
         if(!m_trajectory_manager.stop_logs())
@@ -94,15 +98,15 @@ Robot_Controller::normal_motors_control()
             {
                 log_timer_ms = 0.0f;
 
-                robot_control_logger.platform_log(
-                    LOG_LEVEL::INF,
-                    "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
-                    (double)(m_balance_setpoint * radian_degrees / pi),
-                    (double)(imu_data.angle_balance * radian_degrees / pi),
-                    (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
-                    (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
-                    (double)encoders_data.encoder_0.angular_velocity_rad_s,
-                    (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+                // robot_control_logger.platform_log(
+                //     LOG_LEVEL::INF,
+                //     "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
+                //     (double)(m_balance_setpoint * radian_degrees / pi),
+                //     (double)(imu_data.angle_balance * radian_degrees / pi),
+                //     (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
+                //     (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
+                //     (double)encoders_data.encoder_0.angular_velocity_rad_s,
+                //     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
             }
         }
 
@@ -138,12 +142,40 @@ Robot_Controller::reset()
     m_rotate_setpoint_ramp.reset();
     DataManager::instance().reset();
 
-    m_wheel0_speed_pid.reset();
-    m_wheel1_speed_pid.reset();
-    m_rotate_pid.reset();
-    m_balance_pid.reset();
+    s_wheel0_speed_pid.reset();
+    s_wheel1_speed_pid.reset();
+    s_rotate_pid.reset();
+    s_balance_pid.reset();
     m_trajectory_manager.reset();
 }
+
+void
+Robot_Controller::regulator_data_sending_work_handler(k_work* work)
+{
+    ARG_UNUSED(work);
+
+    PID::Parameters const& distance_pid_parameters     = s_distance_pid.get_parameters();
+    PID::Parameters const& linear_speed_pid_parameters = s_linear_speed_pid.get_parameters();
+    PID::Parameters const& balance_pid_parameters      = s_balance_pid.get_parameters();
+    PID::Parameters const& rotate_pid_parameters       = s_rotate_pid.get_parameters();
+    PID::Parameters const& wheel_speed_pid_parameters  = s_wheel0_speed_pid.get_parameters();
+
+    snprintf(
+        m_regulators_data, sizeof(m_regulators_data),
+        "Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f\n",
+        (double)distance_pid_parameters.Kp, (double)distance_pid_parameters.Ki, (double)distance_pid_parameters.Kd,
+        (double)linear_speed_pid_parameters.Kp, (double)linear_speed_pid_parameters.Ki,
+        (double)linear_speed_pid_parameters.Kd, (double)balance_pid_parameters.Kp, (double)balance_pid_parameters.Ki,
+        (double)balance_pid_parameters.Kd, (double)rotate_pid_parameters.Kp, (double)rotate_pid_parameters.Ki,
+        (double)rotate_pid_parameters.Kd, (double)wheel_speed_pid_parameters.Kp, (double)wheel_speed_pid_parameters.Ki,
+        (double)wheel_speed_pid_parameters.Kd);
+
+    robot_control_logger.platform_log(LOG_LEVEL::INF, "%s", Robot_Controller::m_regulators_data);
+
+    m_regulator_message_sending_in_progress = false;
+}
+
+static K_WORK_DELAYABLE_DEFINE(s_regulator_data_sending_work, Robot_Controller::regulator_data_sending_work_handler);
 
 #ifdef CONFIG_BLUETOOTH_DRV
 void
@@ -166,6 +198,16 @@ Robot_Controller::parse_nus_data(char const* data)
         data++;  // payload
         switch(key)
         {
+            case BLE_Commands::General::GET_REGULATOR_PARAMS:
+            {
+                data++;
+                if(!m_regulator_message_sending_in_progress)
+                {
+                    m_regulator_message_sending_in_progress = true;
+                    k_work_submit(&s_regulator_data_sending_work.work);
+                }
+                break;
+            }
             case BLE_Commands::Prefix::DISTANCE_PID:
                 if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
                 {
@@ -180,11 +222,11 @@ Robot_Controller::parse_nus_data(char const* data)
                 }
                 else
                 {
-                    m_distance_pid.parse_nus_parameters(data);
+                    s_distance_pid.parse_nus_parameters(data);
                 }
                 break;
             case BLE_Commands::Prefix::LINEAR_SPEED_PID:
-                m_linear_speed_pid.parse_nus_parameters(data);
+                s_linear_speed_pid.parse_nus_parameters(data);
                 break;
             case BLE_Commands::Prefix::BALANCE_PID:
                 if(*data == BLE_Commands::Regulator::SETPOINT)
@@ -201,7 +243,7 @@ Robot_Controller::parse_nus_data(char const* data)
                 else
                 {
 #ifdef CONFIG_PID_ENABLED
-                    m_balance_pid.parse_nus_parameters(data);
+                    s_balance_pid.parse_nus_parameters(data);
 #else
                     m_balance_lqr.parse_nus_parameters(data);
 #endif  // CONFIG_PID_ENABLED
@@ -221,12 +263,12 @@ Robot_Controller::parse_nus_data(char const* data)
                 }
                 else
                 {
-                    m_rotate_pid.parse_nus_parameters(data);
+                    s_rotate_pid.parse_nus_parameters(data);
                 }
                 break;
             case BLE_Commands::Prefix::WHEEL_PID:
-                m_wheel0_speed_pid.parse_nus_parameters(data);
-                m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
+                s_wheel0_speed_pid.parse_nus_parameters(data);
+                s_wheel1_speed_pid.set_parameters(s_wheel0_speed_pid.get_parameters());
                 break;
             case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
                 if(!m_trajectory_manager.trajectory_started())

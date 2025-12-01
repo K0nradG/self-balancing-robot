@@ -1,8 +1,13 @@
 #pragma once
 
 /*These are the commands which come from the ble central (control device - phone or 7002DK) to interact with robot*/
+
 namespace BLE_Commands
 {
+enum General
+{
+    GET_REGULATOR_PARAMS = 'g'
+};
 
 enum Prefix
 {

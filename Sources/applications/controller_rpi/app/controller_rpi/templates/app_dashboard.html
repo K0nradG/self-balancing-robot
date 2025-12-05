@@ -252,14 +252,27 @@
       pwm1: []
     };
 
-    function parseRegulator(line) {
-      const parts = line.match(/Kp([0-9.]+)_Ki_([0-9.]+)_Kd_([0-9.]+)/);
-      if (!parts) return null;
-      return { kp: parts[1], ki: parts[2], kd: parts[3] };
+    function parseRobotRegulators(raw) {
+      const matches = [...raw.matchAll(/Kp([0-9.\-]+)_Ki([0-9.\-]+)_Kd([0-9.\-]+)/g)];
+
+      if (matches.length !== 5) {
+        console.warn("Expected 5 regulators, got:", matches.length);
+        return null;
+      }
+
+      return matches.map(m => ({
+        kp: parseFloat(m[1]),
+        ki: parseFloat(m[2]),
+        kd: parseFloat(m[3])
+      }));
     }
 
-    function prettyReg(reg) {
-      return `Kp=${reg.kp}, Ki=${reg.ki}, Kd=${reg.kd}`;
+    function renderRegulators(regs) {
+      regDriveEl.textContent = `Drive regulator: Kp=${regs[0].kp} Ki=${regs[0].ki} Kd=${regs[0].kd}`;
+      regLinearEl.textContent = `Linear speed regulator: Kp=${regs[1].kp} Ki=${regs[1].ki} Kd=${regs[1].kd}`;
+      regBalanceEl.textContent = `Balance angle regulator: Kp=${regs[2].kp} Ki=${regs[2].ki} Kd=${regs[2].kd}`;
+      regRotateEl.textContent = `Rotate angle regulator: Kp=${regs[3].kp} Ki=${regs[3].ki} Kd=${regs[3].kd}`;
+      regWheelEl.textContent = `Wheel rotate speed regulator: Kp=${regs[4].kp} Ki=${regs[4].ki} Kd=${regs[4].kd}`;
     }
 
     async function fetchRobotConf() {
@@ -268,33 +281,18 @@
         const data = await res.json();
         if (!Array.isArray(data.logs)) return;
 
+        const fullText = data.logs.join("");
 
-        data.logs.forEach(line => {
-          if (line.includes("drive regulator")) {
-            const r = parseRegulator(line);
-            if (r) regDriveEl.textContent = `Drive regulator: ${prettyReg(r)}`;
-          }
-          if (line.includes("linear speed")) {
-            const r = parseRegulator(line);
-            if (r) regLinearEl.textContent = `Linear speed regulator: ${prettyReg(r)}`;
-          }
-          if (line.includes("rotate angle")) {
-            const r = parseRegulator(line);
-            if (r) regRotateEl.textContent = `Rotate angle regulator: ${prettyReg(r)}`;
-          }
-          if (line.includes("balance angle")) {
-            const r = parseRegulator(line);
-            if (r) regBalanceEl.textContent = `Balance angle regulator: ${prettyReg(r)}`;
-          }
-          if (line.includes("wheel rotate speed")) {
-            const r = parseRegulator(line);
-            if (r) regWheelEl.textContent = `Wheel rotate speed regulator: ${prettyReg(r)}`;
-          }
-        });
+        const regs = parseRobotRegulators(fullText);
+        if (regs) {
+          renderRegulators(regs);
+          regBox.style.display = "block";
+        }
       } catch (e) {
         console.warn("conf err", e);
       }
     }
+
 
     const chartBattery = new Chart(document.getElementById('chartBattery'), {
       type: 'line',

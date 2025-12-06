@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 
-// https://chatgpt.com/c/692dace1-86a0-8332-9a9d-7a2d5b251fd8
-
 <head>
   <meta charset="UTF-8">
   <title>Application Dashboard</title>
@@ -128,6 +126,19 @@
       color: #4f46e5;
     }
 
+    .reg-input-block {
+      padding: 8px 0;
+      border-bottom: 1px solid #ddd;
+      background: #eef2ff;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+
+    .reg-input-block h4 {
+      margin: 0 0 5px 0;
+    }
+
     .reg-item {
       padding: 8px 0;
       border-bottom: 1px solid #ddd;
@@ -164,13 +175,29 @@
       <button id="robotConfBtn" class="btn btn-primary">GET ROBOT CONF</button>
     </div>
 
-    <div id="regulatorBox" class="regulator-box" style="display:none;">
+    <div id="regulatorBox" class="regulator-box">
       <h3>Robot Regulators</h3>
-      <div class="reg-item" id="regDrive">Drive regulator: —</div>
-      <div class="reg-item" id="regLinear">Linear speed regulator: —</div>
-      <div class="reg-item" id="regRotate">Rotate angle regulator: —</div>
-      <div class="reg-item" id="regBalance">Balance angle regulator: —</div>
-      <div class="reg-item" id="regWheel">Wheel rotate speed regulator: —</div>
+      <div class="reg-input-block">
+        <h4>Drive regulator</h4> K: <input id="d_k" type="text" size="4"> I: <input id="d_i" type="text" size="4"> D:
+        <input id="d_d" type="text" size="4">
+      </div>
+      <div class="reg-input-block">
+        <h4>Linear speed regulator</h4> K: <input id="l_k" type="text" size="4"> I: <input id="l_i" type="text"
+          size="4"> D: <input id="l_d" type="text" size="4">
+      </div>
+      <div class="reg-input-block">
+        <h4>Rotate angle regulator</h4> K: <input id="r_k" type="text" size="4"> I: <input id="r_i" type="text"
+          size="4"> D: <input id="r_d" type="text" size="4">
+      </div>
+      <div class="reg-input-block">
+        <h4>Balance regulator</h4> K: <input id="b_k" type="text" size="4"> I: <input id="b_i" type="text" size="4"> D:
+        <input id="b_d" type="text" size="4">
+      </div>
+      <div class="reg-input-block">
+        <h4>Wheel speed regulator</h4> K: <input id="w_k" type="text" size="4"> I: <input id="w_i" type="text" size="4">
+        D: <input id="w_d" type="text" size="4">
+      </div>
+      <button id="setParamsBtn" class="btn btn-success" style="margin-top:10px;">SET PARAMETERS</button>
     </div>
 
     <div id="status">
@@ -197,7 +224,7 @@
       <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
       <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
       <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
-      <a id="robotControllerBtn" href="/motion" class="btn btn-primary">ROBOT CONTROLLER</a>
+      <a id="robotControllerBtn" href="/motion" class="btn btn-primary" style="display:none;">ROBOT CONTROLLER</a>
       <a id="backBtn" href="/" class="btn btn-primary">BACK</a>
 
     </div>
@@ -228,12 +255,32 @@
     const downloadBtn = document.getElementById('downloadBtn');
     const backBtn = document.getElementById('backBtn');
 
-    const regDriveEl = document.getElementById('regDrive');
-    const regLinearEl = document.getElementById('regLinear');
-    const regRotateEl = document.getElementById('regRotate');
-    const regBalanceEl = document.getElementById('regBalance');
-    const regWheelEl = document.getElementById('regWheel');
     const regBox = document.getElementById('regulatorBox');
+    const robotConfBtn = document.getElementById('robotConfBtn');
+
+
+    const d_k = document.getElementById('d_k');
+    const d_i = document.getElementById('d_i');
+    const d_d = document.getElementById('d_d');
+
+    const l_k = document.getElementById('l_k');
+    const l_i = document.getElementById('l_i');
+    const l_d = document.getElementById('l_d');
+
+    const r_k = document.getElementById('r_k');
+    const r_i = document.getElementById('r_i');
+    const r_d = document.getElementById('r_d');
+
+    const b_k = document.getElementById('b_k');
+    const b_i = document.getElementById('b_i');
+    const b_d = document.getElementById('b_d');
+
+    const w_k = document.getElementById('w_k');
+    const w_i = document.getElementById('w_i');
+    const w_d = document.getElementById('w_d');
+
+    const setParamsBtn = document.getElementById('setParamsBtn');
+
 
     let connectionStatus = "disconnected";
     let applicationStatus = "wait for DFU";
@@ -254,25 +301,16 @@
 
     function parseRobotRegulators(raw) {
       const matches = [...raw.matchAll(/Kp([0-9.\-]+)_Ki([0-9.\-]+)_Kd([0-9.\-]+)/g)];
-
-      if (matches.length !== 5) {
-        console.warn("Expected 5 regulators, got:", matches.length);
-        return null;
-      }
-
-      return matches.map(m => ({
-        kp: parseFloat(m[1]),
-        ki: parseFloat(m[2]),
-        kd: parseFloat(m[3])
-      }));
+      if (matches.length !== 5) return null;
+      return matches.map(m => ({ kp: parseFloat(m[1]), ki: parseFloat(m[2]), kd: parseFloat(m[3]) }));
     }
 
     function renderRegulators(regs) {
-      regDriveEl.textContent = `Drive regulator: Kp=${regs[0].kp} Ki=${regs[0].ki} Kd=${regs[0].kd}`;
-      regLinearEl.textContent = `Linear speed regulator: Kp=${regs[1].kp} Ki=${regs[1].ki} Kd=${regs[1].kd}`;
-      regBalanceEl.textContent = `Balance angle regulator: Kp=${regs[2].kp} Ki=${regs[2].ki} Kd=${regs[2].kd}`;
-      regRotateEl.textContent = `Rotate angle regulator: Kp=${regs[3].kp} Ki=${regs[3].ki} Kd=${regs[3].kd}`;
-      regWheelEl.textContent = `Wheel rotate speed regulator: Kp=${regs[4].kp} Ki=${regs[4].ki} Kd=${regs[4].kd}`;
+      d_k.value = regs[0].kp; d_i.value = regs[0].ki; d_d.value = regs[0].kd;
+      l_k.value = regs[1].kp; l_i.value = regs[1].ki; l_d.value = regs[1].kd;
+      b_k.value = regs[2].kp; b_i.value = regs[2].ki; b_d.value = regs[2].kd;
+      r_k.value = regs[3].kp; r_i.value = regs[3].ki; r_d.value = regs[3].kd;
+      w_k.value = regs[4].kp; w_i.value = regs[4].ki; w_d.value = regs[4].kd;
     }
 
     async function fetchRobotConf() {
@@ -280,17 +318,10 @@
         const res = await fetch('/nus/logs');
         const data = await res.json();
         if (!Array.isArray(data.logs)) return;
-
         const fullText = data.logs.join("");
-
         const regs = parseRobotRegulators(fullText);
-        if (regs) {
-          renderRegulators(regs);
-          regBox.style.display = "block";
-        }
-      } catch (e) {
-        console.warn("conf err", e);
-      }
+        if (regs) renderRegulators(regs);
+      } catch (e) { console.warn("fetchRobotConf error:", e); }
     }
 
 
@@ -599,6 +630,21 @@
       }, 1000);
     };
 
+    function buildRegulatorCommand() {
+      return (
+        `f` + `k${d_k.value}i${d_i.value}d${d_d.value}` +
+        `s` + `k${l_k.value}i${l_i.value}d${l_d.value}` +
+        `r` + `k${r_k.value}i${r_i.value}d${r_d.value}` +
+        `b` + `k${b_k.value}i${b_i.value}d${b_d.value}` +
+        `w` + `k${w_k.value}i${w_i.value}d${w_d.value}`
+      );
+    }
+
+    setParamsBtn.onclick = async () => {
+      const cmd = buildRegulatorCommand();
+      console.log("SET PARAMETERS CMD:", cmd);
+      await post('/nus/send', { data: cmd });
+    };
 
     // --- INIT ---
     loadState();

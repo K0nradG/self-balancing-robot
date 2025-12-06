@@ -3,7 +3,6 @@
 #include "pid.h"
 #include "ramp.h"
 #include "trajectory_manager.h"
-#include "zephyr/kernel.h"
 
 #ifndef CONFIG_PID_ENABLED
 #include "lqr.h"
@@ -50,7 +49,12 @@ class Robot_Controller
     static constexpr float wheel_speed_pid_filter_alpha         = 1.0f;  // No filtering.
 
 public:
-    Robot_Controller();
+    static Robot_Controller&
+    instance()
+    {
+        static Robot_Controller s_robot_controller {};
+        return s_robot_controller;
+    }
 
     bool
     normal_motors_control();
@@ -61,12 +65,12 @@ public:
     void
     reset();
 
-    static void
-    regulator_data_sending_work_handler(k_work* work);
-
 #ifdef CONFIG_BLUETOOTH_DRV
     void
     parse_nus_data(char const* data);
+
+    void
+    send_PID_controllers_parameters();
 #endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
@@ -75,29 +79,36 @@ public:
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 private:
+    Robot_Controller();
+
+    Robot_Controller(Robot_Controller const&) = delete;
+
+    Robot_Controller&
+    operator=(Robot_Controller const&) = delete;
+
     float m_distance_setpoint;
     float m_balance_setpoint;
     Ramp m_rotate_setpoint_ramp;
 
     Trajectory_Manager m_trajectory_manager;
 
-    static PID s_distance_pid;
+    PID m_distance_pid;
 
-    static PID s_linear_speed_pid;
+    PID m_linear_speed_pid;
 
 #ifdef CONFIG_PID_ENABLED
-    static PID s_balance_pid;
+    PID m_balance_pid;
 #else
     LQR m_balance_lqr;
 #endif  // CONFIG_PID_ENABLED
 
-    static PID s_rotate_pid;
+    PID m_rotate_pid;
 
-    static PID s_wheel0_speed_pid;
-    static PID s_wheel1_speed_pid;
+    PID m_wheel0_speed_pid;
+    PID m_wheel1_speed_pid;
 
-    static char m_regulators_data[250];
-    static bool m_regulator_message_sending_in_progress;
+    char m_regulators_data[250];
+    bool m_regulator_message_sending_in_progress;
 
     float m_pwm0 {};
     float m_pwm1 {};

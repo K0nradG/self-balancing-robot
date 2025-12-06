@@ -20,7 +20,6 @@ static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_
 namespace Robot_Control
 {
 
-static Robot_Controller s_robot_controller {};
 static Main_State_Machine s_main_state_machine {};
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
@@ -32,7 +31,7 @@ s_main_state_machine.set_identification_state();
 void
 nus_data_parse_callback(char const* data)
 {
-    s_robot_controller.parse_nus_data(data);
+    Robot_Controller::instance().parse_nus_data(data);
 }
 
 void
@@ -76,18 +75,18 @@ control_loop_work_handler(k_work* work)
         case State::IDENTIFICATION:
         case State::NORMAL_OPERATION:
         {
-            bool const disable_motors_command = s_robot_controller.normal_motors_control();
+            bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
             s_main_state_machine.set_disable_motors_command(disable_motors_command);
             break;
         }
         case State::SOFT_STOP:
         {
-            bool const motors_stopped = s_robot_controller.soft_stop_motors();
+            bool const motors_stopped = Robot_Controller::instance().soft_stop_motors();
             s_main_state_machine.set_motors_stopped(motors_stopped);
             break;
         }
         case State::RESET_AFTER_STOP:
-            s_robot_controller.reset();
+            Robot_Controller::instance().reset();
             break;
         default:
             break;
@@ -96,7 +95,7 @@ control_loop_work_handler(k_work* work)
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     if(g_send_identification_data_cb)
     {
-        g_send_identification_data_cb(s_robot_controller.get_identification_data());
+        g_send_identification_data_cb(Robot_Controller::instance().get_identification_data());
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }

@@ -49,7 +49,12 @@ class Robot_Controller
     static constexpr float wheel_speed_pid_filter_alpha         = 1.0f;  // No filtering.
 
 public:
-    Robot_Controller();
+    static Robot_Controller&
+    instance()
+    {
+        static Robot_Controller s_robot_controller {};
+        return s_robot_controller;
+    }
 
     bool
     normal_motors_control();
@@ -63,6 +68,9 @@ public:
 #ifdef CONFIG_BLUETOOTH_DRV
     void
     parse_nus_data(char const* data);
+
+    void
+    send_PID_controllers_parameters();
 #endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
@@ -71,6 +79,13 @@ public:
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 private:
+    Robot_Controller();
+
+    Robot_Controller(Robot_Controller const&) = delete;
+
+    Robot_Controller&
+    operator=(Robot_Controller const&) = delete;
+
     float m_distance_setpoint;
     float m_balance_setpoint;
     Ramp m_rotate_setpoint_ramp;
@@ -91,6 +106,9 @@ private:
 
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
+
+    char m_regulators_data[250];
+    bool m_regulator_message_sending_in_progress;
 
     float m_pwm0 {};
     float m_pwm1 {};

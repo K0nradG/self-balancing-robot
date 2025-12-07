@@ -4,11 +4,22 @@
 #include "logger.h"
 #include "motor_controller.h"
 #include "saturation.h"
-
-static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
+#include "zephyr/kernel.h"
 
 namespace Robot_Control
 {
+
+static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
+
+static void
+PID_controllers_data_sending_work_handler(k_work* work)
+{
+    ARG_UNUSED(work);
+
+    Robot_Controller::instance().send_PID_controllers_parameters();
+}
+
+static K_WORK_DELAYABLE_DEFINE(s_PID_controllers_data_sending_work, PID_controllers_data_sending_work_handler);
 
 Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
@@ -25,7 +36,7 @@ Robot_Controller::Robot_Controller()
       m_balance_pid(balance_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), balance_pid_filter_alpha),
 #else
       m_balance_lqr(balance_lqr_parameters, max_speed_rad_s),
-#endif  // CONFIG_PID_ENABLED
+#endif  // not CONFIG_PID_ENABLED
       m_rotate_pid(
           rotate_pid_parameters, Saturation(-max_speed_rad_s, max_speed_rad_s), rotate_pid_filter_alpha,
           rotate_pid_hysteresis),
@@ -36,7 +47,8 @@ Robot_Controller::Robot_Controller()
       m_wheel1_speed_pid(
           wheel_speed_pid_parameters,
           Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
-          wheel_speed_pid_filter_alpha)
+          wheel_speed_pid_filter_alpha),
+      m_regulator_message_sending_in_progress(false)
 {
 }
 
@@ -166,6 +178,16 @@ Robot_Controller::parse_nus_data(char const* data)
         data++;  // payload
         switch(key)
         {
+            case BLE_Commands::General::GET_REGULATOR_PARAMS:
+            {
+                data++;
+                if(!m_regulator_message_sending_in_progress)
+                {
+                    m_regulator_message_sending_in_progress = true;
+                    k_work_submit(&s_PID_controllers_data_sending_work.work);
+                }
+                break;
+            }
             case BLE_Commands::Prefix::DISTANCE_PID:
                 if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
                 {
@@ -238,6 +260,30 @@ Robot_Controller::parse_nus_data(char const* data)
         }
     }
 }
+
+void
+Robot_Controller::send_PID_controllers_parameters()
+{
+    PID::Parameters const distance_pid_parameters     = m_distance_pid.get_parameters();
+    PID::Parameters const linear_speed_pid_parameters = m_linear_speed_pid.get_parameters();
+    PID::Parameters const balance_pid_parameters      = m_balance_pid.get_parameters();
+    PID::Parameters const rotate_pid_parameters       = m_rotate_pid.get_parameters();
+    PID::Parameters const wheel_speed_pid_parameters  = m_wheel0_speed_pid.get_parameters();
+
+    snprintf(
+        m_regulators_data, sizeof(m_regulators_data),
+        "Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f\n",
+        (double)distance_pid_parameters.Kp, (double)distance_pid_parameters.Ki, (double)distance_pid_parameters.Kd,
+        (double)linear_speed_pid_parameters.Kp, (double)linear_speed_pid_parameters.Ki,
+        (double)linear_speed_pid_parameters.Kd, (double)balance_pid_parameters.Kp, (double)balance_pid_parameters.Ki,
+        (double)balance_pid_parameters.Kd, (double)rotate_pid_parameters.Kp, (double)rotate_pid_parameters.Ki,
+        (double)rotate_pid_parameters.Kd, (double)wheel_speed_pid_parameters.Kp, (double)wheel_speed_pid_parameters.Ki,
+        (double)wheel_speed_pid_parameters.Kd);
+
+    robot_control_logger.platform_log(LOG_LEVEL::INF, "%s", m_regulators_data);
+    m_regulator_message_sending_in_progress = false;
+}
+
 #endif  // CONFIG_BLUETOOTH_DRV
 
 void

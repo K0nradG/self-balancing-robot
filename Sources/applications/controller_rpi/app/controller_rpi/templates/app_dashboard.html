@@ -372,15 +372,36 @@
 
     // --- LOCAL STORAGE ---
     function saveState() {
+
+      const regs = {
+        d: { kp: d_k.value, ki: d_i.value, kd: d_d.value },
+        l: { kp: l_k.value, ki: l_i.value, kd: l_d.value },
+        r: { kp: r_k.value, ki: r_i.value, kd: r_d.value },
+        b: { kp: b_k.value, ki: b_i.value, kd: b_d.value },
+        w: { kp: w_k.value, ki: w_i.value, kd: w_d.value }
+      };
+
       localStorage.setItem('connectionStatus', connectionStatus);
       localStorage.setItem('applicationStatus', applicationStatus);
       localStorage.setItem('isEnabled', isEnabled);
+      localStorage.setItem('robotRegs', JSON.stringify(regs));
     }
 
     function loadState() {
       connectionStatus = localStorage.getItem('connectionStatus') || "disconnected";
       applicationStatus = localStorage.getItem('applicationStatus') || "wait for DFU";
       isEnabled = (localStorage.getItem('isEnabled') === 'true');
+
+      const storedRegs = localStorage.getItem('robotRegs');
+      if (storedRegs) {
+        const regs = JSON.parse(storedRegs);
+        d_k.value = regs.d.kp; d_i.value = regs.d.ki; d_d.value = regs.d.kd;
+        l_k.value = regs.l.kp; l_i.value = regs.l.ki; l_d.value = regs.l.kd;
+        r_k.value = regs.r.kp; r_i.value = regs.r.ki; r_d.value = regs.r.kd;
+        b_k.value = regs.b.kp; b_i.value = regs.b.ki; b_d.value = regs.b.kd;
+        w_k.value = regs.w.kp; w_i.value = regs.w.ki; w_d.value = regs.w.kd;
+      }
+
       updateUI();
     }
 
@@ -627,6 +648,7 @@
       // wait from notify from robot
       setTimeout(async () => {
         await fetchRobotConf();
+        saveState();
       }, 200);
     };
 

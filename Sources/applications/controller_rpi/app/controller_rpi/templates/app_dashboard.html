@@ -633,20 +633,27 @@
 
 
     function buildRegulatorCommand() {
-      return (
-        `f` + `k${d_k.value}i${d_i.value}d${d_d.value}` +
-        `s` + `k${l_k.value}i${l_i.value}d${l_d.value}` +
-        `r` + `k${r_k.value}i${r_i.value}d${r_d.value}` +
-        `b` + `k${b_k.value}i${b_i.value}d${b_d.value}` +
-        `w` + `k${w_k.value}i${w_i.value}d${w_d.value}`
-      );
+      return [
+        `fk${d_k.value}i${d_i.value}d${d_d.value}`,
+        `sk${l_k.value}i${l_i.value}d${l_d.value}`,
+        `rk${r_k.value}i${r_i.value}d${r_d.value}`,
+        `bk${b_k.value}i${b_i.value}d${b_d.value}`,
+        `wk${w_k.value}i${w_i.value}d${w_d.value}`
+      ];
     }
 
-    setParamsBtn.onclick = async () => {
-      const cmd = buildRegulatorCommand();
-      console.log("SET PARAMETERS CMD:", cmd);
-      await post('/nus/send', { data: cmd });
-    };
+    async function sendRegulatorCommands() {
+      const commands = buildRegulatorCommand();
+
+      for (let cmd of commands) {
+        console.log("Sending:", cmd);
+        await post('/nus/send', { data: cmd });
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+
+
+    setParamsBtn.onclick = sendRegulatorCommands;
 
     // --- INIT ---
     loadState();

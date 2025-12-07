@@ -85,10 +85,10 @@ Robot_Controller::normal_motors_control()
             // -----------------------
             // Faza stand-up
             // -----------------------
-            if(stand_up_timer < 1.0f)
+            if(stand_up_timer < 0.5f)
             {
                 // 1. Faza rozpędzenia - robot przyspiesza do tyłu, żeby nabrać momentu
-                target_speed = -static_cast<float>(CONFIG_PWM_LIMIT);
+                target_speed = -85.0f;
             }
             else
             {
@@ -106,7 +106,7 @@ Robot_Controller::normal_motors_control()
             trigger_motors_update();
 
             // Sprawdzenie momentu przejścia do BALANCING
-            if(fabs(angle - m_balance_setpoint) < 0.087f)
+            if(fabs(angle - m_balance_setpoint) < 0.18f)
             {
                 stand_up_timer = 0.0f;
                 m_state        = Robot_Controller::RobotState::BALANCING;
@@ -366,7 +366,7 @@ bool
 Robot_Controller::validate_robot_angle(float balance_angle)
 {
     static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
+    static constexpr float safe_angle_margin     = 30.0f * (pi / radian_degrees);
     static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
 
     float const upper_limit = m_balance_setpoint + safe_angle_margin;

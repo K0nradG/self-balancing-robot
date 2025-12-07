@@ -171,10 +171,6 @@
   <div class="card">
     <h1>Application Dashboard</h1>
 
-    <div>
-      <button id="robotConfBtn" class="btn btn-primary">GET ROBOT CONF</button>
-    </div>
-
     <div id="regulatorBox" class="regulator-box">
       <h3>Robot Regulators</h3>
       <div class="reg-input-block">
@@ -198,9 +194,10 @@
         D: <input id="w_d" type="text" size="4">
       </div>
       <button id="setParamsBtn" class="btn btn-success" style="margin-top:10px;">SET PARAMETERS</button>
+      <button id="robotConfBtn" class="btn btn-primary" style="margin-top:10px;">GET ROBOT CONF</button>
     </div>
 
-    <div id="status">
+    <div id=" status">
       <span id="connIndicator" style="
         display:inline-block;
         width:12px;
@@ -526,6 +523,9 @@
 
       // robot controller only if connected AND application work
       robotControllerBtn.style.display = (connectionStatus === "connected" && applicationStatus === "application work") ? "inline-block" : "none";
+
+      regBox.style.display = isEnabled ? "block" : "none";
+      robotConfBtn.style.display = isEnabled ? "inline-block" : "none";
 
       // status texts
       const connIndicator = document.getElementById('connIndicator');

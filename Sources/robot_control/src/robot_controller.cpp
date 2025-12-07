@@ -1,4 +1,5 @@
 #include "robot_controller.h"
+#include <cmath>
 #include "ble_commands.h"
 #include "data_manager.h"
 #include "logger.h"
@@ -55,82 +56,149 @@ Robot_Controller::Robot_Controller()
 bool
 Robot_Controller::normal_motors_control()
 {
+    // Aktualizacja sensorów
     DataManager::instance().update();
-    imu_data const imu_data           = DataManager::instance().get_imu_data();
-    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
     float const rotation_angle        = DataManager::instance().get_rotation_angle();
+    float angle                       = DataManager::instance().get_imu_data().angle_balance;
+    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
+    imu_data const imu_data           = DataManager::instance().get_imu_data();
+    float dt                          = imu_data.time_dt;
 
-#ifdef CONFIG_VALIDATE_ROBOT_ANGLE
-    bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
-#else
-    bool const disable_motors_command = false;
-#endif  // CONFIG_VALIDATE_ROBOT_ANGLE
+    // Timer stand-up
+    static float stand_up_timer = 0.0f;
+    stand_up_timer += dt;
 
-    if(!disable_motors_command)
+    // Wartość docelowa prędkości kół podczas stand-up
+    float target_speed = 0.0f;
+
+    switch(m_state)
     {
-        m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
-
-        float const target_linear_speed =
-            m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
-
-        float const balance_angle_deviation = m_linear_speed_pid.calculate_output(
-            target_linear_speed, encoders_data.robot_linear_speed, imu_data.time_dt);
-
-#ifdef CONFIG_PID_ENABLED
-        float const target_speed_balance = m_balance_pid.calculate_output(
-            m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, imu_data.time_dt);
-#else
-        float const target_speed_balance =
-            m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
-#endif  // CONFIG_PID_ENABLED
-
-        m_rotate_setpoint_ramp.update(imu_data.time_dt);
-        float const target_speed_rotate =
-            m_rotate_pid.calculate_output(m_rotate_setpoint_ramp.get_current_value(), rotation_angle, imu_data.time_dt);
-
-        static Saturation const target_wheel_speed_saturation {-max_speed_rad_s, max_speed_rad_s};
-        float const target_speed0 = target_wheel_speed_saturation.saturate(target_speed_balance - target_speed_rotate);
-        float const target_speed1 = target_wheel_speed_saturation.saturate(target_speed_balance + target_speed_rotate);
-
-        m_pwm0 = m_wheel0_speed_pid.calculate_output(
-            target_speed0, encoders_data.encoder_0.angular_velocity_rad_s, imu_data.time_dt);
-        m_pwm1 = m_wheel1_speed_pid.calculate_output(
-            target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
-
-        if(!m_trajectory_manager.stop_logs())
+        case Robot_Controller::RobotState::FALLEN:
         {
-            static float log_timer_ms = 0.0f;
-            log_timer_ms += imu_data.time_dt * 1000;
-
-            if(log_timer_ms >= CONFIG_ROBOT_CONTROL_LOG_NUS_PERIOD_MS)
-            {
-                log_timer_ms = 0.0f;
-
-                robot_control_logger.platform_log(
-                    LOG_LEVEL::INF,
-                    "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
-                    (double)(m_balance_setpoint * radian_degrees / pi),
-                    (double)(imu_data.angle_balance * radian_degrees / pi),
-                    (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
-                    (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
-                    (double)encoders_data.encoder_0.angular_velocity_rad_s,
-                    (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
-            }
+            // Przechodzimy w tryb STAND_UP
+            m_state = Robot_Controller::RobotState::STAND_UP;
+            return false;  // silniki wyłączone podczas leżenia
         }
 
+        case Robot_Controller::RobotState::STAND_UP:
+        {
+            // -----------------------
+            // Faza stand-up
+            // -----------------------
+            if(stand_up_timer < 1.0f)
+            {
+                // 1. Faza rozpędzenia - robot przyspiesza do tyłu, żeby nabrać momentu
+                target_speed = -static_cast<float>(CONFIG_PWM_LIMIT);
+            }
+            else
+            {
+                // 2. Faza hamowania / przeciwdziałania - robot lekko hamuje, żeby przechylić się do pionu
+                target_speed = 0.0f;
+            }
+
+            // PID prędkości kół
+            m_pwm0 =
+                m_wheel0_speed_pid.calculate_output(target_speed, encoders_data.encoder_0.angular_velocity_rad_s, dt);
+            m_pwm1 =
+                m_wheel1_speed_pid.calculate_output(target_speed, encoders_data.encoder_1.angular_velocity_rad_s, dt);
+
+            send_motors_data(m_pwm0, m_pwm1);
+            trigger_motors_update();
+
+            // Sprawdzenie momentu przejścia do BALANCING
+            if(fabs(angle - m_balance_setpoint) < 0.087f)
+            {
+                stand_up_timer = 0.0f;
+                m_state        = Robot_Controller::RobotState::BALANCING;
+            }
+
+            return false;
+        }
+
+        case Robot_Controller::RobotState::BALANCING:
+        {
+            // -----------------------
+            // Normalny tryb balansowania
+            // -----------------------
+#ifdef CONFIG_VALIDATE_ROBOT_ANGLE
+            bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
+#else
+            bool const disable_motors_command = false;
+#endif  // CONFIG_VALIDATE_ROBOT_ANGLE
+
+            if(!disable_motors_command)
+            {
+                m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
+
+                float const target_linear_speed =
+                    m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, dt);
+
+                float const balance_angle_deviation =
+                    m_linear_speed_pid.calculate_output(target_linear_speed, encoders_data.robot_linear_speed, dt);
+
+#ifdef CONFIG_PID_ENABLED
+                float const target_speed_balance = m_balance_pid.calculate_output(
+                    m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, dt);
+#else
+                float const target_speed_balance =
+                    m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
+#endif  // CONFIG_PID_ENABLED
+
+                m_rotate_setpoint_ramp.update(dt);
+                float const target_speed_rotate =
+                    m_rotate_pid.calculate_output(m_rotate_setpoint_ramp.get_current_value(), rotation_angle, dt);
+
+                static Saturation const target_wheel_speed_saturation {-max_speed_rad_s, max_speed_rad_s};
+                float const target_speed0 =
+                    target_wheel_speed_saturation.saturate(target_speed_balance - target_speed_rotate);
+                float const target_speed1 =
+                    target_wheel_speed_saturation.saturate(target_speed_balance + target_speed_rotate);
+
+                m_pwm0 = m_wheel0_speed_pid.calculate_output(
+                    target_speed0, encoders_data.encoder_0.angular_velocity_rad_s, dt);
+                m_pwm1 = m_wheel1_speed_pid.calculate_output(
+                    target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, dt);
+
+                // Logowanie danych
+                if(!m_trajectory_manager.stop_logs())
+                {
+                    static float log_timer_ms = 0.0f;
+                    log_timer_ms += dt * 1000.0f;
+
+                    if(log_timer_ms >= CONFIG_ROBOT_CONTROL_LOG_NUS_PERIOD_MS)
+                    {
+                        log_timer_ms = 0.0f;
+                        robot_control_logger.platform_log(
+                            LOG_LEVEL::INF,
+                            "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
+                            (double)(m_balance_setpoint * radian_degrees / pi),
+                            (double)(imu_data.angle_balance * radian_degrees / pi),
+                            (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
+                            (double)(rotation_angle * radian_degrees / pi), (double)target_speed0,
+                            (double)target_speed1, (double)encoders_data.encoder_0.angular_velocity_rad_s,
+                            (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+                    }
+                }
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-        m_identification_data = {
-            .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
-            .pwm      = (pwm0 + pwm1) / 2.0f,
-            .angle    = imu_data.angle_balance,
-            .angle_dt = imu_data.angle_balance_dt};
+                m_identification_data = {
+                    .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
+                    .pwm      = (m_pwm0 + m_pwm1) / 2.0f,
+                    .angle    = imu_data.angle_balance,
+                    .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-        send_motors_data(m_pwm0, m_pwm1);
-        trigger_motors_update();
-    }
+                send_motors_data(m_pwm0, m_pwm1);
+                trigger_motors_update();
+            }
 
-    return disable_motors_command;
+            return disable_motors_command;
+        }
+
+        default:
+            // Bezpieczny fallback
+            return true;
+    }
 }
 
 bool

@@ -78,6 +78,17 @@ public:
     get_identification_data() const;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+    void
+    stand_up_step(float dt);
+
+    enum class RobotState
+    {
+        BALANCING,
+        FALLEN,
+        STAND_UP,
+        SOFT_STOP
+    };
+
 private:
     Robot_Controller();
 
@@ -107,6 +118,8 @@ private:
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
 
+    RobotState m_state = RobotState::FALLEN;
+
     char m_regulators_data[250];
     bool m_regulator_message_sending_in_progress;
 
@@ -121,6 +134,18 @@ private:
 
     bool
     ramp_pwm_to_stop(float& pwm);
+
+    void
+    set_state(RobotState new_state)
+    {
+        m_state = new_state;
+    }
+
+    RobotState
+    get_state() const
+    {
+        return m_state;
+    }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data m_identification_data {};

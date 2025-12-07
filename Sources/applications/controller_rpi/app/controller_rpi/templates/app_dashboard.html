@@ -10,11 +10,16 @@
       background: linear-gradient(120deg, #60a5fa, #a78bfa, #f472b6);
       background-size: 400% 400%;
       animation: gradient 10s ease infinite;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .container {
       display: flex;
       justify-content: center;
-      align-items: center;
-      height: 100vh;
-      font-family: 'Inter', sans-serif;
+      align-items: flex-start;
+      min-height: 100vh;
     }
 
     a.btn {
@@ -168,71 +173,76 @@
 </head>
 
 <body>
-  <div class="card">
-    <h1>Application Dashboard</h1>
+  <div class="container">
+    <div class="card">
+      <h1>Application Dashboard</h1>
 
-    <div id="regulatorBox" class="regulator-box">
-      <h3>Robot Regulators</h3>
-      <div class="reg-input-block">
-        <h4>Drive regulator</h4> K: <input id="d_k" type="text" size="4"> I: <input id="d_i" type="text" size="4"> D:
-        <input id="d_d" type="text" size="4">
+      <div id="regulatorBox" class="regulator-box">
+        <h3>Robot Regulators</h3>
+        <div class="reg-input-block">
+          <h4>Drive regulator</h4> K: <input id="d_k" type="text" size="4"> I: <input id="d_i" type="text" size="4"> D:
+          <input id="d_d" type="text" size="4">
+        </div>
+        <div class="reg-input-block">
+          <h4>Linear speed regulator</h4> K: <input id="l_k" type="text" size="4"> I: <input id="l_i" type="text"
+            size="4"> D: <input id="l_d" type="text" size="4">
+        </div>
+        <div class="reg-input-block">
+          <h4>Rotate angle regulator</h4> K: <input id="r_k" type="text" size="4"> I: <input id="r_i" type="text"
+            size="4"> D: <input id="r_d" type="text" size="4">
+        </div>
+        <div class="reg-input-block">
+          <h4>Balance regulator</h4> K: <input id="b_k" type="text" size="4"> I: <input id="b_i" type="text" size="4">
+          D:
+          <input id="b_d" type="text" size="4">
+        </div>
+        <div class="reg-input-block">
+          <h4>Wheel speed regulator</h4> K: <input id="w_k" type="text" size="4"> I: <input id="w_i" type="text"
+            size="4">
+          D: <input id="w_d" type="text" size="4">
+        </div>
+        <button id="setParamsBtn" class="btn btn-success" style="margin-top:10px;">SET PARAMETERS</button>
+        <button id="robotConfBtn" class="btn btn-primary" style="margin-top:10px;">GET ROBOT CONF</button>
       </div>
-      <div class="reg-input-block">
-        <h4>Linear speed regulator</h4> K: <input id="l_k" type="text" size="4"> I: <input id="l_i" type="text"
-          size="4"> D: <input id="l_d" type="text" size="4">
+
+      <div id=" status">
+        <span id="connIndicator" style="
+          display:inline-block;
+          width:12px;
+          height:12px;
+          border-radius:50%;
+          background:red;
+          margin-right:8px;
+          vertical-align:middle;">
+        </span>
+        <span id="connText">Connection: disconnected</span> |
+        <span id="appText">Application: wait for DFU</span> |
+        <span id="deviceText">Device: none</span>
       </div>
-      <div class="reg-input-block">
-        <h4>Rotate angle regulator</h4> K: <input id="r_k" type="text" size="4"> I: <input id="r_i" type="text"
-          size="4"> D: <input id="r_d" type="text" size="4">
+
+      <div class="flex flex-wrap justify-center mb-4">
+        <button id="connectBtn" class="btn btn-primary">CONNECT</button>
+        <button id="disconnectBtn" class="btn btn-secondary" style="display:none;">DISCONNECT</button>
+        <button id="startAppBtn" class="btn btn-success" style="display:none;">START APPLICATION</button>
+        <button id="showLogsBtn" class="btn btn-primary" style="display:none;">SHOW DEVICE LOGS</button>
+        <button id="hideLogsBtn" class="btn btn-secondary" style="display:none;">HIDE DEVICE LOGS</button>
+        <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
+        <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
+        <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
+        <a id="robotControllerBtn" href="/motion" class="btn btn-primary" style="display:none;">ROBOT CONTROLLER</a>
+        <a id="backBtn" href="/" class="btn btn-primary">BACK</a>
+
       </div>
-      <div class="reg-input-block">
-        <h4>Balance regulator</h4> K: <input id="b_k" type="text" size="4"> I: <input id="b_i" type="text" size="4"> D:
-        <input id="b_d" type="text" size="4">
+
+      <pre id="logBox"></pre>
+
+      <div class="mt-6">
+        <canvas id="chartBattery" height="100"></canvas>
+        <canvas id="chartAngles" height="100"></canvas>
+        <canvas id="chartSpeeds" height="100"></canvas>
+        <canvas id="chartPWM" height="100"></canvas>
       </div>
-      <div class="reg-input-block">
-        <h4>Wheel speed regulator</h4> K: <input id="w_k" type="text" size="4"> I: <input id="w_i" type="text" size="4">
-        D: <input id="w_d" type="text" size="4">
-      </div>
-      <button id="setParamsBtn" class="btn btn-success" style="margin-top:10px;">SET PARAMETERS</button>
-      <button id="robotConfBtn" class="btn btn-primary" style="margin-top:10px;">GET ROBOT CONF</button>
-    </div>
 
-    <div id=" status">
-      <span id="connIndicator" style="
-        display:inline-block;
-        width:12px;
-        height:12px;
-        border-radius:50%;
-        background:red;
-        margin-right:8px;
-        vertical-align:middle;">
-      </span>
-      <span id="connText">Connection: disconnected</span> |
-      <span id="appText">Application: wait for DFU</span> |
-      <span id="deviceText">Device: none</span>
-    </div>
-
-    <div class="flex flex-wrap justify-center mb-4">
-      <button id="connectBtn" class="btn btn-primary">CONNECT</button>
-      <button id="disconnectBtn" class="btn btn-secondary" style="display:none;">DISCONNECT</button>
-      <button id="startAppBtn" class="btn btn-success" style="display:none;">START APPLICATION</button>
-      <button id="showLogsBtn" class="btn btn-primary" style="display:none;">SHOW DEVICE LOGS</button>
-      <button id="hideLogsBtn" class="btn btn-secondary" style="display:none;">HIDE DEVICE LOGS</button>
-      <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
-      <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
-      <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
-      <a id="robotControllerBtn" href="/motion" class="btn btn-primary" style="display:none;">ROBOT CONTROLLER</a>
-      <a id="backBtn" href="/" class="btn btn-primary">BACK</a>
-
-    </div>
-
-    <pre id="logBox"></pre>
-
-    <div class="mt-6">
-      <canvas id="chartBattery" height="100"></canvas>
-      <canvas id="chartAngles" height="100"></canvas>
-      <canvas id="chartSpeeds" height="100"></canvas>
-      <canvas id="chartPWM" height="100"></canvas>
     </div>
 
   </div>

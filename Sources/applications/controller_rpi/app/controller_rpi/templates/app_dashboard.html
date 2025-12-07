@@ -620,15 +620,17 @@
     };
 
     robotConfBtn.onclick = async () => {
+      // get robot configuration command
       await post('/nus/send', { data: 'fgsgrgbgwg' });
       regBox.style.display = "block";
 
-
-      const interval = setInterval(async () => {
+      // wait from notify from robot
+      setTimeout(async () => {
         await fetchRobotConf();
-        // tu można dodać warunek zakończenia gdy wszystkie dane odebrane
-      }, 1000);
+      }, 200);
     };
+
+
 
     function buildRegulatorCommand() {
       return (

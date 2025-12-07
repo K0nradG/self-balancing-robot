@@ -283,6 +283,8 @@
     let applicationStatus = "wait for DFU";
     let isEnabled = false;
     let chartUpdating = false;
+    let lastSentRegs = null;
+
     downloadBtn.style.display = "none";
 
     const chartData = {
@@ -295,6 +297,20 @@
       pwm0: [],
       pwm1: []
     };
+
+    function hasRegChanged(reg, lastReg) {
+      return reg.kp !== lastReg.kp || reg.ki !== lastReg.ki || reg.kd !== lastReg.kd;
+    }
+
+    function getCurrentRegs() {
+      return [
+        { kp: d_k.value, ki: d_i.value, kd: d_d.value },
+        { kp: l_k.value, ki: l_i.value, kd: l_d.value },
+        { kp: r_k.value, ki: r_i.value, kd: r_d.value },
+        { kp: b_k.value, ki: b_i.value, kd: b_d.value },
+        { kp: w_k.value, ki: w_i.value, kd: w_d.value }
+      ];
+    }
 
     function parseRobotRegulators(raw) {
       const matches = [...raw.matchAll(/Kp([0-9.\-]+)_Ki([0-9.\-]+)_Kd([0-9.\-]+)/g)];
@@ -652,26 +668,23 @@
       }, 200);
     };
 
-
-
-    function buildRegulatorCommand() {
-      return [
-        `fk${d_k.value}i${d_i.value}d${d_d.value}`,
-        `sk${l_k.value}i${l_i.value}d${l_d.value}`,
-        `rk${r_k.value}i${r_i.value}d${r_d.value}`,
-        `bk${b_k.value}i${b_i.value}d${b_d.value}`,
-        `wk${w_k.value}i${w_i.value}d${w_d.value}`
-      ];
-    }
-
     async function sendRegulatorCommands() {
-      const commands = buildRegulatorCommand();
+      const currentRegs = getCurrentRegs();
+      const labels = ['f', 's', 'r', 'b', 'w'];
 
-      for (let cmd of commands) {
-        console.log("Sending:", cmd);
-        await post('/nus/send', { data: cmd });
-        await new Promise(r => setTimeout(r, 200));
+      if (!lastSentRegs) lastSentRegs = currentRegs.map(r => ({ ...r }));
+
+      for (let i = 0; i < currentRegs.length; i++) {
+        if (hasRegChanged(currentRegs[i], lastSentRegs[i])) {
+          const cmd = `${labels[i]}k${currentRegs[i].kp}i${currentRegs[i].ki}d${currentRegs[i].kd}`;
+          console.log("Sending:", cmd);
+          await post('/nus/send', { data: cmd });
+          lastSentRegs[i] = { ...currentRegs[i] };
+          await new Promise(r => setTimeout(r, 200));
+        }
       }
+
+      saveState();
     }
 
 

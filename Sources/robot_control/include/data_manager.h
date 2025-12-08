@@ -29,6 +29,9 @@ public:
     void
     reset();
 
+    void
+    reset_distance();
+
 private:
     DataManager() = default;
 

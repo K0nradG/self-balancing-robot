@@ -47,6 +47,8 @@ static int8_t const transition_table[16u] = {
     0    // 1111
 };
 
+static bool s_reset_distance = false;
+
 void
 encoder_0_gpio_callback(const device* dev, gpio_callback* cb, uint32_t pins)
 {
@@ -154,6 +156,13 @@ _get_encoders_data()
     static float prev_robot_distance_m    = 0.0f;
     static int64_t last_timestamp_ms      = 0;
 
+    if(s_reset_distance)
+    {
+        g_encoders_data.robot_distance_m = 0.0f;
+        prev_robot_distance_m            = 0.0f;
+        s_reset_distance                 = false;
+    }
+
     int64_t const now_ms = k_uptime_get();
     float const dt       = (last_timestamp_ms > 0) ? (now_ms - last_timestamp_ms) * MILLI_TO_SI : 0.01f;
     last_timestamp_ms    = now_ms;
@@ -179,4 +188,10 @@ void
 reset_encoders()
 {
     g_encoders_data = {};
+}
+
+void
+reset_distance_()
+{
+    s_reset_distance = true;
 }

@@ -20,6 +20,10 @@ class Robot_Controller
     static constexpr float pi             = 3.14159265358979323846f;
     static constexpr float radian_degrees = 180.0f;
 
+    static constexpr float valid_swing_up_angle_range                  = 25.0f * (pi / radian_degrees);  // [rad]
+    static constexpr float valid_balance_angle_range                   = 4.0f * (pi / radian_degrees);   // [rad]
+    static constexpr float balance_time_to_enable_distance_controllers = 3.0f;                           // [s]
+
     static constexpr float balance_setpoint     = -16.5f * (pi / radian_degrees);  // [rad]
     static constexpr float rotate_setpoint_rate = 180.0f * (pi / radian_degrees);  // [rad/s]
 
@@ -57,10 +61,16 @@ public:
     }
 
     bool
+    swing_up();
+
+    bool
     normal_motors_control();
 
     bool
     soft_stop_motors();
+
+    void
+    disable_distance_controllers(bool disable);
 
     void
     reset();
@@ -78,17 +88,6 @@ public:
     get_identification_data() const;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-    void
-    stand_up_step(float dt);
-
-    enum class RobotState
-    {
-        BALANCING,
-        FALLEN,
-        STAND_UP,
-        SOFT_STOP
-    };
-
 private:
     Robot_Controller();
 
@@ -96,6 +95,9 @@ private:
 
     Robot_Controller&
     operator=(Robot_Controller const&) = delete;
+
+    bool m_disable_distance_controllers;
+    float m_valid_balance_time_after_swing_up;
 
     float m_distance_setpoint;
     float m_balance_setpoint;
@@ -118,8 +120,6 @@ private:
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
 
-    RobotState m_state = RobotState::FALLEN;
-
     char m_regulators_data[250];
     bool m_regulator_message_sending_in_progress;
 
@@ -136,16 +136,13 @@ private:
     ramp_pwm_to_stop(float& pwm);
 
     void
-    set_state(RobotState new_state)
-    {
-        m_state = new_state;
-    }
+    check_to_reenable_distance_controllers(float balance_angle, float dt);
 
-    RobotState
-    get_state() const
-    {
-        return m_state;
-    }
+    bool
+    valid_balancing_after_swing_up() const;
+
+    void
+    reset_distance_controlling();
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     identification_data m_identification_data {};

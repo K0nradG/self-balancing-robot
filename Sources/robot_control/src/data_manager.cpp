@@ -45,4 +45,10 @@ DataManager::reset()
     m_rotation_angle = 0.0f;
 }
 
+void
+DataManager::reset_distance()
+{
+    reset_distance_();
+}
+
 }  // namespace Robot_Control

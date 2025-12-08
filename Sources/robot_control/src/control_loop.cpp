@@ -72,7 +72,13 @@ control_loop_work_handler(k_work* work)
     State const state = s_main_state_machine.get_state();
     switch(state)
     {
-        case State::IDENTIFICATION:
+        case State::SWING_UP:
+        {
+            bool const swing_up_finished = Robot_Controller::instance().swing_up();
+            Robot_Controller::instance().disable_distance_controllers(swing_up_finished);
+            s_main_state_machine.set_swing_up_finished(swing_up_finished);
+            break;
+        }
         case State::NORMAL_OPERATION:
         {
             bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
@@ -88,6 +94,7 @@ control_loop_work_handler(k_work* work)
         case State::RESET_AFTER_STOP:
             Robot_Controller::instance().reset();
             break;
+        case State::IDENTIFICATION:
         default:
             break;
     }

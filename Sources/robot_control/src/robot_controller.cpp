@@ -76,7 +76,8 @@ Robot_Controller::normal_motors_control()
         case Robot_Controller::RobotState::FALLEN:
         {
             // Przechodzimy w tryb STAND_UP
-            m_state = Robot_Controller::RobotState::STAND_UP;
+            stand_up_timer = 0;
+            m_state        = Robot_Controller::RobotState::STAND_UP;
             return false;  // silniki wyłączone podczas leżenia
         }
 
@@ -85,16 +86,16 @@ Robot_Controller::normal_motors_control()
             // -----------------------
             // Faza stand-up
             // -----------------------
-            if(stand_up_timer < 0.5f)
-            {
-                // 1. Faza rozpędzenia - robot przyspiesza do tyłu, żeby nabrać momentu
-                target_speed = -85.0f;
-            }
-            else
-            {
-                // 2. Faza hamowania / przeciwdziałania - robot lekko hamuje, żeby przechylić się do pionu
-                target_speed = 0.0f;
-            }
+            // if(stand_up_timer < 0.5f)
+            //{
+            // 1. Faza rozpędzenia - robot przyspiesza do tyłu, żeby nabrać momentu
+            target_speed = -95.0f;
+            //}
+            // else
+            // {
+            //     // 2. Faza hamowania / przeciwdziałania - robot lekko hamuje, żeby przechylić się do pionu
+            //     target_speed = 0.0f;
+            // }
 
             // PID prędkości kół
             m_pwm0 =
@@ -106,10 +107,13 @@ Robot_Controller::normal_motors_control()
             trigger_motors_update();
 
             // Sprawdzenie momentu przejścia do BALANCING
-            if(fabs(angle - m_balance_setpoint) < 0.18f)
+            if(fabs(angle - m_balance_setpoint) < 0.47f)
             {
                 stand_up_timer = 0.0f;
-                m_state        = Robot_Controller::RobotState::BALANCING;
+                send_motors_data(0, 0);
+                trigger_motors_update();
+                reset();
+                m_state = Robot_Controller::RobotState::BALANCING;
             }
 
             return false;
@@ -223,6 +227,7 @@ Robot_Controller::reset()
     m_rotate_pid.reset();
     m_balance_pid.reset();
     m_trajectory_manager.reset();
+    m_state = RobotState::FALLEN;
 }
 
 #ifdef CONFIG_BLUETOOTH_DRV

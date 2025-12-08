@@ -191,7 +191,7 @@ reset_encoders()
 }
 
 void
-reset_distance_()
+reset_distance()
 {
     s_reset_distance = true;
 }

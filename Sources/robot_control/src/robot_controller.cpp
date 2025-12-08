@@ -424,7 +424,7 @@ Robot_Controller::reset_distance_controlling()
     m_distance_setpoint = 0.0f;
     m_distance_pid.reset();
     m_linear_speed_pid.reset();
-    DataManager::instance().reset_distance();
+    DataManager::instance().reset_distance_in_encoders();
 }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV

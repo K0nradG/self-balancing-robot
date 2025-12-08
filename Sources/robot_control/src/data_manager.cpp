@@ -46,9 +46,9 @@ DataManager::reset()
 }
 
 void
-DataManager::reset_distance()
+DataManager::reset_distance_in_encoders()
 {
-    reset_distance_();
+    reset_distance();
 }
 
 }  // namespace Robot_Control

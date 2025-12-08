@@ -34,4 +34,4 @@ void
 reset_encoders();
 
 void
-reset_distance_();
+reset_distance();

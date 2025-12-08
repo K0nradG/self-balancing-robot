@@ -30,7 +30,7 @@ public:
     reset();
 
     void
-    reset_distance();
+    reset_distance_in_encoders();
 
 private:
     DataManager() = default;

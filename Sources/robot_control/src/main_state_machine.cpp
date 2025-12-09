@@ -12,15 +12,12 @@ Main_State_Machine::update()
         return;
     }
 
-    if(m_flags.disable_motors_command)  // Always handle emergency disable.
+    if(m_flags.disable_motors_command)  // Always handle emergency disable first.
     {
         m_state = SOFT_STOP;
     }
-    else
-    {
-        main_state_machine_update();
-    }
 
+    main_state_machine_update();
     m_flags.reset();
 }
 

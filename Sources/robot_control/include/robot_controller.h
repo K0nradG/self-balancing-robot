@@ -61,9 +61,12 @@ public:
     }
 
     bool
-    swing_up();
+    get_motors_disable_command() const;
 
     bool
+    swing_up();
+
+    void
     normal_motors_control();
 
     bool
@@ -126,10 +129,12 @@ private:
     float m_pwm0 {};
     float m_pwm1 {};
 
+    bool m_disable_motors {};
+
     void
     send_motors_data(float pwm_motor0, float pwm_motor1);
 
-    bool
+    void
     validate_robot_angle(float balance_angle);
 
     bool

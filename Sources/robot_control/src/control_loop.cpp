@@ -81,8 +81,7 @@ control_loop_work_handler(k_work* work)
         }
         case State::NORMAL_OPERATION:
         {
-            bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
-            s_main_state_machine.set_disable_motors_command(disable_motors_command);
+            Robot_Controller::instance().normal_motors_control();
             break;
         }
         case State::SOFT_STOP:
@@ -98,6 +97,9 @@ control_loop_work_handler(k_work* work)
         default:
             break;
     }
+
+    // Check if disabling command was requested during control loop
+    s_main_state_machine.set_disable_motors_command(Robot_Controller::instance().get_motors_disable_command());
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     if(g_send_identification_data_cb)

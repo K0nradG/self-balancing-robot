@@ -175,13 +175,8 @@ private:
 
     Data_Logger m_data_logger {};
 
-    float
-    handle_driving_control(float rotation_angle, encoders_data const& encoders_data, imu_data const& imu_data);
-
     void
-    handle_balance_and_rotation_control(
-        float balance_angle_deviation, float rotation_angle, encoders_data const& encoders_data,
-        imu_data const& imu_data);
+    handle_control(float rotation_angle, encoders_data const& encoders_data, imu_data const& imu_data);
 
     void
     send_motors_data(float pwm_motor0, float pwm_motor1);
@@ -191,6 +186,9 @@ private:
 
     bool
     ramp_pwm_to_stop(float& pwm);
+
+    void
+    disable_driving_controllers();
 
     bool
     check_to_enable_driving_controllers(float balance_angle, float dt);

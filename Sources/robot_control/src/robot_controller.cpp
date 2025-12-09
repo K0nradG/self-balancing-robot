@@ -100,6 +100,7 @@ Robot_Controller::swing_up()
         m_pwm0            = 0.0f;
         m_pwm1            = 0.0f;
         reset();
+        disable_driving_controllers();
     }
     send_motors_data(m_pwm0, m_pwm1);
     trigger_motors_update();
@@ -126,8 +127,7 @@ Robot_Controller::motors_control_with_driving_controllers_disabled()
         return false;
     }
 
-    static constexpr float balance_angle_deviation = 0.0f;
-    handle_balance_and_rotation_control(balance_angle_deviation, rotation_angle, encoders_data, imu_data);
+    handle_control(rotation_angle, encoders_data, imu_data);
 
     bool const enable_driving_controllers =
         check_to_enable_driving_controllers(imu_data.angle_balance, imu_data.time_dt);
@@ -162,8 +162,7 @@ Robot_Controller::normal_motors_control()
         return;
     }
 
-    float const balance_angle_deviation = handle_driving_control(rotation_angle, encoders_data, imu_data);
-    handle_balance_and_rotation_control(balance_angle_deviation, rotation_angle, encoders_data, imu_data);
+    handle_control(rotation_angle, encoders_data, imu_data);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     m_identification_data = {
@@ -172,9 +171,6 @@ Robot_Controller::normal_motors_control()
         .angle    = imu_data.angle_balance,
         .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
-    send_motors_data(m_pwm0, m_pwm1);
-    trigger_motors_update();
 }
 
 bool
@@ -207,8 +203,8 @@ Robot_Controller::reset()
     m_rotate_pid.reset();
     m_wheel0_speed_pid.reset();
     m_wheel1_speed_pid.reset();
-    
-    m_disable_motors            = false;
+
+    m_disable_motors = false;
 }
 
 void
@@ -362,9 +358,8 @@ Robot_Controller::send_PID_controllers_parameters()
 
 #endif  // CONFIG_BLUETOOTH_DRV
 
-float
-Robot_Controller::handle_driving_control(
-    float rotation_angle, encoders_data const& encoders_data, imu_data const& imu_data)
+void
+Robot_Controller::handle_control(float rotation_angle, encoders_data const& encoders_data, imu_data const& imu_data)
 {
     m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
 
@@ -373,16 +368,6 @@ Robot_Controller::handle_driving_control(
     float const balance_angle_deviation =
         m_linear_speed_pid.calculate_output(target_linear_speed, encoders_data.robot_linear_speed, imu_data.time_dt);
 
-    m_data_logger.target_linear_speed     = target_linear_speed;
-    m_data_logger.balance_angle_deviation = balance_angle_deviation * (radian_degrees / pi);
-
-    return balance_angle_deviation;
-}
-
-void
-Robot_Controller::handle_balance_and_rotation_control(
-    float balance_angle_deviation, float rotation_angle, encoders_data const& encoders_data, imu_data const& imu_data)
-{
 #ifdef CONFIG_PID_ENABLED
     float const target_speed_balance = m_balance_pid.calculate_output(
         m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, imu_data.time_dt);
@@ -404,10 +389,15 @@ Robot_Controller::handle_balance_and_rotation_control(
     m_pwm1 = m_wheel1_speed_pid.calculate_output(
         target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
-    m_data_logger.target_speed_balance = target_speed_balance;
-    m_data_logger.target_speed_rotate  = target_speed_rotate;
-    m_data_logger.target_speed0        = target_speed0;
-    m_data_logger.target_speed1        = target_speed1;
+    send_motors_data(m_pwm0, m_pwm1);
+    trigger_motors_update();
+
+    m_data_logger.target_linear_speed     = target_linear_speed;
+    m_data_logger.balance_angle_deviation = balance_angle_deviation * (radian_degrees / pi);
+    m_data_logger.target_speed_balance    = target_speed_balance;
+    m_data_logger.target_speed_rotate     = target_speed_rotate;
+    m_data_logger.target_speed0           = target_speed0;
+    m_data_logger.target_speed1           = target_speed1;
 }
 
 void
@@ -465,6 +455,14 @@ Robot_Controller::ramp_pwm_to_stop(float& pwm)
     return motor_stopped;
 }
 
+void
+Robot_Controller::disable_driving_controllers()
+{
+    m_distance_pid.set_parameters({0.0f, 0.0f, 0.0f});
+    m_linear_speed_pid.set_parameters({0.0f, 0.0f, 0.0f});
+    m_trajectory_manager.reset();
+}
+
 bool
 Robot_Controller::check_to_enable_driving_controllers(float balance_angle, float dt)
 {
@@ -495,6 +493,9 @@ Robot_Controller::reset_distance_controlling()
     m_distance_pid.reset();
     m_linear_speed_pid.reset();
     DataManager::instance().reset_distance_in_encoders();
+
+    m_distance_pid.set_parameters(distance_pid_parameters);
+    m_linear_speed_pid.set_parameters(linear_speed_pid_parameters);
 }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV

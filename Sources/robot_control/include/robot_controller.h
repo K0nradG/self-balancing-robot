@@ -22,8 +22,8 @@ class Robot_Controller
     static constexpr float pi             = 3.14159265358979323846f;
     static constexpr float radian_degrees = 180.0f;
 
-    static constexpr float default_safe_balance_angle_margin  = 15.0f * (pi / radian_degrees);  // [rad]
-    static constexpr float swing_up_safe_balance_angle_margin = 50.0f * (pi / radian_degrees);  // [rad]
+    static constexpr float default_safe_balance_angle_margin  = 80.0f * (pi / radian_degrees);  // [rad]
+    static constexpr float swing_up_safe_balance_angle_margin = 80.0f * (pi / radian_degrees);  // [rad]
 
     static constexpr float valid_swing_up_angle_range                 = 25.0f * (pi / radian_degrees);  // [rad]
     static constexpr float valid_balance_angle_range                  = 4.0f * (pi / radian_degrees);   // [rad]

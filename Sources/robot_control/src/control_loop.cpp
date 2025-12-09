@@ -75,8 +75,14 @@ control_loop_work_handler(k_work* work)
         case State::SWING_UP:
         {
             bool const swing_up_finished = Robot_Controller::instance().swing_up();
-            Robot_Controller::instance().disable_distance_controllers(swing_up_finished);
             s_main_state_machine.set_swing_up_finished(swing_up_finished);
+            break;
+        }
+        case State::BALANCING_WITH_DRIVING_DISABLED:
+        {
+            bool const enable_driving_controllers =
+                Robot_Controller::instance().motors_control_with_driving_controllers_disabled();
+            s_main_state_machine.set_enable_driving_controllers(enable_driving_controllers);
             break;
         }
         case State::NORMAL_OPERATION:
@@ -97,6 +103,8 @@ control_loop_work_handler(k_work* work)
         default:
             break;
     }
+
+    Robot_Controller::instance().log_data();
 
     // Check if disabling command was requested during control loop
     s_main_state_machine.set_disable_motors_command(Robot_Controller::instance().get_motors_disable_command());

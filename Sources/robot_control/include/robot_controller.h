@@ -1,5 +1,7 @@
 #pragma once
 
+#include "encoder.h"
+#include "imu.h"
 #include "pid.h"
 #include "ramp.h"
 #include "trajectory_manager.h"
@@ -20,9 +22,12 @@ class Robot_Controller
     static constexpr float pi             = 3.14159265358979323846f;
     static constexpr float radian_degrees = 180.0f;
 
-    static constexpr float valid_swing_up_angle_range                  = 25.0f * (pi / radian_degrees);  // [rad]
-    static constexpr float valid_balance_angle_range                   = 4.0f * (pi / radian_degrees);   // [rad]
-    static constexpr float balance_time_to_enable_distance_controllers = 3.0f;                           // [s]
+    static constexpr float default_safe_balance_angle_margin  = 15.0f * (pi / radian_degrees);  // [rad]
+    static constexpr float swing_up_safe_balance_angle_margin = 50.0f * (pi / radian_degrees);  // [rad]
+
+    static constexpr float valid_swing_up_angle_range                 = 25.0f * (pi / radian_degrees);  // [rad]
+    static constexpr float valid_balance_angle_range                  = 4.0f * (pi / radian_degrees);   // [rad]
+    static constexpr float balance_time_to_enable_driving_controllers = 3.0f;                           // [s]
 
     static constexpr float balance_setpoint     = -16.5f * (pi / radian_degrees);  // [rad]
     static constexpr float rotate_setpoint_rate = 180.0f * (pi / radian_degrees);  // [rad/s]
@@ -66,6 +71,9 @@ public:
     bool
     swing_up();
 
+    bool
+    motors_control_with_driving_controllers_disabled();
+
     void
     normal_motors_control();
 
@@ -73,10 +81,10 @@ public:
     soft_stop_motors();
 
     void
-    disable_distance_controllers(bool disable);
+    reset();
 
     void
-    reset();
+    log_data();
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
@@ -99,7 +107,9 @@ private:
     Robot_Controller&
     operator=(Robot_Controller const&) = delete;
 
-    bool m_disable_distance_controllers;
+    float m_safe_balance_angle_margin;
+
+    bool m_swing_up_ongoing;
     float m_valid_balance_time_after_swing_up;
 
     float m_distance_setpoint;
@@ -131,6 +141,48 @@ private:
 
     bool m_disable_motors {};
 
+    struct Data_Logger
+    {
+        float robot_distance_m {};
+        float robot_linear_speed {};
+        float balance_angle {};
+        float rotation_angle {};
+        float angular_vel0 {};
+        float angular_vel1 {};
+        float dt {};
+
+        float target_linear_speed {};
+        float balance_angle_deviation {};
+        float target_speed_balance {};
+        float target_speed_rotate {};
+        float target_speed0 {};
+        float target_speed1 {};
+
+        void
+        set_measurements(
+            float robot_distance_m, float robot_linear_speed, float balance_angle, float rotation_angle,
+            float angular_val0, float angular_val1, float dt)
+        {
+            this->robot_distance_m   = robot_distance_m;
+            this->robot_linear_speed = robot_linear_speed;
+            this->balance_angle      = balance_angle * (radian_degrees / pi);
+            this->rotation_angle     = rotation_angle * (radian_degrees / pi);
+            this->angular_vel0       = angular_val0;
+            this->angular_vel1       = angular_val1;
+            this->dt                 = dt;
+        }
+    };
+
+    Data_Logger m_data_logger {};
+
+    float
+    handle_driving_control(float rotation_angle, encoders_data const& encoders_data, imu_data const& imu_data);
+
+    void
+    handle_balance_and_rotation_control(
+        float balance_angle_deviation, float rotation_angle, encoders_data const& encoders_data,
+        imu_data const& imu_data);
+
     void
     send_motors_data(float pwm_motor0, float pwm_motor1);
 
@@ -140,8 +192,8 @@ private:
     bool
     ramp_pwm_to_stop(float& pwm);
 
-    void
-    check_to_reenable_distance_controllers(float balance_angle, float dt);
+    bool
+    check_to_enable_driving_controllers(float balance_angle, float dt);
 
     bool
     valid_balancing_after_swing_up() const;

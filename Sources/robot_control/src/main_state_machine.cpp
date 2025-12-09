@@ -12,7 +12,7 @@ Main_State_Machine::update()
         return;
     }
 
-    if(m_flags.disable_motors_command)  // Always handle emergency disable first.
+    if(m_flags.disable_motors_command || m_flags.stop)  // Always handle disabling/stopping first - from any state.
     {
         m_state = SOFT_STOP;
     }
@@ -39,15 +39,17 @@ Main_State_Machine::main_state_machine_update()
         case SWING_UP:
             if(m_flags.swing_up_finished)
             {
+                m_state = BALANCING_WITH_DRIVING_DISABLED;
+            }
+            break;
+        case BALANCING_WITH_DRIVING_DISABLED:
+            if(m_flags.enable_driving_controllers)
+            {
                 m_state = NORMAL_OPERATION;
             }
             break;
         case NORMAL_OPERATION:
-            if(m_flags.stop)
-            {
-                m_state = SOFT_STOP;
-            }
-            break;
+            break;  // Nothing to be done, moving to other states is handled by external commands.
         case SOFT_STOP:
             if(m_flags.motors_stopped)
             {
@@ -72,6 +74,12 @@ void
 Main_State_Machine::set_swing_up_finished(bool swing_up_finished)
 {
     m_flags.swing_up_finished = swing_up_finished;
+}
+
+void
+Main_State_Machine::set_enable_driving_controllers(bool enable_driving_controllers)
+{
+    m_flags.enable_driving_controllers = enable_driving_controllers;
 }
 
 void

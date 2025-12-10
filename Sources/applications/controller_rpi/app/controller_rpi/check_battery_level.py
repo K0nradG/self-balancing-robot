@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 BATTERY_REGEX = re.compile(r"bat\s+lvl\s+mv\s+(\d+)", re.IGNORECASE)
 LOW_BATTERY_THRESHOLD = 7000
-BLINK_INTERVAL = 0.2  # 200 ms
+BLINK_INTERVAL = 0.2
 GPIO_PIN = 4
 
 

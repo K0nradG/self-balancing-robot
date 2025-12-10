@@ -126,13 +126,19 @@
       <button id="forward" class="btn btn-primary">Forward</button>
       <button id="backward" class="btn btn-secondary">Backward</button>
     </div>
+
+    <a href="/trajectory" class="btn btn-primary"
+      style="text-decoration:none; padding:10px; background:#4f46e5; color:white; border-radius:8px;">
+      Open Trajectory Drawer
+    </a>
+
   </div>
 
   <script>
     let rotate = 0, distance = 0;
     let forwardPressed = false, backwardPressed = false;
-    const ROTATE_MAX = 180, DIST_STEP = 0.35;
-    const SAMPLE_MS = 50; // wysyłanie co 50 ms
+    const ROTATE_MAX = 360, DIST_STEP = 0.05;
+    const SAMPLE_MS = 20; // wysyłanie co 20 ms
     const GRAVITY = 9.81;
 
     const rotateEl = document.getElementById('rotate');

@@ -11,6 +11,7 @@
 #include "ble_commands.h"
 #include "ble_service.h"
 #include "control_loop.h"
+#include "logger.h"
 
 /*TODO: now dfu is mandatory so BLE needs to be default y*/
 #include "ble_service.h"
@@ -24,6 +25,10 @@
 #ifdef CONFIG_SHELL_DRV
 #include "shell.h"
 #endif
+
+#ifdef CONFIG_BATTERY_LEVEL_DRV
+#include "battery_level.h"
+#endif  // CONFIG_BATTERY_LEVEL_DRV
 
 LOG_MODULE_REGISTER(dfu_ble, CONFIG_DFU_BLE_LOG_LEVEL);
 
@@ -184,10 +189,33 @@ confirm_new_image()
     }
 }
 
+#ifdef CONFIG_BATTERY_LEVEL_DRV
+
+#define MEASUREMENT_INTERVAL 9000
+
+static Logger<IS_ENABLED(1)> boot_state_logger("BOOT");
+
+static void
+new_battery_level_callback(battery_level_data data)
+{
+    boot_state_logger.platform_log(LOG_LEVEL::INF, "bat lvl %u", data.battery_level_percent);
+    boot_state_logger.platform_log(LOG_LEVEL::INF, "bat lvl mv %u", data.battery_level_mv);
+}
+#endif  // CONFIG_BATTERY_LEVEL_DRV
+
 static int
 dfu_smp_init()
 {
     int ret;
+
+#ifdef CONFIG_BATTERY_LEVEL_DRV
+    new_battery_level_cb_register(new_battery_level_callback);
+    battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
+#endif  // CONFIG_BATTERY_LEVEL_DRV
+
+#ifdef CONFIG_BATTERY_LEVEL_DRV
+    ret = battery_level_init();
+#endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_INTERFACE_DRV
     ret = interface_init();

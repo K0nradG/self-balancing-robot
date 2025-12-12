@@ -17,10 +17,6 @@
 #include "encoder.h"
 #endif  // CONFIG_ENCODER_DRV
 
-#ifdef CONFIG_BATTERY_LEVEL_DRV
-#include "battery_level.h"
-#endif  // CONFIG_BATTERY_LEVEL_DRV
-
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
@@ -52,11 +48,6 @@ Drivers_Initializer::init()
     ret = encoders_init();
     reboot_on_error(ret);
 #endif  // CONFIG_ENCODER_DRV
-
-#ifdef CONFIG_BATTERY_LEVEL_DRV
-    ret = battery_level_init();
-    reboot_on_error(ret);
-#endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     ret = model_identification_init();

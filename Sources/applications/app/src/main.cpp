@@ -7,18 +7,6 @@ static Logger<IS_ENABLED(CONFIG_APP_LOG)> app_logger("APP");
 #define BLINKING_INTERVAL 500
 #endif  // CONFIG_INTERFACE_DRV
 
-#ifdef CONFIG_BATTERY_LEVEL_DRV
-#include "battery_level.h"
-#define MEASUREMENT_INTERVAL 9000
-
-static void
-new_battery_level_callback(battery_level_data data)
-{
-    app_logger.platform_log(LOG_LEVEL::INF, "bat lvl %u", data.battery_level_percent);
-    app_logger.platform_log(LOG_LEVEL::INF, "bat lvl mv %u", data.battery_level_mv);
-}
-#endif  // CONFIG_BATTERY_LEVEL_DRV
-
 #ifdef CONFIG_ROBOT_CONTROL
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "control_loop.h"
@@ -52,12 +40,6 @@ main()
     led_start_periodic_blinking(BLINKING_INTERVAL);
     app_logger.platform_log(LOG_LEVEL::INF, "Interface driver is enabled.");
 #endif  // CONFIG_INTERFACE_DRV
-
-#ifdef CONFIG_BATTERY_LEVEL_DRV
-    new_battery_level_cb_register(new_battery_level_callback);
-    battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
-    app_logger.platform_log(LOG_LEVEL::INF, "Battery level driver is enabled.");
-#endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_ROBOT_CONTROL
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV

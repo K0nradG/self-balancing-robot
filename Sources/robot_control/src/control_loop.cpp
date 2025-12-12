@@ -7,6 +7,10 @@
 #include "robot_controller.h"
 #include "zephyr/kernel.h"
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
 #ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
 #include "watchdog_controller.h"
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV

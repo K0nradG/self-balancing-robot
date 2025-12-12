@@ -25,14 +25,5 @@ new_regulator_data_for_identification(identification_data data);
 int
 identification_init();
 
-uint16_t
-buffer_get(uint8_t buffer_id, float* data, uint16_t max_len);
-
-void
-model_identification_start();
-
-void
-notify_data_sent();
-
 void
 trigger_collecting_identification_data();

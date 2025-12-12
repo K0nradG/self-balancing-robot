@@ -24,11 +24,8 @@ static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_
 namespace Robot_Control
 {
 
-static Main_State_Machine s_main_state_machine {};
-
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-send_identification_data_cb_t g_send_identification_data_cb = nullptr;
-s_main_state_machine.set_identification_state();
+send_identification_data_cb_t g_send_identification_data_cb;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_BLUETOOTH_DRV
@@ -41,7 +38,7 @@ nus_data_parse_callback(char const* data)
 void
 parse_nus_commands_callback(char const* data)
 {
-    s_main_state_machine.parse_nus_commands(data);
+    Main_State_Machine::instance().parse_nus_commands(data);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 
@@ -72,21 +69,21 @@ control_loop_work_handler(k_work* work)
 
     using State = Main_State_Machine::State;
 
-    s_main_state_machine.update();
-    State const state = s_main_state_machine.get_state();
+    Main_State_Machine::instance().update();
+    State const state = Main_State_Machine::instance().get_state();
     switch(state)
     {
         case State::IDENTIFICATION:
         case State::NORMAL_OPERATION:
         {
             bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
-            s_main_state_machine.set_disable_motors_command(disable_motors_command);
+            Main_State_Machine::instance().set_disable_motors_command(disable_motors_command);
             break;
         }
         case State::SOFT_STOP:
         {
             bool const motors_stopped = Robot_Controller::instance().soft_stop_motors();
-            s_main_state_machine.set_motors_stopped(motors_stopped);
+            Main_State_Machine::instance().set_motors_stopped(motors_stopped);
             break;
         }
         case State::RESET_AFTER_STOP:

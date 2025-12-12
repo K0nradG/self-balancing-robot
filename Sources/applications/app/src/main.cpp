@@ -43,7 +43,7 @@ main()
 
 #ifdef CONFIG_ROBOT_CONTROL
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    new_send_identification_data_cb_register(new_regulator_data_for_identification);
+    Robot_Control::new_send_identification_data_cb_register(Robot_Control::new_regulator_data_for_identification);
     app_logger.platform_log(LOG_LEVEL::INF, "Model identification driver is enabled.");
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 #endif  // CONFIG_ROBOT_CONTROL

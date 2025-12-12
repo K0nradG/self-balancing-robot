@@ -50,7 +50,7 @@ Drivers_Initializer::init()
 #endif  // CONFIG_ENCODER_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    ret = model_identification_init();
+    ret = identification_init();
     reboot_on_error(ret);
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }

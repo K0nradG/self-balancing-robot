@@ -2,16 +2,12 @@
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
+#include <cstdint>
 #include "control_loop.h"
 #include "logger.h"
+#include "main_state_machine.h"
 
-enum BufferID : uint8_t
-{
-    ANGLE_BUFFER_ID = 0,
-    ANGLE_DT_BUFFER_ID,
-    PWM_BUFFER_ID,
-    TIME_BUFFER_ID
-};
+using namespace Robot_Control;
 
 static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
 
@@ -21,15 +17,7 @@ static uint16_t g_buffer_index[BUFFER_COUNT];
 static bool g_is_full[BUFFER_COUNT];
 static float g_temp_buffer[BUFFER_SIZE];
 
-struct IdentificationData
-{
-    float dt {};
-    float pwm {};
-    float angle {};
-    float angle_dt {};
-};
-
-static IdentificationData identification_data_sending_work_handlerg_identification_data {};
+struct identification_data g_identification_data;
 
 enum class IdentificationState
 {
@@ -50,7 +38,7 @@ K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_data_se
 static void
 buffers_reset()
 {
-    for(int i = 0; i < BUFFER_COUNT; i++)
+    for(uint8_t i = 0; i < BUFFER_COUNT; i++)
     {
         ring_buf_reset(&g_buffers[i]);
         g_buffer_index[i] = 0;
@@ -114,7 +102,7 @@ identification_init()
 }
 
 void
-new_regulator_data_for_identification(IdentificationData data)
+new_regulator_data_for_identification(identification_data data)
 {
     g_identification_data = data;
 }
@@ -128,15 +116,15 @@ model_identification_work_handler(k_work* work)
     {
         buffer_put(ANGLE_BUFFER_ID, g_identification_data.angle);
         buffer_put(ANGLE_DT_BUFFER_ID, g_identification_data.angle_dt);
-        buffer_put(PWM_BUFFER_ID, g_identification_data.pwm);
+        buffer_put(U_BUFFER_ID, g_identification_data.pwm);
         buffer_put(TIME_BUFFER_ID, g_identification_data.dt);
     }
     else if(g_state == IdentificationState::COLLECTING)
     {
-        Main_State_Machine::set_ready_to_start();
+        Main_State_Machine::instance().set_ready_to_start();
 
-        set_ready_to_start g_state = IdentificationState::SENDING;
-        int err                    = k_work_submit(&identification_data_sending_work.work);
+        g_state = IdentificationState::SENDING;
+        int err = k_work_submit(&identification_data_sending_work.work);
         if(err != 0)
         {
             logger.platform_log(LOG_LEVEL::ERR, "Data sending trigger failed, err: %d", err);

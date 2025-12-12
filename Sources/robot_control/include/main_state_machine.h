@@ -23,6 +23,13 @@ class Main_State_Machine
     };
 
 public:
+    static Main_State_Machine&
+    instance()
+    {
+        static Main_State_Machine inst;
+        return inst;
+    }
+
     enum State
     {
         READY_TO_START = 0,
@@ -51,6 +58,14 @@ public:
     parse_nus_commands(char const* data);
 
 private:
+    Main_State_Machine(Main_State_Machine const&) = delete;
+    Main_State_Machine(Main_State_Machine&&)      = delete;
+    Main_State_Machine&
+    operator=(Main_State_Machine const&) = delete;
+    Main_State_Machine&
+    operator=(Main_State_Machine&&) = delete;
+    Main_State_Machine()            = default;
+
     State m_state = State::READY_TO_START;
     Transition_Flags m_flags {};
 };

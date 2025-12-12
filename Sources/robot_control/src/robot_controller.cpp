@@ -121,7 +121,7 @@ Robot_Controller::normal_motors_control()
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
             .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
-            .pwm      = (pwm0 + pwm1) / 2.0f,
+            .pwm      = (m_pwm0 + m_pwm1) / 2.0f,
             .angle    = imu_data.angle_balance,
             .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV

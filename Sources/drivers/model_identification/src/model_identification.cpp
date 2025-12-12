@@ -7,7 +7,8 @@
 #include "logger.h"
 #include "main_state_machine.h"
 
-using namespace Robot_Control;
+namespace Robot_Control
+{
 
 static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
 
@@ -81,7 +82,7 @@ buffer_get(uint8_t buffer_id, float* data, uint16_t max_len)
 static bool
 buffer_all_full()
 {
-    for(int i = 0; i < BUFFER_COUNT; i++)
+    for(uint8_t i = 0; i < BUFFER_COUNT; i++)
     {
         if(!g_is_full[i])
             return false;
@@ -92,7 +93,7 @@ buffer_all_full()
 int
 identification_init()
 {
-    for(int i = 0; i < BUFFER_COUNT; i++)
+    for(uint8_t i = 0; i < BUFFER_COUNT; i++)
     {
         ring_buf_init(&g_buffers[i], BUFFER_SIZE * sizeof(float), g_buffer_data[i]);
         g_buffer_index[i] = 0;
@@ -121,7 +122,7 @@ model_identification_work_handler(k_work* work)
     }
     else if(g_state == IdentificationState::COLLECTING)
     {
-        Main_State_Machine::instance().set_ready_to_start();
+        Robot_Control::Main_State_Machine::instance().set_ready_to_start();
 
         g_state = IdentificationState::SENDING;
         int err = k_work_submit(&identification_data_sending_work.work);
@@ -163,7 +164,7 @@ identification_data_sending_work_handler(k_work* work)
             for(uint16_t j = 0; j < len; j++)
             {
                 char data_str[16];
-                snprintf(data_str, sizeof(data_str), "%.3f", g_temp_buffer[j]);
+                snprintf(data_str, sizeof(data_str), "%.3f", static_cast<double>(g_temp_buffer[j]));
                 logger.platform_log(LOG_LEVEL::INF, "%s", data_str);
                 k_sleep(K_MSEC(20));
             }
@@ -174,3 +175,5 @@ identification_data_sending_work_handler(k_work* work)
     logger.platform_log(LOG_LEVEL::INF, "Data sending finished");
     g_state = IdentificationState::STOPPED;
 }
+
+}  // namespace Robot_Control

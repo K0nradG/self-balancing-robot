@@ -2,6 +2,9 @@
 
 #pragma once
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif
 namespace Robot_Control
 {
 
@@ -20,7 +23,6 @@ nus_data_parse_callback(char const* data);
 #endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "model_identification.h"
 
 typedef void (*send_identification_data_cb_t)(identification_data data);
 

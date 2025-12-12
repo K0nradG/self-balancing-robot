@@ -1,4 +1,5 @@
 #include "control_loop.h"
+#include <cstdint>
 #include "drivers_initializer.h"
 #include "interface.h"
 #include "logger.h"

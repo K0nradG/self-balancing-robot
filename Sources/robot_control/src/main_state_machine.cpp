@@ -61,9 +61,12 @@ Main_State_Machine::set_motors_stopped(bool motors_stopped)
 }
 
 void
-Main_State_Machine::set_identification_state()
+Main_State_Machine::set_ready_to_start()
 {
-    m_state = IDENTIFICATION;
+    if(m_state == NORMAL_OPERATION)
+    {
+        m_flags.stop = true;
+    }
 }
 
 void

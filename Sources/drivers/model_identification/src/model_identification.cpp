@@ -1,249 +1,51 @@
 #include "model_identification.h"
 #include <zephyr/device.h>
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
 #include "control_loop.h"
-#include "identification_data_send.h"
 #include "logger.h"
 
-static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> model_identification_logger("MODEL");
+enum BufferID : uint8_t
+{
+    ANGLE_BUFFER_ID = 0,
+    ANGLE_DT_BUFFER_ID,
+    PWM_BUFFER_ID,
+    TIME_BUFFER_ID
+};
 
-static const gpio_dt_spec button = GPIO_DT_SPEC_GET(DT_ALIAS(sw0), gpios);
-static gpio_callback g_button_data_cb {};
+static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
 
-static ring_buf g_buffers[BUFFER_COUNT] {};
-static uint8_t g_buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)] {};
-static uint16_t g_buffer_index[BUFFER_COUNT] {};
-static bool g_is_full[BUFFER_COUNT] {};
+static ring_buf g_buffers[BUFFER_COUNT];
+static uint8_t g_buffer_data[BUFFER_COUNT][BUFFER_SIZE * sizeof(float)];
+static uint16_t g_buffer_index[BUFFER_COUNT];
+static bool g_is_full[BUFFER_COUNT];
+static float g_temp_buffer[BUFFER_SIZE];
 
+struct IdentificationData
+{
+    float dt {};
+    float pwm {};
+    float angle {};
+    float angle_dt {};
+};
+
+static IdentificationData identification_data_sending_work_handlerg_identification_data {};
+
+enum class IdentificationState
+{
+    STOPPED,
+    COLLECTING,
+    SENDING
+};
+static IdentificationState g_state = IdentificationState::STOPPED;
+
+static void
+identification_data_sending_work_handler(k_work* work);
 static void
 model_identification_work_handler(k_work* work);
 
-static K_WORK_DELAYABLE_DEFINE(model_identification_work, model_identification_work_handler);
-
-enum identification_state
-{
-    IDENTIFICATION_STOPPED,
-    IDENTIFICATION_STARTED,
-    TRIGGER_SENDING
-};
-
-static identification_state state = IDENTIFICATION_STOPPED;
-
-static identification_data g_identification_data {};
-
-void
-new_regulator_data_for_identification(identification_data data)
-{
-    g_identification_data.dt       = data.dt;
-    g_identification_data.pwm      = data.pwm;
-    g_identification_data.angle    = data.angle;
-    g_identification_data.angle_dt = data.angle_dt;
-}
-
-void
-button_pressed(const device* dev, gpio_callback* cb, uint32_t pins);
-
-int
-identification_init()
-{
-    if(!device_is_ready(button.port))
-    {
-        return -1;
-    }
-
-    int ret = gpio_pin_configure_dt(&button, GPIO_INPUT);
-    if(ret != 0)
-    {
-        model_identification_logger.platform_log(LOG_LEVEL::ERR, "GPIO pin configuration failed, err: %d", ret);
-        return ret;
-    }
-
-    ret |= gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_TO_ACTIVE);
-    if(ret != 0)
-    {
-        model_identification_logger.platform_log(
-            LOG_LEVEL::ERR, "GPIO pin interrupt configuration failed, err: %d", ret);
-        return ret;
-    }
-
-    gpio_init_callback(&g_button_data_cb, button_pressed, BIT(button.pin));
-    ret |= gpio_add_callback(button.port, &g_button_data_cb);
-
-    if(ret != 0)
-    {
-        model_identification_logger.platform_log(LOG_LEVEL::ERR, "GPIO callback add failed, err: %d", ret);
-        return ret;
-    }
-
-    for(int i = 0; i < BUFFER_COUNT; i++)
-    {
-        ring_buf_init(&g_buffers[i], BUFFER_SIZE * sizeof(float), g_buffer_data[i]);
-        g_buffer_index[i] = 0;
-        g_is_full[i]      = false;
-    }
-
-    return ret;
-}
-
-static bool
-buffer_all_full();
-
-static bool
-buffer_put(uint8_t buffer_id, float data);
-
-static void
-model_identification_stop();
-
-static void
-model_identification_work_handler(k_work* work)
-{
-    ARG_UNUSED(work);
-
-    if(!buffer_all_full())
-    {
-#if defined(CONFIG_MODEL_IDENTIFICATION_DRV)
-        buffer_put(ANGLE_BUFFER_ID, g_identification_data.angle);
-        buffer_put(ANGLE_DT_BUFFER_ID, g_identification_data.angle_dt);
-        buffer_put(U_BUFFER_ID, g_identification_data.pwm);
-        buffer_put(TIME_BUFFER_ID, g_identification_data.dt);
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-    }
-    else
-    {
-        if(state == IDENTIFICATION_STARTED)
-        {
-            state = TRIGGER_SENDING;
-            model_identification_stop();
-            return;
-        }
-    }
-
-    model_identification_logger.platform_log(LOG_LEVEL::INF, "PWM %d", (int)g_identification_data.pwm);
-}
-
-void
-trigger_collecting_identification_data()
-{
-    int const err = k_work_submit(&model_identification_work.work);
-    if(err != 0)
-    {
-        model_identification_logger.platform_log(LOG_LEVEL::ERR, "Identification data collecting failed, err: %d", err);
-    }
-}
-
-void
-model_identification_start()
-{
-    start_control_loop();
-}
-
-static void
-model_identification_stop()
-{
-    stop_control_loop();
-}
-
-static bool
-buffer_put(uint8_t buffer_id, float data)
-{
-    if(buffer_id >= BUFFER_COUNT)
-        return false;
-
-    if(g_is_full[buffer_id])
-        return false;
-
-    int ret = ring_buf_put(&g_buffers[buffer_id], (uint8_t*)&data, sizeof(float));
-    if(ret == sizeof(float))
-    {
-        g_buffer_index[buffer_id]++;
-        if(g_buffer_index[buffer_id] >= BUFFER_SIZE)
-        {
-            g_is_full[buffer_id] = true;
-        }
-        return true;
-    }
-    return false;
-}
-
-uint16_t
-buffer_get(uint8_t buffer_id, float* data, uint16_t max_len)
-{
-    if(buffer_id >= BUFFER_COUNT)
-    {
-        return 0u;
-    }
-
-    uint16_t const len = (g_buffer_index[buffer_id] < max_len) ? g_buffer_index[buffer_id] : max_len;
-    for(uint16_t i = 0; i < len; i++)
-    {
-        ring_buf_get(&g_buffers[buffer_id], (uint8_t*)&data[i], sizeof(float));
-    }
-
-    g_buffer_index[buffer_id] -= len;
-    return len;
-}
-
-static bool
-buffer_all_full()
-{
-    for(int i = 0; i < BUFFER_COUNT; i++)
-    {
-        if(!g_is_full[i])
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-static void
-state_machine_update();
-
-void
-button_pressed(const device* dev, gpio_callback* cb, uint32_t pins)
-{
-    state_machine_update();
-}
-
-static void
-buffers_reset();
-
-static void
-state_machine_update()
-{
-    switch(state)
-    {
-        case IDENTIFICATION_STOPPED:  // Comeback to this state is handled by identification_data_send.
-        {
-            state = IDENTIFICATION_STARTED;
-            buffers_reset();
-            model_identification_start();
-            break;
-        }
-        case IDENTIFICATION_STARTED:
-        {
-            break;
-        }
-        case TRIGGER_SENDING:
-        {
-            trigger_identification_data_sending();
-            break;
-        }
-        default:
-        {
-            break;
-        }
-    }
-}
-
-void
-notify_data_sent()  // Used by identification_data_send to show that data has already been sent.
-{
-    state = IDENTIFICATION_STOPPED;
-}
+K_WORK_DELAYABLE_DEFINE(model_identification_work, model_identification_work_handler);
+K_WORK_DELAYABLE_DEFINE(identification_data_sending_work, identification_data_sending_work_handler);
 
 static void
 buffers_reset()
@@ -254,4 +56,133 @@ buffers_reset()
         g_buffer_index[i] = 0;
         g_is_full[i]      = false;
     }
+}
+
+static bool
+buffer_put(uint8_t buffer_id, float data)
+{
+    if(buffer_id >= BUFFER_COUNT || g_is_full[buffer_id])
+        return false;
+
+    int ret = ring_buf_put(&g_buffers[buffer_id], (uint8_t*)&data, sizeof(float));
+    if(ret == sizeof(float))
+    {
+        g_buffer_index[buffer_id]++;
+        if(g_buffer_index[buffer_id] >= BUFFER_SIZE)
+            g_is_full[buffer_id] = true;
+        return true;
+    }
+    return false;
+}
+
+static uint16_t
+buffer_get(uint8_t buffer_id, float* data, uint16_t max_len)
+{
+    if(buffer_id >= BUFFER_COUNT)
+        return 0;
+
+    uint16_t len = (g_buffer_index[buffer_id] < max_len) ? g_buffer_index[buffer_id] : max_len;
+    for(uint16_t i = 0; i < len; i++)
+    {
+        ring_buf_get(&g_buffers[buffer_id], (uint8_t*)&data[i], sizeof(float));
+    }
+    g_buffer_index[buffer_id] -= len;
+    return len;
+}
+
+static bool
+buffer_all_full()
+{
+    for(int i = 0; i < BUFFER_COUNT; i++)
+    {
+        if(!g_is_full[i])
+            return false;
+    }
+    return true;
+}
+
+int
+identification_init()
+{
+    for(int i = 0; i < BUFFER_COUNT; i++)
+    {
+        ring_buf_init(&g_buffers[i], BUFFER_SIZE * sizeof(float), g_buffer_data[i]);
+        g_buffer_index[i] = 0;
+        g_is_full[i]      = false;
+    }
+    return 0;
+}
+
+void
+new_regulator_data_for_identification(IdentificationData data)
+{
+    g_identification_data = data;
+}
+
+static void
+model_identification_work_handler(k_work* work)
+{
+    ARG_UNUSED(work);
+
+    if(!buffer_all_full())
+    {
+        buffer_put(ANGLE_BUFFER_ID, g_identification_data.angle);
+        buffer_put(ANGLE_DT_BUFFER_ID, g_identification_data.angle_dt);
+        buffer_put(PWM_BUFFER_ID, g_identification_data.pwm);
+        buffer_put(TIME_BUFFER_ID, g_identification_data.dt);
+    }
+    else if(g_state == IdentificationState::COLLECTING)
+    {
+        Main_State_Machine::set_ready_to_start();
+
+        set_ready_to_start g_state = IdentificationState::SENDING;
+        int err                    = k_work_submit(&identification_data_sending_work.work);
+        if(err != 0)
+        {
+            logger.platform_log(LOG_LEVEL::ERR, "Data sending trigger failed, err: %d", err);
+        }
+        return;
+    }
+}
+
+void
+trigger_collecting_identification_data()
+{
+    if(g_state == IdentificationState::STOPPED)
+    {
+        buffers_reset();
+        g_state = IdentificationState::COLLECTING;
+    }
+
+    int err = k_work_submit(&model_identification_work.work);
+    if(err != 0)
+    {
+        logger.platform_log(LOG_LEVEL::ERR, "Data collecting trigger failed, err: %d", err);
+    }
+}
+
+static void
+identification_data_sending_work_handler(k_work* work)
+{
+    ARG_UNUSED(work);
+    logger.platform_log(LOG_LEVEL::INF, "Data sending started");
+
+    for(uint8_t i = 0; i < BUFFER_COUNT; i++)
+    {
+        uint16_t len = buffer_get(i, g_temp_buffer, BUFFER_SIZE);
+        if(len > 0)
+        {
+            for(uint16_t j = 0; j < len; j++)
+            {
+                char data_str[16];
+                snprintf(data_str, sizeof(data_str), "%.3f", g_temp_buffer[j]);
+                logger.platform_log(LOG_LEVEL::INF, "%s", data_str);
+                k_sleep(K_MSEC(20));
+            }
+            logger.platform_log(LOG_LEVEL::INF, "----------------------------");
+        }
+    }
+
+    logger.platform_log(LOG_LEVEL::INF, "Data sending finished");
+    g_state = IdentificationState::STOPPED;
 }

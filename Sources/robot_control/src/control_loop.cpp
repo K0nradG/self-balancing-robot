@@ -96,6 +96,7 @@ control_loop_work_handler(k_work* work)
     if(g_send_identification_data_cb)
     {
         g_send_identification_data_cb(Robot_Controller::instance().get_identification_data());
+        trigger_collecting_identification_data();
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }

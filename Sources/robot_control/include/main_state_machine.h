@@ -44,10 +44,8 @@ public:
     void
     set_motors_stopped(bool motors_stopped);
 
-    // This is basically a hack so that when identification is active, the state machine won't have any effect.
-    // TODO: Remove the state machine from identification driver and couple it with this one.
     void
-    set_identification_state();
+    set_ready_to_start();
 
     void
     parse_nus_commands(char const* data);

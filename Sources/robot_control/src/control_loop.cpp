@@ -74,11 +74,19 @@ control_loop_work_handler(k_work* work)
     State const state = Main_State_Machine::instance().get_state();
     switch(state)
     {
-        case State::IDENTIFICATION:
         case State::NORMAL_OPERATION:
         {
             bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+            if(g_send_identification_data_cb)
+            {
+                g_send_identification_data_cb(Robot_Controller::instance().get_identification_data());
+            }
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
             Main_State_Machine::instance().set_disable_motors_command(disable_motors_command);
+
             break;
         }
         case State::SOFT_STOP:
@@ -93,14 +101,6 @@ control_loop_work_handler(k_work* work)
         default:
             break;
     }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    if(g_send_identification_data_cb)
-    {
-        g_send_identification_data_cb(Robot_Controller::instance().get_identification_data());
-        trigger_collecting_identification_data();
-    }
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }
 
 static K_WORK_DELAYABLE_DEFINE(s_control_work, control_loop_work_handler);

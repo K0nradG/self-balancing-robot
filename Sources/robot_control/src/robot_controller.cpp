@@ -106,6 +106,8 @@ Robot_Controller::normal_motors_control()
             {
                 log_timer_ms = 0.0f;
 
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
+
                 robot_control_logger.platform_log(
                     LOG_LEVEL::INF,
                     "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
@@ -115,12 +117,13 @@ Robot_Controller::normal_motors_control()
                     (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
                     (double)encoders_data.encoder_0.angular_velocity_rad_s,
                     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             }
         }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         m_identification_data = {
-            .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
+            .dt       = imu_data.time_dt,
             .pwm      = (m_pwm0 + m_pwm1) / 2.0f,
             .angle    = imu_data.angle_balance,
             .angle_dt = imu_data.angle_balance_dt};

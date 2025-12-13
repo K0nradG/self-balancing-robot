@@ -5,10 +5,9 @@ if MODEL_IDENTIFICATION_DRV
 
 config MODEL_IDENTIFICATION_LOG
     bool "Enable logging from model identification driver"
-    depends on LOGGER_DRV
 
 config MODEL_IDENTIFICATION_SAMPLE_TIME
     int "Model identification sampling time in milliseconds"
-    default 100
+    default 20
 
 endif #MODEL_IDENTIFICATION_DRV

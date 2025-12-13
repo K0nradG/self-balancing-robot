@@ -4,14 +4,6 @@ config ROBOT_CONTROL
 
 if ROBOT_CONTROL
 
-config BALANCE_REGULATOR_SAMPLE_TIME
-    int "Balance regulator sampling time in milliseconds"
-    default 1
-
-config ROTATION_REGULATOR_SAMPLE_TIME
-    int "Rotation regulator sampling time in milliseconds"
-    default 10
-
 config ROBOT_CONTROL_LOG
     bool "Enable logging from robot control loop"
     depends on LOGGER_DRV

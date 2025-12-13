@@ -60,6 +60,8 @@ Robot_Controller::normal_motors_control()
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
     float const rotation_angle        = DataManager::instance().get_rotation_angle();
 
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
+
 #ifdef CONFIG_VALIDATE_ROBOT_ANGLE
     bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
 #else
@@ -106,8 +108,6 @@ Robot_Controller::normal_motors_control()
             {
                 log_timer_ms = 0.0f;
 
-#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
-
                 robot_control_logger.platform_log(
                     LOG_LEVEL::INF,
                     "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
@@ -117,11 +117,37 @@ Robot_Controller::normal_motors_control()
                     (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
                     (double)encoders_data.encoder_0.angular_velocity_rad_s,
                     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             }
         }
 
+#else   // CONFIG_MODEL_IDENTIFICATION_DRV
+
+    // Statyczny indeks zachowujący się między wywołaniami funkcji
+    static size_t pwm_index = 0;
+
+    // Tablica wartości PWM
+    static constexpr float pwm_values[]      = {50, -50};
+    static constexpr float pwm_durations_s[] = {10.0f, 10.0f};
+    static constexpr size_t pwm_count        = sizeof(pwm_values) / sizeof(pwm_values[0]);
+
+    static float pwm_timer = 0.0f;
+    pwm_timer += imu_data.time_dt;
+
+    m_pwm0 = pwm_values[pwm_index];
+    m_pwm1 = pwm_values[pwm_index];
+
+    if(pwm_timer >= pwm_durations_s[pwm_index] && pwm_index < pwm_count - 1)
+    {
+        pwm_index++;
+        pwm_timer = 0.0f;  // reset timera dla nowej próbki
+    }
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
+        send_motors_data(m_pwm0, m_pwm1);
+        trigger_motors_update();
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+
         m_identification_data = {
             .dt       = imu_data.time_dt,
             .pwm      = (m_pwm0 + m_pwm1) / 2.0f,
@@ -129,230 +155,219 @@ Robot_Controller::normal_motors_control()
             .angle_dt = imu_data.angle_balance_dt};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+        return false;
+#else
+    return disable_motors_command;
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+    }
+
+    bool Robot_Controller::soft_stop_motors()
+    {
+        bool const motors_stopped = (ramp_pwm_to_stop(m_pwm0) && ramp_pwm_to_stop(m_pwm1));
         send_motors_data(m_pwm0, m_pwm1);
         trigger_motors_update();
+
+        return motors_stopped;
     }
 
-    return disable_motors_command;
-}
+    void Robot_Controller::reset()
+    {
+        m_distance_setpoint = 0.0f;
+        m_rotate_setpoint_ramp.reset();
+        DataManager::instance().reset();
 
-bool
-Robot_Controller::soft_stop_motors()
-{
-    bool const motors_stopped = (ramp_pwm_to_stop(m_pwm0) && ramp_pwm_to_stop(m_pwm1));
-    send_motors_data(m_pwm0, m_pwm1);
-    trigger_motors_update();
-
-    return motors_stopped;
-}
-
-void
-Robot_Controller::reset()
-{
-    m_distance_setpoint = 0.0f;
-    m_rotate_setpoint_ramp.reset();
-    DataManager::instance().reset();
-
-    m_wheel0_speed_pid.reset();
-    m_wheel1_speed_pid.reset();
-    m_rotate_pid.reset();
-    m_balance_pid.reset();
-    m_trajectory_manager.reset();
-}
+        m_wheel0_speed_pid.reset();
+        m_wheel1_speed_pid.reset();
+        m_rotate_pid.reset();
+        m_balance_pid.reset();
+        m_trajectory_manager.reset();
+    }
 
 #ifdef CONFIG_BLUETOOTH_DRV
-void
-Robot_Controller::parse_nus_data(char const* data)
-{
-    if(data == nullptr || *data == '\0')
+    void Robot_Controller::parse_nus_data(char const* data)
     {
-        return;
-    }
-
-    while(*data)
-    {
-        char const key      = data[0];
-        char const* payload = data + 1;
-        if(payload == nullptr)
+        if(data == nullptr || *data == '\0')
         {
             return;
         }
 
-        data++;  // payload
-        switch(key)
+        while(*data)
         {
-            case BLE_Commands::General::GET_REGULATOR_PARAMS:
+            char const key      = data[0];
+            char const* payload = data + 1;
+            if(payload == nullptr)
             {
-                data++;
-                if(!m_regulator_message_sending_in_progress)
-                {
-                    m_regulator_message_sending_in_progress = true;
-                    k_work_submit(&s_PID_controllers_data_sending_work.work);
-                }
-                break;
+                return;
             }
-            case BLE_Commands::Prefix::DISTANCE_PID:
-                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
+
+            data++;  // payload
+            switch(key)
+            {
+                case BLE_Commands::General::GET_REGULATOR_PARAMS:
                 {
                     data++;
-
-                    char buffer[16];
-                    snprintf(buffer, sizeof(buffer), "%s", data);
-
-                    char* endptr        = nullptr;
-                    float val           = strtof(buffer, &endptr);
-                    m_distance_setpoint = val;
+                    if(!m_regulator_message_sending_in_progress)
+                    {
+                        m_regulator_message_sending_in_progress = true;
+                        k_work_submit(&s_PID_controllers_data_sending_work.work);
+                    }
+                    break;
                 }
-                else
-                {
-                    m_distance_pid.parse_nus_parameters(data);
-                }
-                break;
-            case BLE_Commands::Prefix::LINEAR_SPEED_PID:
-                m_linear_speed_pid.parse_nus_parameters(data);
-                break;
-            case BLE_Commands::Prefix::BALANCE_PID:
-                if(*data == BLE_Commands::Regulator::SETPOINT)
-                {
-                    data++;
+                case BLE_Commands::Prefix::DISTANCE_PID:
+                    if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
+                    {
+                        data++;
 
-                    char buffer[16];
-                    snprintf(buffer, sizeof(buffer), "%s", data);
+                        char buffer[16];
+                        snprintf(buffer, sizeof(buffer), "%s", data);
 
-                    char* endptr       = nullptr;
-                    float val          = strtof(buffer, &endptr);
-                    m_balance_setpoint = val * (pi / radian_degrees);
-                }
-                else
-                {
+                        char* endptr        = nullptr;
+                        float val           = strtof(buffer, &endptr);
+                        m_distance_setpoint = val;
+                    }
+                    else
+                    {
+                        m_distance_pid.parse_nus_parameters(data);
+                    }
+                    break;
+                case BLE_Commands::Prefix::LINEAR_SPEED_PID:
+                    m_linear_speed_pid.parse_nus_parameters(data);
+                    break;
+                case BLE_Commands::Prefix::BALANCE_PID:
+                    if(*data == BLE_Commands::Regulator::SETPOINT)
+                    {
+                        data++;
+
+                        char buffer[16];
+                        snprintf(buffer, sizeof(buffer), "%s", data);
+
+                        char* endptr       = nullptr;
+                        float val          = strtof(buffer, &endptr);
+                        m_balance_setpoint = val * (pi / radian_degrees);
+                    }
+                    else
+                    {
 #ifdef CONFIG_PID_ENABLED
-                    m_balance_pid.parse_nus_parameters(data);
+                        m_balance_pid.parse_nus_parameters(data);
 #else
-                    m_balance_lqr.parse_nus_parameters(data);
+                        m_balance_lqr.parse_nus_parameters(data);
 #endif  // CONFIG_PID_ENABLED
-                }
-                break;
-            case BLE_Commands::Prefix::ROTATE_PID:
-                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
-                {
-                    data++;
+                    }
+                    break;
+                case BLE_Commands::Prefix::ROTATE_PID:
+                    if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
+                    {
+                        data++;
 
-                    char buffer[16];
-                    snprintf(buffer, sizeof(buffer), "%s", data);
+                        char buffer[16];
+                        snprintf(buffer, sizeof(buffer), "%s", data);
 
-                    char* endptr = nullptr;
-                    float val    = strtof(buffer, &endptr);
-                    m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
-                }
-                else
-                {
-                    m_rotate_pid.parse_nus_parameters(data);
-                }
-                break;
-            case BLE_Commands::Prefix::WHEEL_PID:
-                m_wheel0_speed_pid.parse_nus_parameters(data);
-                m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
-                break;
-            case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
-                if(!m_trajectory_manager.trajectory_started())
-                {
-                    m_trajectory_manager.parse_trajectory_point(data);
-                }
-            default:
-                break;
+                        char* endptr = nullptr;
+                        float val    = strtof(buffer, &endptr);
+                        m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
+                    }
+                    else
+                    {
+                        m_rotate_pid.parse_nus_parameters(data);
+                    }
+                    break;
+                case BLE_Commands::Prefix::WHEEL_PID:
+                    m_wheel0_speed_pid.parse_nus_parameters(data);
+                    m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
+                    break;
+                case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
+                    if(!m_trajectory_manager.trajectory_started())
+                    {
+                        m_trajectory_manager.parse_trajectory_point(data);
+                    }
+                default:
+                    break;
+            }
         }
     }
-}
 
-void
-Robot_Controller::send_PID_controllers_parameters()
-{
-    PID::Parameters const distance_pid_parameters     = m_distance_pid.get_parameters();
-    PID::Parameters const linear_speed_pid_parameters = m_linear_speed_pid.get_parameters();
-    PID::Parameters const balance_pid_parameters      = m_balance_pid.get_parameters();
-    PID::Parameters const rotate_pid_parameters       = m_rotate_pid.get_parameters();
-    PID::Parameters const wheel_speed_pid_parameters  = m_wheel0_speed_pid.get_parameters();
+    void Robot_Controller::send_PID_controllers_parameters()
+    {
+        PID::Parameters const distance_pid_parameters     = m_distance_pid.get_parameters();
+        PID::Parameters const linear_speed_pid_parameters = m_linear_speed_pid.get_parameters();
+        PID::Parameters const balance_pid_parameters      = m_balance_pid.get_parameters();
+        PID::Parameters const rotate_pid_parameters       = m_rotate_pid.get_parameters();
+        PID::Parameters const wheel_speed_pid_parameters  = m_wheel0_speed_pid.get_parameters();
 
-    snprintf(
-        m_regulators_data, sizeof(m_regulators_data),
-        "Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f\n",
-        (double)distance_pid_parameters.Kp, (double)distance_pid_parameters.Ki, (double)distance_pid_parameters.Kd,
-        (double)linear_speed_pid_parameters.Kp, (double)linear_speed_pid_parameters.Ki,
-        (double)linear_speed_pid_parameters.Kd, (double)balance_pid_parameters.Kp, (double)balance_pid_parameters.Ki,
-        (double)balance_pid_parameters.Kd, (double)rotate_pid_parameters.Kp, (double)rotate_pid_parameters.Ki,
-        (double)rotate_pid_parameters.Kd, (double)wheel_speed_pid_parameters.Kp, (double)wheel_speed_pid_parameters.Ki,
-        (double)wheel_speed_pid_parameters.Kd);
+        snprintf(
+            m_regulators_data, sizeof(m_regulators_data),
+            "Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f\n",
+            (double)distance_pid_parameters.Kp, (double)distance_pid_parameters.Ki, (double)distance_pid_parameters.Kd,
+            (double)linear_speed_pid_parameters.Kp, (double)linear_speed_pid_parameters.Ki,
+            (double)linear_speed_pid_parameters.Kd, (double)balance_pid_parameters.Kp,
+            (double)balance_pid_parameters.Ki, (double)balance_pid_parameters.Kd, (double)rotate_pid_parameters.Kp,
+            (double)rotate_pid_parameters.Ki, (double)rotate_pid_parameters.Kd, (double)wheel_speed_pid_parameters.Kp,
+            (double)wheel_speed_pid_parameters.Ki, (double)wheel_speed_pid_parameters.Kd);
 
-    robot_control_logger.platform_log(LOG_LEVEL::INF, "%s", m_regulators_data);
-    m_regulator_message_sending_in_progress = false;
-}
+        robot_control_logger.platform_log(LOG_LEVEL::INF, "%s", m_regulators_data);
+        m_regulator_message_sending_in_progress = false;
+    }
 
 #endif  // CONFIG_BLUETOOTH_DRV
 
-void
-Robot_Controller::send_motors_data(float pwm_motor0, float pwm_motor1)
-{
-    set_start_motors(true);
-    set_duty_cycle_value(static_cast<int>(pwm_motor0), static_cast<int>(pwm_motor1));
-}
+    void Robot_Controller::send_motors_data(float pwm_motor0, float pwm_motor1)
+    {
+        set_start_motors(true);
+        set_duty_cycle_value(static_cast<int>(pwm_motor0), static_cast<int>(pwm_motor1));
+    }
 
 #ifdef CONFIG_VALIDATE_ROBOT_ANGLE
-bool
-Robot_Controller::validate_robot_angle(float balance_angle)
-{
-    static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
-    static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
-
-    float const upper_limit = m_balance_setpoint + safe_angle_margin;
-    float const lower_limit = m_balance_setpoint - safe_angle_margin;
-
-    if(!disable_motors_command && (balance_angle > upper_limit || balance_angle < lower_limit))
+    bool Robot_Controller::validate_robot_angle(float balance_angle)
     {
-        disable_motors_command = true;
+        static bool disable_motors_command           = false;
+        static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
+        static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
+
+        float const upper_limit = m_balance_setpoint + safe_angle_margin;
+        float const lower_limit = m_balance_setpoint - safe_angle_margin;
+
+        if(!disable_motors_command && (balance_angle > upper_limit || balance_angle < lower_limit))
+        {
+            disable_motors_command = true;
+            return disable_motors_command;
+        }
+
+        if(disable_motors_command && (balance_angle < (upper_limit - safe_angle_hysteresis)) &&
+           (balance_angle > (lower_limit + safe_angle_hysteresis)))
+        {
+            disable_motors_command = false;
+        }
         return disable_motors_command;
     }
-
-    if(disable_motors_command && (balance_angle < (upper_limit - safe_angle_hysteresis)) &&
-       (balance_angle > (lower_limit + safe_angle_hysteresis)))
-    {
-        disable_motors_command = false;
-    }
-    return disable_motors_command;
-}
 #endif  // CONFIG_VALIDATE_ROBOT_ANGLE
 
-bool
-Robot_Controller::ramp_pwm_to_stop(float& pwm)
-{
-    static constexpr float pwm_stop_target = 0.0f;
-    static constexpr float pwm_ramp_step   = 0.5f;
-    float const pwm_diff                   = pwm_stop_target - pwm;
+    bool Robot_Controller::ramp_pwm_to_stop(float& pwm)
+    {
+        static constexpr float pwm_stop_target = 0.0f;
+        static constexpr float pwm_ramp_step   = 0.5f;
+        float const pwm_diff                   = pwm_stop_target - pwm;
 
-    bool motor_stopped = false;
-    if(pwm_diff > pwm_ramp_step)
-    {
-        pwm += pwm_ramp_step;
-    }
-    else if(pwm_diff < -pwm_ramp_step)
-    {
-        pwm -= pwm_ramp_step;
-    }
-    else
-    {
-        pwm           = pwm_stop_target;
-        motor_stopped = true;
-    }
+        bool motor_stopped = false;
+        if(pwm_diff > pwm_ramp_step)
+        {
+            pwm += pwm_ramp_step;
+        }
+        else if(pwm_diff < -pwm_ramp_step)
+        {
+            pwm -= pwm_ramp_step;
+        }
+        else
+        {
+            pwm           = pwm_stop_target;
+            motor_stopped = true;
+        }
 
-    return motor_stopped;
-}
+        return motor_stopped;
+    }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-identification_data
-Robot_Controller::get_identification_data() const
-{
-    return m_identification_data;
-}
+    identification_data Robot_Controller::get_identification_data() const { return m_identification_data; }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 }  // namespace Robot_Control

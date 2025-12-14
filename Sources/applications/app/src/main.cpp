@@ -41,10 +41,7 @@ main()
     app_logger.platform_log(LOG_LEVEL::INF, "Interface driver is enabled.");
 #endif  // CONFIG_INTERFACE_DRV
 
-#ifdef CONFIG_ROBOT_CONTROL
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    Robot_Control::new_send_identification_data_cb_register(new_regulator_data_for_identification);
     app_logger.platform_log(LOG_LEVEL::INF, "Model identification driver is enabled.");
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-#endif  // CONFIG_ROBOT_CONTROL
 }

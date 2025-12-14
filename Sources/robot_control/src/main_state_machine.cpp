@@ -1,6 +1,10 @@
 #include "main_state_machine.h"
 #include "ble_commands.h"
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
 namespace Robot_Control
 {
 
@@ -84,6 +88,10 @@ Main_State_Machine::parse_nus_commands(char const* data)
             if(m_state == READY_TO_START)
             {
                 m_flags.start = true;
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+                set_identification_data_status(true);
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             }
             break;
         case BLE_Commands::State_Machine::STOP:

@@ -6,6 +6,10 @@
 #include "saturation.h"
 #include "zephyr/kernel.h"
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "main_state_machine.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
 namespace Robot_Control
 {
 
@@ -128,34 +132,37 @@ Robot_Controller::normal_motors_control()
 
     pwm_timer += imu_data.time_dt;
 
-    pwm_sample s = get_pwm_sample(pwm_index);
+    pwm_sample s    = get_pwm_sample(pwm_index);
+    input_data data = get_input_pwm_data();
 
     m_pwm0 = s.pwm0;
     m_pwm1 = s.pwm1;
 
-    send_motors_data(m_pwm0, m_pwm1);
-    trigger_motors_update();
+    m_identification_data = {
+        .dt       = imu_data.time_dt,
+        .pwm      = (m_pwm0 + m_pwm1) / 2.0f,
+        .angle    = imu_data.angle_balance,
+        .angle_dt = imu_data.angle_balance_dt};
 
-    input_data data = get_input_pwm_data();
-
-    if(pwm_timer >= data.pwm_durations_s[pwm_index] && pwm_index < data.pwm_values.size() - 1)
+    if(pwm_timer >= data.pwm_durations_s[pwm_index])
     {
-        pwm_index++;
         pwm_timer = 0.0f;
+
+        if(pwm_index < data.pwm_values.size() - 1)
+        {
+            pwm_index++;
+        }
+        else
+        {
+            set_identification_data_status(false);
+            Main_State_Machine::instance().set_ready_to_start();
+            pwm_index = 0;
+        }
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
         send_motors_data(m_pwm0, m_pwm1);
         trigger_motors_update();
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-
-        m_identification_data = {
-            .dt       = imu_data.time_dt,
-            .pwm      = (m_pwm0 + m_pwm1) / 2.0f,
-            .angle    = imu_data.angle_balance,
-            .angle_dt = imu_data.angle_balance_dt};
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         return false;

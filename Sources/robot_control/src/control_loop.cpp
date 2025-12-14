@@ -47,6 +47,7 @@ int
 control_loop_init()
 {
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+    new_send_identification_data_cb_register(new_regulator_data_for_identification);
     identification_process_parser_cb_register(identification_data_nus_parser_callback);
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 

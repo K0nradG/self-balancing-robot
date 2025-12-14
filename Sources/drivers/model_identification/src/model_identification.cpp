@@ -9,8 +9,8 @@
 #include "robot_controller.h"
 
 static identification_data g_identification_data {};
-
 static input_data g_input_data;
+static bool g_send_status = false;
 
 input_data&
 get_input_pwm_data()
@@ -34,6 +34,7 @@ get_pwm_sample(std::size_t index)
     sample.pwm0        = g_input_data.pwm_values[index];
     sample.pwm1        = g_input_data.pwm_values[index];
     sample.last_sample = (index == g_input_data.pwm_values.size() - 1);
+
     return sample;
 }
 
@@ -96,14 +97,26 @@ new_regulator_data_for_identification(identification_data data)
 
 static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
 
+void
+set_identification_data_status(bool status)
+{
+    g_send_status = status;
+}
+
 static void
 identification_logger_thread(void*, void*, void*)
 {
-    logger.platform_log(
-        LOG_LEVEL::INF, "dt=%.3f angle=%.3f angle_dt=%.3f pwm=%.3f", (double)g_identification_data.dt,
-        (double)g_identification_data.angle, (double)g_identification_data.angle_dt, (double)g_identification_data.pwm);
-
-    k_sleep(K_MSEC(CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME));
+    while(true)
+    {
+        if(g_send_status)
+        {
+            logger.platform_log(
+                LOG_LEVEL::INF, "dt=%.3f angle=%.3f angle_dt=%.3f pwm=%.3f", (double)g_identification_data.dt,
+                (double)g_identification_data.angle, (double)g_identification_data.angle_dt,
+                (double)g_identification_data.pwm);
+        }
+        k_sleep(K_MSEC(CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME));
+    }
 }
 
 K_THREAD_DEFINE(ident_logger_tid, 1024, identification_logger_thread, nullptr, nullptr, nullptr, 7, 0, 0);

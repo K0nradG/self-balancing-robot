@@ -35,3 +35,6 @@ pwm_sample get_pwm_sample(std::size_t);
 
 void
 new_regulator_data_for_identification(identification_data data);
+
+void
+set_identification_data_status(bool status);

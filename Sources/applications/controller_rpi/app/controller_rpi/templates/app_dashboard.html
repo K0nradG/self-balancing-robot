@@ -205,7 +205,7 @@
         <button id="robotConfBtn" class="btn btn-primary" style="margin-top:10px;">GET ROBOT CONF</button>
       </div>
 
-      <div id=" status">
+      <div id="status">
         <span id="connIndicator" style="
           display:inline-block;
           width:12px;
@@ -230,6 +230,8 @@
         <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
         <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
         <a id="robotControllerBtn" href="/motion" class="btn btn-primary" style="display:none;">ROBOT CONTROLLER</a>
+        <button id="identBtn" class="btn btn-primary" style="display:none;">IDENTIFICATION DATA</button>
+
         <a id="backBtn" href="/" class="btn btn-primary">BACK</a>
 
       </div>
@@ -245,6 +247,38 @@
 
     </div>
 
+  </div>
+
+  <div id="identModal" style="
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.5);
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+">
+    <div style="
+    background:white;
+    padding:30px;
+    border-radius:15px;
+    width:500px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.3);
+  ">
+      <h3 style="margin-top:0;color:#4f46e5;">Identification data</h3>
+
+      <p>PWM values (10, oddzielone spacją):</p>
+      <input id="ident_pwm" type="text" style="width:100%;" placeholder="50 -50 50 -50 0 0 0 0 0 0">
+
+      <p style="margin-top:10px;">Durations [s] (10, oddzielone spacją):</p>
+      <input id="ident_time" type="text" style="width:100%;" placeholder="10 10 10 10 5 5 5 5 5 5">
+
+      <div style="margin-top:20px;text-align:right;">
+        <button id="identCancelBtn" class="btn btn-secondary">CANCEL</button>
+        <button id="identSendBtn" class="btn btn-success">SEND</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -287,6 +321,12 @@
     const w_d = document.getElementById('w_d');
 
     const setParamsBtn = document.getElementById('setParamsBtn');
+
+    const identBtn = document.getElementById('identBtn');
+    const identModal = document.getElementById('identModal');
+    const identSendBtn = document.getElementById('identSendBtn');
+    const identCancelBtn = document.getElementById('identCancelBtn');
+
 
 
     let connectionStatus = "disconnected";
@@ -586,6 +626,12 @@
       deviceText.textContent = `Device: ${window.currentDeviceName || "none"}`;
 
       connIndicator.style.background = (connectionStatus === "connected") ? "limegreen" : "red";
+
+      identBtn.style.display =
+        (connectionStatus === "connected" && applicationStatus === "application work")
+          ? "inline-block"
+          : "none";
+
     }
 
     downloadBtn.onclick = () => {
@@ -601,6 +647,38 @@
       a.click();
       URL.revokeObjectURL(url);
     };
+
+    identSendBtn.onclick = async () => {
+      const pwmStr = document.getElementById('ident_pwm').value.trim();
+      const timeStr = document.getElementById('ident_time').value.trim();
+
+      const pwm = pwmStr.split(/\s+/);
+      const t = timeStr.split(/\s+/);
+
+      if (pwm.length !== 10 || t.length !== 10) {
+        alert("Musisz podać dokładnie 10 PWM i 10 czasów!");
+        return;
+      }
+
+      const cmd =
+        "i" +
+        "p" + pwm.join("_") +
+        "t" + t.join("_");
+
+      console.log("IDENT CMD:", cmd);
+      await post('/nus/send', { data: cmd });
+
+      identModal.style.display = "none";
+    };
+
+    identBtn.onclick = () => {
+      identModal.style.display = "flex";
+    };
+
+    identCancelBtn.onclick = () => {
+      identModal.style.display = "none";
+    };
+
 
 
 

@@ -34,6 +34,7 @@ class NUSClient:
         self.recording_started = False
         self.csv_file = None
         self.csv_writer = None
+        self.last_ident_csv_path: Path | None = None
 
     IDENT_LINE_RE = re.compile(
         r"dt=(?P<dt>[-0-9.]+)\s+"
@@ -43,11 +44,13 @@ class NUSClient:
     )
 
     def _ensure_recording_started(self):
+
         if self.recording_started:
             return
 
         filename = time.strftime("ident_%Y%m%d_%H%M%S.csv")
         path = Path(filename)
+        self.last_ident_csv_path = path
 
         self.csv_file = path.open("w", newline="")
         self.csv_writer = csv.writer(self.csv_file)

@@ -635,18 +635,9 @@
     }
 
     downloadBtn.onclick = () => {
-      const dataToSave = {
-        logs: logBox.textContent,
-        chartData: chartData
-      };
-      const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dashboard_data_${new Date().toISOString()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      window.location.href = "/nus/identification/download";
     };
+
 
     identSendBtn.onclick = async () => {
       const pwmStr = document.getElementById('ident_pwm').value.trim();

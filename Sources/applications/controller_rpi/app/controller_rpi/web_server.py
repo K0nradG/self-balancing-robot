@@ -1,10 +1,11 @@
-from flask import Flask, request, jsonify, render_template_string, Response
+from flask import Flask, request, jsonify, render_template_string, Response, send_file
 import subprocess, threading, re, os, asyncio
 from nus_service import NUSClient
 import zipfile
 from camera_driver import CameraDriver
 import time
 import asyncio
+
 
 
 trajectory_ack_event = asyncio.Event()
@@ -320,6 +321,26 @@ def camera_stream():
         return "Camera not started", 400
     return Response(generate_camera_stream(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+# --- Identification data endpoints --- 
+
+def get_nus_client() -> NUSClient | None:
+    return nus_client
+
+@app.route("/nus/identification/download", methods=["GET"])
+def download_identification_csv():
+    client = get_nus_client()
+
+    if not client.last_ident_csv_path:
+        return jsonify({"error": "No identification data"}), 404
+
+    return send_file(
+        client.last_ident_csv_path,
+        as_attachment=True,
+        download_name=client.last_ident_csv_path.name,
+        mimetype="text/csv"
+    )
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

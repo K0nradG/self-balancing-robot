@@ -3,6 +3,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
 typedef void (*regulator_parameters_parser_cb_t)(char const* data);
 typedef void (*dfu_process_parser_cb_t)(char const* data);
 typedef void (*state_machine_commands_parser_cb_t)(char const* data);
@@ -15,6 +19,9 @@ new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _re
 
 void
 dfu_process_parser_cb_register(dfu_process_parser_cb_t _dfu_process_parser_cb);
+
+void
+identification_process_parser_cb_register(identification_process_cb_t _identification_process_parser_cb);
 
 void
 state_machine_commands_parser_cb_register(state_machine_commands_parser_cb_t _state_machine_commands_parser_cb);

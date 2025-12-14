@@ -58,9 +58,10 @@ Robot_Controller::normal_motors_control()
     DataManager::instance().update();
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
-    float const rotation_angle        = DataManager::instance().get_rotation_angle();
 
 #ifndef CONFIG_MODEL_IDENTIFICATION_DRV
+
+    float const rotation_angle = DataManager::instance().get_rotation_angle();
 
 #ifdef CONFIG_VALIDATE_ROBOT_ANGLE
     bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
@@ -122,24 +123,25 @@ Robot_Controller::normal_motors_control()
 
 #else   // CONFIG_MODEL_IDENTIFICATION_DRV
 
-    // Statyczny indeks zachowujący się między wywołaniami funkcji
     static size_t pwm_index = 0;
+    static float pwm_timer  = 0.0f;
 
-    // Tablica wartości PWM
-    static constexpr float pwm_values[]      = {50, -50};
-    static constexpr float pwm_durations_s[] = {10.0f, 10.0f};
-    static constexpr size_t pwm_count        = sizeof(pwm_values) / sizeof(pwm_values[0]);
-
-    static float pwm_timer = 0.0f;
     pwm_timer += imu_data.time_dt;
 
-    m_pwm0 = pwm_values[pwm_index];
-    m_pwm1 = pwm_values[pwm_index];
+    pwm_sample s = get_pwm_sample(pwm_index);
 
-    if(pwm_timer >= pwm_durations_s[pwm_index] && pwm_index < pwm_count - 1)
+    m_pwm0 = s.pwm0;
+    m_pwm1 = s.pwm1;
+
+    send_motors_data(m_pwm0, m_pwm1);
+    trigger_motors_update();
+
+    input_data data = get_input_pwm_data();
+
+    if(pwm_timer >= data.pwm_durations_s[pwm_index] && pwm_index < data.pwm_values.size() - 1)
     {
         pwm_index++;
-        pwm_timer = 0.0f;  // reset timera dla nowej próbki
+        pwm_timer = 0.0f;
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 

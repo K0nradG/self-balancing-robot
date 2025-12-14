@@ -46,6 +46,10 @@ parse_nus_commands_callback(char const* data)
 int
 control_loop_init()
 {
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+    identification_process_parser_cb_register(identification_data_nus_parser_callback);
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
     Drivers_Initializer::init();
 
 #ifdef CONFIG_BLUETOOTH_DRV

@@ -18,7 +18,8 @@ enum Prefix
     LINEAR_SPEED_PID   = 's',
     BALANCE_PID        = 'b',
     ROTATE_PID         = 'r',
-    WHEEL_PID          = 'w'
+    WHEEL_PID          = 'w',
+    IDENTIFICATION     = 'i'
 };
 
 enum DFU

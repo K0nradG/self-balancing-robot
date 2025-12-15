@@ -139,10 +139,12 @@ Robot_Controller::normal_motors_control()
     m_pwm1 = s.pwm1;
 
     m_identification_data = {
-        .dt       = imu_data.time_dt,
-        .pwm      = (m_pwm0 + m_pwm1) / 2.0f,
-        .angle    = imu_data.angle_balance,
-        .angle_dt = imu_data.angle_balance_dt};
+        .dt          = imu_data.time_dt,
+        .pwm         = m_pwm1,
+        .angle       = imu_data.angle_balance,
+        .angle_dt    = imu_data.angle_balance_dt,
+        .position    = encoders_data.robot_distance_m,
+        .position_dt = encoders_data.robot_linear_speed};
 
     if(pwm_timer >= data.pwm_durations_s[pwm_index])
     {
@@ -169,7 +171,7 @@ Robot_Controller::normal_motors_control()
 #else
     return disable_motors_command;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-    }
+    }  // namespace Robot_Control
 
     bool Robot_Controller::soft_stop_motors()
     {

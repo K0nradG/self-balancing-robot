@@ -37,11 +37,14 @@ class NUSClient:
         self.last_ident_csv_path: Path | None = None
 
     IDENT_LINE_RE = re.compile(
-        r"dt=(?P<dt>[-0-9.]+)\s+"
-        r"angle=(?P<angle>[-0-9.]+)\s+"
-        r"angle_dt=(?P<angle_dt>[-0-9.]+)\s+"
-        r"pwm=(?P<pwm>[-0-9.]+)"
+    r"dt=(?P<dt>-?\d+(?:\.\d+)?)\s+"
+    r"angle=(?P<angle>-?\d+(?:\.\d+)?)\s+"
+    r"angle_dt=(?P<angle_dt>-?\d+(?:\.\d+)?)\s+"
+    r"pwm=(?P<pwm>-?\d+(?:\.\d+)?)\s+"
+    r"pos=(?P<pos>-?\d+(?:\.\d+)?)\s+"
+    r"pos_dt=(?P<pos_dt>-?\d+(?:\.\d+)?)\s*$"
     )
+
 
     def _ensure_recording_started(self):
 
@@ -54,7 +57,7 @@ class NUSClient:
 
         self.csv_file = path.open("w", newline="")
         self.csv_writer = csv.writer(self.csv_file)
-        self.csv_writer.writerow(["timestamp", "dt", "angle", "angle_dt", "pwm"])
+        self.csv_writer.writerow(["timestamp", "dt", "angle", "angle_dt", "pwm", "pos", "pos_dt"])
 
         self.recording_started = True
         logger.info("AUTO-START zapisu identyfikacji: %s", path)
@@ -183,6 +186,8 @@ class NUSClient:
                     float(m["angle"]),
                     float(m["angle_dt"]),
                     float(m["pwm"]),
+                    float(m["pos"]),
+                    float(m["pos_dt"]),
                 ]
                 self.csv_writer.writerow(row)
                 self.csv_file.flush()

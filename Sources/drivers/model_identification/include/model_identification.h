@@ -21,6 +21,8 @@ struct identification_data
     float pwm;
     float angle;
     float angle_dt;
+    float position;
+    float position_dt;
 };
 
 typedef void (*identification_process_cb_t)(char const* data);

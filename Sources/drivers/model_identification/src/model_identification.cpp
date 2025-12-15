@@ -111,9 +111,10 @@ identification_logger_thread(void*, void*, void*)
         if(g_send_status)
         {
             logger.platform_log(
-                LOG_LEVEL::INF, "dt=%.3f angle=%.3f angle_dt=%.3f pwm=%.3f", (double)g_identification_data.dt,
-                (double)g_identification_data.angle, (double)g_identification_data.angle_dt,
-                (double)g_identification_data.pwm);
+                LOG_LEVEL::INF, "dt=%.4f angle=%.4f angle_dt=%.4f pwm=%.4f pos=%.4f pos_dt=%.4f",
+                (double)g_identification_data.dt, (double)g_identification_data.angle,
+                (double)g_identification_data.angle_dt, (double)g_identification_data.pwm,
+                (double)g_identification_data.position, (double)g_identification_data.position_dt);
         }
         k_sleep(K_MSEC(CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME));
     }

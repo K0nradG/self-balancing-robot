@@ -101,7 +101,9 @@ control_loop_work_handler(k_work* work)
             break;
         }
         case State::RESET_AFTER_STOP:
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
             Robot_Controller::instance().reset();
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             break;
         default:
             break;

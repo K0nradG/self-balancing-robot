@@ -92,7 +92,10 @@ identification_data_nus_parser_callback(char const* data)
 void
 new_regulator_data_for_identification(identification_data data)
 {
-    g_identification_data = data;
+    g_identification_data.angle       = data.angle;
+    g_identification_data.angle_dt    = data.angle_dt;
+    g_identification_data.position    = data.position;
+    g_identification_data.position_dt = data.position_dt;
 }
 
 static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
@@ -106,8 +109,19 @@ set_identification_data_status(bool status)
 static void
 identification_logger_thread(void*, void*, void*)
 {
+    static int64_t last_time_ms = 0;
+
     while(true)
     {
+        int64_t now_ms = k_uptime_get();
+
+        if(last_time_ms != 0)
+        {
+            g_identification_data.dt = (now_ms - last_time_ms) / 1000.0;
+        }
+
+        last_time_ms = now_ms;
+
         if(g_send_status)
         {
             logger.platform_log(
@@ -116,8 +130,9 @@ identification_logger_thread(void*, void*, void*)
                 (double)g_identification_data.angle_dt, (double)g_identification_data.pwm,
                 (double)g_identification_data.position, (double)g_identification_data.position_dt);
         }
+
         k_sleep(K_MSEC(CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME));
     }
 }
 
-K_THREAD_DEFINE(ident_logger_tid, 1024, identification_logger_thread, nullptr, nullptr, nullptr, 7, 0, 0);
+K_THREAD_DEFINE(ident_logger_tid, 1024, identification_logger_thread, nullptr, nullptr, nullptr, 1, 0, 0);

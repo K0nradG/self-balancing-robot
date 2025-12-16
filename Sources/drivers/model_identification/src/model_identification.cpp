@@ -96,6 +96,7 @@ new_regulator_data_for_identification(identification_data data)
     g_identification_data.angle_dt    = data.angle_dt;
     g_identification_data.position    = data.position;
     g_identification_data.position_dt = data.position_dt;
+    g_identification_data.pwm         = data.pwm;
 }
 
 static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");

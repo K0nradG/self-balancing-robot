@@ -140,7 +140,7 @@ Robot_Controller::normal_motors_control()
 
     m_identification_data = {
         .dt          = imu_data.time_dt,
-        .pwm         = m_pwm1,
+        .pwm         = m_pwm0,
         .angle       = imu_data.angle_balance,
         .angle_dt    = imu_data.angle_balance_dt,
         .position    = encoders_data.robot_distance_m,

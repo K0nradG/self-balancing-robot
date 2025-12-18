@@ -136,4 +136,4 @@ identification_logger_thread(void*, void*, void*)
     }
 }
 
-K_THREAD_DEFINE(ident_logger_tid, 1024, identification_logger_thread, nullptr, nullptr, nullptr, 1, 0, 0);
+K_THREAD_DEFINE(ident_logger_tid, 8196, identification_logger_thread, nullptr, nullptr, nullptr, 1, 0, 0);

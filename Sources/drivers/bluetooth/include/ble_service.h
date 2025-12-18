@@ -20,8 +20,10 @@ new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _re
 void
 dfu_process_parser_cb_register(dfu_process_parser_cb_t _dfu_process_parser_cb);
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 void
 identification_process_parser_cb_register(identification_process_cb_t _identification_process_parser_cb);
+#endif
 
 void
 state_machine_commands_parser_cb_register(state_machine_commands_parser_cb_t _state_machine_commands_parser_cb);

@@ -8,6 +8,6 @@ config MODEL_IDENTIFICATION_LOG
 
 config MODEL_IDENTIFICATION_SAMPLE_TIME
     int "Model identification sampling time in milliseconds"
-    default 50
+    default 2
 
 endif #MODEL_IDENTIFICATION_DRV

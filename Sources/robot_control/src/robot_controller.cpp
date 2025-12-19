@@ -124,6 +124,7 @@ Robot_Controller::normal_motors_control()
                     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
             }
         }
+    }
 
 #else   // CONFIG_MODEL_IDENTIFICATION_DRV
 
@@ -163,15 +164,14 @@ Robot_Controller::normal_motors_control()
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-        send_motors_data(m_pwm0, m_pwm1);
-        trigger_motors_update();
+    send_motors_data(m_pwm0, m_pwm1);
+    trigger_motors_update();
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-        return false;
+    return false;
 #else
     return disable_motors_command;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-    }
 }
 
 bool

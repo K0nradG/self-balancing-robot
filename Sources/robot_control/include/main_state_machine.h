@@ -33,7 +33,7 @@ public:
     enum State
     {
         READY_TO_START = 0,
-        NORMAL_OPERATION,
+        OPERATION,
         IDENTIFICATION,
         SOFT_STOP,
         RESET_AFTER_STOP
@@ -52,7 +52,7 @@ public:
     set_motors_stopped(bool motors_stopped);
 
     void
-    set_ready_to_start();
+    set_stop_command();
 
     void
     parse_nus_commands(char const* data);

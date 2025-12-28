@@ -56,8 +56,13 @@ public:
         return s_robot_controller;
     }
 
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
     bool
     normal_motors_control();
+#else
+    Identification_Data const
+    model_identification();
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
     bool
     soft_stop_motors();
@@ -72,11 +77,6 @@ public:
     void
     send_PID_controllers_parameters();
 #endif  // CONFIG_BLUETOOTH_DRV
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    Identification_Data const&
-    get_identification_data() const;
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 private:
     Robot_Controller();
@@ -121,10 +121,6 @@ private:
 
     bool
     ramp_pwm_to_stop(float& pwm);
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    Identification_Data m_identification_data {};
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 };
 
 }  // namespace Robot_Control

@@ -21,10 +21,10 @@ Main_State_Machine::update()
         case READY_TO_START:
             if(m_flags.start)
             {
-                m_state = NORMAL_OPERATION;
+                m_state = OPERATION;
             }
             break;
-        case NORMAL_OPERATION:
+        case OPERATION:
             if(m_flags.disable_motors_command || m_flags.stop)
             {
                 m_state = SOFT_STOP;
@@ -65,12 +65,9 @@ Main_State_Machine::set_motors_stopped(bool motors_stopped)
 }
 
 void
-Main_State_Machine::set_ready_to_start()
+Main_State_Machine::set_stop_command()
 {
-    if(m_state == NORMAL_OPERATION)
-    {
-        m_flags.stop = true;
-    }
+    m_flags.stop = true;
 }
 
 void
@@ -95,7 +92,7 @@ Main_State_Machine::parse_nus_commands(char const* data)
             }
             break;
         case BLE_Commands::State_Machine::STOP:
-            if(m_state == NORMAL_OPERATION)
+            if(m_state == OPERATION)
             {
                 m_flags.stop = true;
             }

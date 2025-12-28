@@ -7,10 +7,6 @@
 #include "saturation.h"
 #include "zephyr/kernel.h"
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "main_state_machine.h"
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
 namespace Robot_Control
 {
 
@@ -57,14 +53,13 @@ Robot_Controller::Robot_Controller()
 {
 }
 
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
 bool
 Robot_Controller::normal_motors_control()
 {
     DataManager::instance().update();
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
-
-#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
 
     float const rotation_angle = DataManager::instance().get_rotation_angle();
 
@@ -127,14 +122,25 @@ Robot_Controller::normal_motors_control()
         }
     }
 
-#else   // CONFIG_MODEL_IDENTIFICATION_DRV
+    send_motors_data(m_pwm0, m_pwm1);
+    trigger_motors_update();
+
+    return disable_motors_command;
+}
+
+#else
+Identification_Data const
+Robot_Controller::model_identification()
+{
+    DataManager::instance().update();
+    imu_data const imu_data           = DataManager::instance().get_imu_data();
+    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
 
     PWM_Sample const pwm_sample = get_pwm_sample();
+    m_pwm0                      = pwm_sample.pwm0;
+    m_pwm1                      = pwm_sample.pwm1;
 
-    m_pwm0 = pwm_sample.pwm0;
-    m_pwm1 = pwm_sample.pwm1;
-
-    m_identification_data = {
+    Identification_Data const identification_data = {
         .dt          = imu_data.time_dt,
         .pwm         = m_pwm0,
         .angle       = imu_data.angle_balance,
@@ -143,21 +149,13 @@ Robot_Controller::normal_motors_control()
         .position_dt = encoders_data.robot_linear_speed};
 
     update(imu_data.time_dt);
-    if(!identification_active())
-    {
-        Main_State_Machine::instance().set_ready_to_start();
-    }
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
     send_motors_data(m_pwm0, m_pwm1);
     trigger_motors_update();
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    return false;
-#else
-    return disable_motors_command;
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+    return identification_data;
 }
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 bool
 Robot_Controller::soft_stop_motors()
@@ -369,13 +367,5 @@ Robot_Controller::ramp_pwm_to_stop(float& pwm)
 
     return motor_stopped;
 }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-Identification_Data const&
-Robot_Controller::get_identification_data() const
-{
-    return m_identification_data;
-}
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 }  // namespace Robot_Control

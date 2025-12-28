@@ -79,18 +79,23 @@ control_loop_work_handler(k_work* work)
     State const state = Main_State_Machine::instance().get_state();
     switch(state)
     {
-        case State::NORMAL_OPERATION:
+        case State::OPERATION:
         {
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
             bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+            Main_State_Machine::instance().set_disable_motors_command(disable_motors_command);
+#else
+            Identification_Data const identification_data = Robot_Controller::instance().model_identification();
             if(g_send_identification_data_cb)
             {
-                g_send_identification_data_cb(Robot_Controller::instance().get_identification_data());
+                g_send_identification_data_cb(identification_data);
+            }
+
+            if(!identification_active())
+            {
+                Main_State_Machine::instance().set_stop_command();
             }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
-            Main_State_Machine::instance().set_disable_motors_command(disable_motors_command);
 
             break;
         }

@@ -45,4 +45,10 @@ DataManager::reset()
     m_rotation_angle = 0.0f;
 }
 
+void
+DataManager::reset_distance_in_encoders()
+{
+    reset_encoders();
+}
+
 }  // namespace Robot_Control

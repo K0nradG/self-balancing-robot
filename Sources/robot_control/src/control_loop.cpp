@@ -72,11 +72,22 @@ control_loop_work_handler(k_work* work)
     State const state = s_main_state_machine.get_state();
     switch(state)
     {
-        case State::IDENTIFICATION:
+        case State::SWING_UP:
+        {
+            bool const swing_up_finished = Robot_Controller::instance().swing_up();
+            s_main_state_machine.set_swing_up_finished(swing_up_finished);
+            break;
+        }
+        case State::BALANCING_WITH_DRIVING_DISABLED:
+        {
+            bool const enable_driving_controllers =
+                Robot_Controller::instance().motors_control_with_driving_controllers_disabled();
+            s_main_state_machine.set_enable_driving_controllers(enable_driving_controllers);
+            break;
+        }
         case State::NORMAL_OPERATION:
         {
-            bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
-            s_main_state_machine.set_disable_motors_command(disable_motors_command);
+            Robot_Controller::instance().normal_motors_control();
             break;
         }
         case State::SOFT_STOP:
@@ -88,9 +99,15 @@ control_loop_work_handler(k_work* work)
         case State::RESET_AFTER_STOP:
             Robot_Controller::instance().reset();
             break;
+        case State::IDENTIFICATION:
         default:
             break;
     }
+
+    Robot_Controller::instance().log_data();
+
+    // Check if disabling command was requested during control loop
+    s_main_state_machine.set_disable_motors_command(Robot_Controller::instance().get_motors_disable_command());
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     if(g_send_identification_data_cb)

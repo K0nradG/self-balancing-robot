@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Robot Path Drawer — Simplified</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <style>
+        :root {
+            --bg1: #fbbf24;
+            --bg2: #f43f5e;
+            --bg3: #60a5fa;
+            --primary: #4f46e5;
+            --muted: #6b7280;
+        }
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            font-family: Inter, system-ui, Arial;
+        }
+
+        body {
+            background: linear-gradient(120deg, var(--bg1), var(--bg2), var(--bg3));
+            background-size: 400% 400%;
+            animation: gradient 12s linear infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        @keyframes gradient {
+            0% {
+                background-position: 0% 50%
+            }
+
+            50% {
+                background-position: 100% 50%
+            }
+
+            100% {
+                background-position: 0% 50%
+            }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+            width: 760px;
+            max-width: calc(100vw - 40px);
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+        }
+
+        .btn-secondary {
+            background: var(--muted);
+        }
+
+        .controls {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        textarea {
+            width: 100%;
+            height: 160px;
+            margin-top: 12px;
+            border-radius: 8px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+
+        label {
+            font-size: 13px;
+            color: #333;
+            margin-right: 6px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input[type=range] {
+            width: 140px;
+        }
+
+        .info {
+            font-size: 13px;
+            color: #333;
+            margin-left: auto;
+        }
+
+        .canvas-wrap {
+            position: relative;
+            margin-top: 12px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        canvas {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .overlay {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px 8px;
+            border-radius: 8px;
+            font-size: 13px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .status {
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            color: #222;
+            white-space: pre-wrap;
+            max-height: 120px;
+            overflow: auto;
+        }
+
+        .small {
+            font-size: 12px;
+            color: #444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="card">
+        <div style="display:flex;align-items:center;">
+            <h1>Robot Path Drawer — Douglas–Peucker + Snap</h1>
+            <a href="/motion" style="margin-left:auto;text-decoration:none;"><button class="btn-secondary">Back to
+                    Motion</button></a>
+        </div>
+
+        <div class="toolbar row">
+            <div class="controls">
+                <button id="clearBtn" class="btn-secondary">Clear</button>
+                <button id="undoBtn" class="btn-secondary">Undo last</button>
+                <button id="generateBtn" class="btn-primary">Generate Commands</button>
+                <button id="sendBtn" class="btn-primary">Send to Robot</button>
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;margin-left:8px;">
+                <label>DP tolerance (px): <b id="tolVal">8</b></label>
+                <input id="tolRange" type="range" min="1" max="30" value="8" />
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;margin-left:8px;">
+                <label>Angle threshold (deg): <b id="angleVal">15</b></label>
+                <input id="angleRange" type="range" min="5" max="60" value="15" />
+            </div>
+
+            <div style="display:flex;gap:10px;align-items:center;margin-left:8px;">
+                <label>Snap threshold (deg): <b id="snapVal">10</b></label>
+                <input id="snapRange" type="range" min="0" max="30" value="10" />
+            </div>
+
+            <div class="info small">Scale: <b>100 px = 1 m</b> → <i>1 px = 1 cm</i></div>
+        </div>
+
+        <div class="canvas-wrap" style="margin-top:12px;">
+            <div style="position:relative;">
+                <canvas id="pathCanvas" width="700" height="500"></canvas>
+                <div class="overlay" id="cursorPos">x: 0 cm · y: 0 cm</div>
+            </div>
+            <div style="width:220px;">
+                <div class="small">Simplified vertices & commands:</div>
+                <textarea id="commandsOutput" readonly placeholder="Commands appear here..."></textarea>
+                <div class="status small" id="statusLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ====== CONFIG ====== */
+        const PX_PER_METER = 1000;     // 1000 px = 1 m
+        /* ===================== */
+
+        const canvas = document.getElementById('pathCanvas');
+        const ctx = canvas.getContext('2d');
+        const commandsOutput = document.getElementById('commandsOutput');
+        const statusLog = document.getElementById('statusLog');
+
+        let path = [];
+        let simplified = [];
+        let vertices = [];
+        let commands = [];
+
+        let drawing = false;
+        let lastMousePos = { x: 0, y: 0 };
+
+        // UI controls
+        const tolRange = document.getElementById('tolRange');
+        const tolVal = document.getElementById('tolVal');
+        const angleRange = document.getElementById('angleRange');
+        const angleVal = document.getElementById('angleVal');
+        const snapRange = document.getElementById('snapRange');
+        const snapVal = document.getElementById('snapVal');
+
+        tolRange.addEventListener('input', () => { tolVal.textContent = tolRange.value; });
+        angleRange.addEventListener('input', () => { angleVal.textContent = angleRange.value; });
+        snapRange.addEventListener('input', () => { snapVal.textContent = snapRange.value; });
+
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let x = 0; x <= canvas.width; x += 10) {
+                ctx.beginPath();
+                ctx.strokeStyle = (x % 50 === 0) ? '#c7c7c7' : '#eee';
+                ctx.lineWidth = (x % 50 === 0) ? 1.2 : 0.6;
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= canvas.height; y += 10) {
+                ctx.beginPath();
+                ctx.strokeStyle = (y % 50 === 0) ? '#c7c7c7' : '#eee';
+                ctx.lineWidth = (y % 50 === 0) ? 1.2 : 0.6;
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            ctx.beginPath(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1.6;
+            ctx.moveTo(0, 0); ctx.lineTo(canvas.width, 0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, canvas.height); ctx.stroke();
+
+            ctx.fillStyle = '#111'; ctx.font = '12px Inter, Arial';
+            ctx.fillText('0 cm,0 cm', 6, 14);
+        }
+
+        function redrawAll() {
+            drawGrid();
+
+            if (path.length > 0) {
+                ctx.beginPath();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#4f46e5';
+                ctx.moveTo(path[0].x, path[0].y);
+                for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                ctx.stroke();
+            }
+
+            if (simplified.length > 0) {
+                ctx.beginPath();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#1f9d55';
+                ctx.setLineDash([6, 6]);
+                ctx.moveTo(simplified[0].x, simplified[0].y);
+                for (let i = 1; i < simplified.length; i++) ctx.lineTo(simplified[i].x, simplified[i].y);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            if (vertices.length > 0) {
+                ctx.fillStyle = '#e11d48';
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.font = '12px Inter, Arial';
+                for (let i = 0; i < vertices.length; i++) {
+                    const p = vertices[i];
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    ctx.fillStyle = '#fff';
+                    ctx.fillText(String(i + 1), p.x - 4, p.y + 4);
+                    ctx.fillStyle = '#e11d48';
+                }
+            }
+        }
+
+        canvas.addEventListener('mousedown', e => {
+            drawing = true;
+            const r = canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - r.left));
+            const y = Math.round((e.clientY - r.top));
+            path.push({ x, y });
+            lastMousePos = { x, y };
+            redrawAll();
+        });
+        canvas.addEventListener('mousemove', e => {
+            const r = canvas.getBoundingClientRect();
+            const x = Math.round((e.clientX - r.left));
+            const y = Math.round((e.clientY - r.top));
+            document.getElementById('cursorPos').textContent = `x: ${x} cm · y: ${y} cm`;
+
+            if (!drawing) return;
+            if (Math.hypot(x - lastMousePos.x, y - lastMousePos.y) >= 1) {
+                path.push({ x, y });
+                lastMousePos = { x, y };
+                ctx.beginPath();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#4f46e5';
+                const p = path[path.length - 2];
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+        });
+        window.addEventListener('mouseup', e => {
+            if (!drawing) return;
+            drawing = false;
+        });
+
+        // Undo and Clear
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            path = []; simplified = []; vertices = []; commands = [];
+            commandsOutput.value = ''; statusLog.textContent = '';
+            drawGrid();
+        });
+        document.getElementById('undoBtn').addEventListener('click', () => {
+            if (path.length === 0) return;
+            path.splice(-30);
+            redrawAll();
+        });
+
+        function getSqSegDist(p, p1, p2) {
+            let x = p1.x, y = p1.y;
+            let dx = p2.x - x, dy = p2.y - y;
+            if (dx !== 0 || dy !== 0) {
+                const t = ((p.x - x) * dx + (p.y - y) * dy) / (dx * dx + dy * dy);
+                if (t > 1) { x = p2.x; y = p2.y; }
+                else if (t > 0) { x += dx * t; y += dy * t; }
+            }
+            dx = p.x - x; dy = p.y - y;
+            return dx * dx + dy * dy;
+        }
+
+        function simplifyDP(points, sqTol) {
+            const last = points.length - 1;
+            let maxSqDist = 0;
+            let index = 0;
+            for (let i = 1; i < last; i++) {
+                const d = getSqSegDist(points[i], points[0], points[last]);
+                if (d > maxSqDist) { index = i; maxSqDist = d; }
+            }
+            if (maxSqDist > sqTol) {
+                const left = simplifyDP(points.slice(0, index + 1), sqTol);
+                const right = simplifyDP(points.slice(index), sqTol);
+                return left.slice(0, -1).concat(right);
+            } else {
+                return [points[0], points[last]];
+            }
+        }
+
+        function douglasPeucker(points, tolerance) {
+            if (points.length < 3) return points.slice();
+            const sqTol = tolerance * tolerance;
+            return simplifyDP(points, sqTol);
+        }
+
+        function angleBetween(a, b) {
+            return Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+        }
+
+        function normalizeAngleDeg(a) {
+            let v = a % 360;
+            if (v < 0) v += 360;
+            return v;
+        }
+
+        function smallestAngleDiff(a, b) {
+            let diff = Math.abs(a - b) % 360;
+            if (diff > 180) diff = 360 - diff;
+            return diff;
+        }
+
+        // try to detect vertices from simplified polyline
+        function extractVertices(simp, angleThresholdDeg) {
+            if (simp.length < 2) return simp.slice();
+
+            const verts = [simp[0]];
+            let prevAngle = null;
+            for (let i = 1; i < simp.length; i++) {
+                const a = simp[i - 1];
+                const b = simp[i];
+                const ang = normalizeAngleDeg(angleBetween(a, b));
+                if (prevAngle === null) prevAngle = ang;
+                const diff = smallestAngleDiff(ang, prevAngle);
+                if (diff >= angleThresholdDeg) {
+                    verts.push(a);
+                    prevAngle = ang;
+                }
+            }
+            if (simp.length > 1) verts.push(simp[simp.length - 1]);
+
+            const out = [verts[0]];
+            for (let i = 1; i < verts.length; i++) {
+                const p = verts[i];
+                const prev = out[out.length - 1];
+                if (Math.hypot(p.x - prev.x, p.y - prev.y) > 3) out.push(p);
+            }
+            return out;
+        }
+
+        function snapToCardinal(angleDeg, snapThresholdDeg) {
+            const cardinals = [0, 90, 180, 270, 360];
+            for (const c of cardinals) {
+                if (smallestAngleDiff(angleDeg, c) <= snapThresholdDeg) return normalizeAngleDeg(c);
+            }
+            return angleDeg;
+        }
+
+        function generateSimplifiedAndVertices() {
+            commands = []; vertices = []; simplified = [];
+            if (path.length < 2) {
+                commandsOutput.value = '';
+                return;
+            }
+
+            const tolerance = Number(tolRange.value);
+            const angleThresh = Number(angleRange.value);
+            const snapThresh = Number(snapRange.value);
+
+            simplified = douglasPeucker(path, tolerance);
+            vertices = extractVertices(simplified, angleThresh);
+
+
+            if (vertices.length > 1) {
+                vertices[vertices.length - 1] = { ...vertices[0] };
+            }
+
+            let totalDistance = 0;
+            const origin = vertices[0];
+            let lastPoint = origin;
+
+            for (let i = 1; i < vertices.length; i++) {
+                const current = vertices[i];
+                let ang = normalizeAngleDeg(angleBetween(lastPoint, current));
+                ang = snapToCardinal(ang, snapThresh);
+
+                const dx = current.x - lastPoint.x;
+                const dy = current.y - lastPoint.y;
+                const segmentDist = Math.hypot(dx, dy) / PX_PER_METER;
+
+                totalDistance += segmentDist;
+
+                commands.push({ angle: Math.round(ang), distance: totalDistance.toFixed(2), from: lastPoint, to: current });
+                lastPoint = current;
+            }
+
+            commandsOutput.value = commands.map(c => `tr${c.angle}f${c.distance}`).join('\n');
+            redrawAll();
+            logStatus(`Simplified points: ${simplified.length}, vertices: ${vertices.length}, commands: ${commands.length}`);
+        }
+
+        document.getElementById('generateBtn').addEventListener('click', generateSimplifiedAndVertices);
+
+        function logStatus(s) {
+            const ts = new Date().toLocaleTimeString();
+            statusLog.textContent = `[${ts}] ${s}\n` + statusLog.textContent;
+        }
+
+        async function sendSequentialCommands() {
+            if (!commands.length) {
+                generateSimplifiedAndVertices();
+                if (!commands.length) return;
+            }
+
+            logStatus(`Start sending ${commands.length} commands...`);
+            for (let i = 0; i < commands.length; i++) {
+                const c = commands[i];
+                const payload = `tr${c.angle}f${c.distance}`;
+                logStatus(`Sending (${i + 1}/${commands.length}): ${payload}`);
+
+                try {
+                    const sendRes = await fetch('/nus/send', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: payload })
+                    });
+                    if (!sendRes.ok) {
+                        logStatus(`Error sending payload, HTTP ${sendRes.status}`);
+                        i--;
+                        await new Promise(r => setTimeout(r, 500));
+                        continue;
+                    }
+                } catch (e) {
+                    logStatus(`Network/send error: ${e}`);
+                    i--; await new Promise(r => setTimeout(r, 500));
+                    continue;
+                }
+
+                try {
+                    const ackRes = await fetch('/nus/wait_ack'); // backend blocks until trajectory_ack_event.set()
+                    if (!ackRes.ok) {
+                        logStatus(`ACK endpoint error ${ackRes.status}`);
+                        i--; await new Promise(r => setTimeout(r, 400));
+                        continue;
+                    }
+                    const j = await ackRes.json();
+                    if (j.ack) {
+                        logStatus(`ACK received for ${payload}`);
+                    } else {
+                        logStatus(`ACK false for ${payload}, retrying...`);
+                        i--; await new Promise(r => setTimeout(r, 400));
+                    }
+                } catch (e) {
+                    logStatus(`ACK fetch error: ${e}`);
+                    i--; await new Promise(r => setTimeout(r, 600));
+                    continue;
+                }
+            }
+
+            logStatus('All commands processed.');
+        }
+
+        document.getElementById('sendBtn').addEventListener('click', sendSequentialCommands);
+
+        drawGrid();
+        redrawAll();
+
+    </script>
+</body>
+
+</html>

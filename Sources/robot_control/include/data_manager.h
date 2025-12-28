@@ -29,6 +29,9 @@ public:
     void
     reset();
 
+    void
+    reset_distance_in_encoders();
+
 private:
     DataManager() = default;
 

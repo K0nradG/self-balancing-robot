@@ -32,3 +32,6 @@ _get_encoders_data();
 //! @brief Resets entire encoders struct
 void
 reset_encoders();
+
+void
+reset_distance();

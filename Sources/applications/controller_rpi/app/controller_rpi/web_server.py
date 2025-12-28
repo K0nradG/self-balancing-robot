@@ -161,6 +161,10 @@ def app_dashboard():
 def motion_page():
     return render_template_string(open("templates/motion.html").read())
 
+@app.route("/trajectory")
+def trajectory_page():
+    return render_template_string(open("templates/trajectory.html").read())
+
 # --- DFU endpoints ---
 @app.route("/upload", methods=["POST"])
 def upload():

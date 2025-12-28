@@ -227,6 +227,10 @@
         <button id="showLogsBtn" class="btn btn-primary" style="display:none;">SHOW DEVICE LOGS</button>
         <button id="hideLogsBtn" class="btn btn-secondary" style="display:none;">HIDE DEVICE LOGS</button>
         <button id="enableBtn" class="btn btn-success" style="display:none;">ENABLE</button>
+        <div id="startModeMenu" style="display:none; margin-top:10px;">
+          <button id="normalStartBtn" class="btn btn-success">NORMAL START</button>
+          <button id="swingUpBtn" class="btn btn-primary">SWING-UP</button>
+        </div>
         <button id="disableBtn" class="btn btn-secondary" style="display:none;">DISABLE</button>
         <button id="downloadBtn" class="btn btn-primary">DOWNLOAD DATA</button>
         <a id="robotControllerBtn" href="/motion" class="btn btn-primary" style="display:none;">ROBOT CONTROLLER</a>
@@ -288,6 +292,9 @@
 
     const setParamsBtn = document.getElementById('setParamsBtn');
 
+    const startModeMenu = document.getElementById('startModeMenu');
+    const normalStartBtn = document.getElementById('normalStartBtn');
+    const swingUpBtn = document.getElementById('swingUpBtn');
 
     let connectionStatus = "disconnected";
     let applicationStatus = "wait for DFU";
@@ -648,10 +655,25 @@
       showLogsBtn.style.display = "inline-block";
     };
 
-    enableBtn.onclick = async () => {
+    enableBtn.onclick = () => {
+      startModeMenu.style.display = "block";
+    };
+
+    normalStartBtn.onclick = async () => {
       await post('/nus/send', { data: 'mb' });
       isEnabled = true;
       chartUpdating = true;
+      startModeMenu.style.display = "none";
+      downloadBtn.style.display = "none";
+      updateUI();
+      saveState();
+    };
+
+    swingUpBtn.onclick = async () => {
+      await post('/nus/send', { data: 'mu' });
+      isEnabled = true;
+      chartUpdating = true;
+      startModeMenu.style.display = "none";
       downloadBtn.style.display = "none";
       updateUI();
       saveState();

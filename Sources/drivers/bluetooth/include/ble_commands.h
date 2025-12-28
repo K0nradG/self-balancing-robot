@@ -38,8 +38,9 @@ enum Regulator
 
 enum State_Machine
 {
-    START = 'b',
-    STOP  = 's'
+    NORMAL_START   = 'b',
+    SWING_UP_START = 'u',
+    STOP           = 's'
 };
 
 enum Trajectory_Manager

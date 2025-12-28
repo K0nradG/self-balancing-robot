@@ -7,7 +7,10 @@ class Main_State_Machine
 {
     struct Transition_Flags
     {
-        bool start {};
+        bool swing_up_start {};
+        bool swing_up_finished {};
+        bool enable_driving_controllers {};
+        bool normal_start {};
         bool stop {};
         bool disable_motors_command {};
         bool motors_stopped {};
@@ -15,10 +18,13 @@ class Main_State_Machine
         void
         reset()
         {
-            start                  = false;
-            stop                   = false;
-            disable_motors_command = false;
-            motors_stopped         = false;
+            swing_up_start             = false;
+            swing_up_finished          = false;
+            enable_driving_controllers = false;
+            normal_start               = false;
+            stop                       = false;
+            disable_motors_command     = false;
+            motors_stopped             = false;
         }
     };
 
@@ -26,6 +32,8 @@ public:
     enum State
     {
         READY_TO_START = 0,
+        SWING_UP,
+        BALANCING_WITH_DRIVING_DISABLED,
         NORMAL_OPERATION,
         IDENTIFICATION,
         SOFT_STOP,
@@ -37,6 +45,12 @@ public:
 
     State
     get_state() const;
+
+    void
+    set_swing_up_finished(bool swing_up_finished);
+
+    void
+    set_enable_driving_controllers(bool enable_driving_controllers);
 
     void
     set_disable_motors_command(bool disable_motors_command);
@@ -55,6 +69,9 @@ public:
 private:
     State m_state = State::READY_TO_START;
     Transition_Flags m_flags {};
+
+    void
+    main_state_machine_update();
 };
 
 }  // namespace Robot_Control

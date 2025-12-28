@@ -87,7 +87,7 @@ Main_State_Machine::parse_nus_commands(char const* data)
                 m_flags.start = true;
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-                activate_identification();
+                Model_Identification::instance().activate_identification();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             }
             break;

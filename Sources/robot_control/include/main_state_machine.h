@@ -58,13 +58,13 @@ public:
     parse_nus_commands(char const* data);
 
 private:
+    Main_State_Machine()                          = default;
     Main_State_Machine(Main_State_Machine const&) = delete;
     Main_State_Machine(Main_State_Machine&&)      = delete;
     Main_State_Machine&
     operator=(Main_State_Machine const&) = delete;
     Main_State_Machine&
     operator=(Main_State_Machine&&) = delete;
-    Main_State_Machine()            = default;
 
     State m_state = State::READY_TO_START;
     Transition_Flags m_flags {};

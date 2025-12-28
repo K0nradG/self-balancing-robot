@@ -24,11 +24,16 @@ static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_
 namespace Robot_Control
 {
 
+#ifdef CONFIG_BLUETOOTH_DRV
+
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-send_identification_data_cb_t g_send_identification_data_cb;
+void
+parse_nus_identification_process_callback(char const* data)
+{
+    Model_Identification::instance().identification_data_nus_parser_callback(data);
+}
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-#ifdef CONFIG_BLUETOOTH_DRV
 void
 nus_data_parse_callback(char const* data)
 {
@@ -46,8 +51,7 @@ int
 control_loop_init()
 {
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    new_send_identification_data_cb_register(new_regulator_data_for_identification);
-    identification_process_parser_cb_register(identification_data_nus_parser_callback);
+    identification_process_parser_cb_register(&parse_nus_identification_process_callback);
     robot_control_logger.platform_log(LOG_LEVEL::INF, "Model identification driver is enabled.");
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
@@ -85,13 +89,11 @@ control_loop_work_handler(k_work* work)
             bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
             Main_State_Machine::instance().set_disable_motors_command(disable_motors_command);
 #else
-            Identification_Data const identification_data = Robot_Controller::instance().model_identification();
-            if(g_send_identification_data_cb)
-            {
-                g_send_identification_data_cb(identification_data);
-            }
+            Model_Identification::Identification_Data const identification_data =
+                Robot_Controller::instance().model_identification();
+            Model_Identification::instance().new_regulator_data_for_identification(identification_data);
 
-            if(!identification_active())
+            if(!Model_Identification::instance().identification_active())
             {
                 Main_State_Machine::instance().set_stop_command();
             }
@@ -129,16 +131,5 @@ stop_control_loop()
     set_enable_controller(false);
     led_stop_periodic_blinking();
 }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-void
-new_send_identification_data_cb_register(send_identification_data_cb_t new_send_identification_data_cb)
-{
-    if(new_send_identification_data_cb)
-    {
-        g_send_identification_data_cb = new_send_identification_data_cb;
-    }
-}
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 }  // namespace Robot_Control

@@ -2,10 +2,13 @@
 #include "ble_commands.h"
 #include "data_manager.h"
 #include "logger.h"
-#include "model_identification.h"
 #include "motor_controller.h"
 #include "saturation.h"
 #include "zephyr/kernel.h"
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 namespace Robot_Control
 {
@@ -129,26 +132,26 @@ Robot_Controller::normal_motors_control()
 }
 
 #else
-Identification_Data const
+Model_Identification::Identification_Data const
 Robot_Controller::model_identification()
 {
     DataManager::instance().update();
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const encoders_data = DataManager::instance().get_encoders_data();
 
-    PWM_Sample const pwm_sample = get_pwm_sample();
-    m_pwm0                      = pwm_sample.pwm0;
-    m_pwm1                      = pwm_sample.pwm1;
+    float const pwm_sample = Model_Identification::instance().get_pwm_sample();
+    m_pwm0                 = pwm_sample;
+    m_pwm1                 = pwm_sample;
 
-    Identification_Data const identification_data = {
+    Model_Identification::Identification_Data const identification_data = {
         .dt          = imu_data.time_dt,
-        .pwm         = m_pwm0,
+        .pwm         = pwm_sample,
         .angle       = imu_data.angle_balance,
         .angle_dt    = imu_data.angle_balance_dt,
         .position    = encoders_data.robot_distance_m,
         .position_dt = encoders_data.robot_linear_speed};
 
-    update(imu_data.time_dt);
+    Model_Identification::instance().update(imu_data.time_dt);
 
     send_motors_data(m_pwm0, m_pwm1);
     trigger_motors_update();

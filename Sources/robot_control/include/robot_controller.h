@@ -60,7 +60,7 @@ public:
     bool
     normal_motors_control();
 #else
-    Identification_Data const
+    Model_Identification::Identification_Data const
     model_identification();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 

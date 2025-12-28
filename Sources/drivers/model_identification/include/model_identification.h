@@ -1,21 +1,23 @@
 #pragma once
 
-#include <array>
+#include <stdint.h>
 
-struct input_data
+constexpr uint8_t MAX_INPUT_DATA_SAMPLES = 10u;
+
+struct Input_Data
 {
-    std::array<float, 10> pwm_values;
-    std::array<float, 10> pwm_durations_s;
+    float pwm_values[MAX_INPUT_DATA_SAMPLES];
+    float pwm_durations_s[MAX_INPUT_DATA_SAMPLES];
 };
 
-struct pwm_sample
+struct PWM_Sample
 {
     float pwm0;
     float pwm1;
     bool last_sample;
 };
 
-struct identification_data
+struct Identification_Data
 {
     float dt;
     float pwm;
@@ -25,18 +27,17 @@ struct identification_data
     float position_dt;
 };
 
-typedef void (*identification_process_cb_t)(char const* data);
-
 void
 identification_data_nus_parser_callback(char const* data);
 
-input_data&
+Input_Data const&
 get_input_pwm_data();
 
-pwm_sample get_pwm_sample(std::size_t);
+PWM_Sample const
+get_pwm_sample(uint32_t sample_index);
 
 void
-new_regulator_data_for_identification(identification_data data);
+new_regulator_data_for_identification(Identification_Data const& data);
 
 void
 set_identification_data_status(bool status);

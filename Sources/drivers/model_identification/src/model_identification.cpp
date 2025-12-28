@@ -1,39 +1,38 @@
 #include "model_identification.h"
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
-#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include "logger.h"
-#include "main_state_machine.h"
-#include "robot_controller.h"
 
-static identification_data g_identification_data {};
-static input_data g_input_data;
+static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
+
+static Identification_Data g_identification_data {};
+static Input_Data g_input_data {};
 static bool g_send_status = false;
 
-input_data&
+Input_Data const&
 get_input_pwm_data()
 {
     return g_input_data;
 }
 
-pwm_sample
-get_pwm_sample(std::size_t index)
+PWM_Sample const
+get_pwm_sample(uint32_t sample_index)
 {
-    pwm_sample sample {0.0f, 0.0f, false};
+    PWM_Sample sample {0.0f, 0.0f, false};
 
-    if(index >= g_input_data.pwm_values.size())
+    if(sample_index >= MAX_INPUT_DATA_SAMPLES)
     {
-        sample.pwm0        = g_input_data.pwm_values.back();
-        sample.pwm1        = g_input_data.pwm_values.back();
+        sample.pwm0        = g_input_data.pwm_values[MAX_INPUT_DATA_SAMPLES - 1u];
+        sample.pwm1        = g_input_data.pwm_values[MAX_INPUT_DATA_SAMPLES - 1u];
         sample.last_sample = true;
         return sample;
     }
 
-    sample.pwm0        = g_input_data.pwm_values[index];
-    sample.pwm1        = g_input_data.pwm_values[index];
-    sample.last_sample = (index == g_input_data.pwm_values.size() - 1);
+    sample.pwm0        = g_input_data.pwm_values[sample_index];
+    sample.pwm1        = g_input_data.pwm_values[sample_index];
+    sample.last_sample = (sample_index == (MAX_INPUT_DATA_SAMPLES - 1u));
 
     return sample;
 }
@@ -41,17 +40,21 @@ get_pwm_sample(std::size_t index)
 void
 identification_data_nus_parser_callback(char const* data)
 {
-    if(!data || *data == '\0')
+    if(!data || (*data == '\0'))
+    {
         return;
+    }
 
     // Skip IDENTIFICATION_PREFIX 'I'
     data++;
 
-    const char* p_start = std::strchr(data, 'p');
-    const char* t_start = std::strchr(data, 't');
+    char const* p_start = std::strchr(data, 'p');
+    char const* t_start = std::strchr(data, 't');
 
-    if(!p_start || !t_start || t_start < p_start)
+    if(!p_start || !t_start || (t_start < p_start))
+    {
         return;
+    }
 
     p_start++;
     t_start++;
@@ -59,13 +62,16 @@ identification_data_nus_parser_callback(char const* data)
     char buffer[32];
 
     // PWM values parsing
-    const char* ptr = p_start;
-    for(size_t i = 0; i < g_input_data.pwm_values.size(); ++i)
+    char const* ptr = p_start;
+    for(size_t i = 0; i < MAX_INPUT_DATA_SAMPLES; ++i)
     {
-        const char* underscore = std::strchr(ptr, '_');
+        char const* underscore = std::strchr(ptr, '_');
         size_t len             = underscore ? (size_t)(underscore - ptr) : std::strlen(ptr);
         if(len >= sizeof(buffer))
+        {
             len = sizeof(buffer) - 1;
+        }
+
         std::memcpy(buffer, ptr, len);
         buffer[len]                = '\0';
         g_input_data.pwm_values[i] = std::strtof(buffer, nullptr);
@@ -75,12 +81,15 @@ identification_data_nus_parser_callback(char const* data)
 
     // PWM durations parsing
     ptr = t_start;
-    for(size_t i = 0; i < g_input_data.pwm_durations_s.size(); ++i)
+    for(size_t i = 0; i < MAX_INPUT_DATA_SAMPLES; ++i)
     {
         const char* underscore = std::strchr(ptr, '_');
         size_t len             = underscore ? (size_t)(underscore - ptr) : std::strlen(ptr);
         if(len >= sizeof(buffer))
+        {
             len = sizeof(buffer) - 1;
+        }
+
         std::memcpy(buffer, ptr, len);
         buffer[len]                     = '\0';
         g_input_data.pwm_durations_s[i] = std::strtof(buffer, nullptr);
@@ -90,7 +99,7 @@ identification_data_nus_parser_callback(char const* data)
 }
 
 void
-new_regulator_data_for_identification(identification_data data)
+new_regulator_data_for_identification(Identification_Data const& data)
 {
     g_identification_data.angle       = data.angle;
     g_identification_data.angle_dt    = data.angle_dt;
@@ -98,8 +107,6 @@ new_regulator_data_for_identification(identification_data data)
     g_identification_data.position_dt = data.position_dt;
     g_identification_data.pwm         = data.pwm;
 }
-
-static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
 
 void
 set_identification_data_status(bool status)
@@ -114,11 +121,11 @@ identification_logger_thread(void*, void*, void*)
 
     while(true)
     {
-        int64_t now_ms = k_uptime_get();
+        int64_t const now_ms = k_uptime_get();
 
         if(last_time_ms != 0)
         {
-            g_identification_data.dt = (now_ms - last_time_ms) / 1000.0;
+            g_identification_data.dt = static_cast<float>(now_ms - last_time_ms) / 1000.0f;
         }
 
         last_time_ms = now_ms;

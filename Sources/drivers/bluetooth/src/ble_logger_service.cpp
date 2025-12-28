@@ -5,10 +5,6 @@
 #include "ble_connection.h"
 #include "ble_service.h"
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "model_identification.h"
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
 #define BLE_NUS_MAX_DATA_LEN 251
 
 LOG_MODULE_REGISTER(ble_nus, CONFIG_LOGGER_LOG_LEVEL);
@@ -19,7 +15,7 @@ static dfu_process_parser_cb_t s_dfu_process_parser_cb                       = n
 static state_machine_commands_parser_cb_t s_state_machine_commands_parser_cb = nullptr;
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-static identification_process_cb_t s_identification_process_parser_cb;
+static identification_process_cb_t s_identification_process_parser_cb = nullptr;
 #endif
 
 bool

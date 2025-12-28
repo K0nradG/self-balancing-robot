@@ -74,7 +74,7 @@ public:
 #endif  // CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    identification_data
+    Identification_Data const&
     get_identification_data() const;
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
@@ -123,7 +123,7 @@ private:
     ramp_pwm_to_stop(float& pwm);
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    identification_data m_identification_data {};
+    Identification_Data m_identification_data {};
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 };
 

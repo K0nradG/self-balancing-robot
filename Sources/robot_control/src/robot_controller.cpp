@@ -2,6 +2,7 @@
 #include "ble_commands.h"
 #include "data_manager.h"
 #include "logger.h"
+#include "model_identification.h"
 #include "motor_controller.h"
 #include "saturation.h"
 #include "zephyr/kernel.h"
@@ -133,11 +134,11 @@ Robot_Controller::normal_motors_control()
 
     pwm_timer += imu_data.time_dt;
 
-    pwm_sample s    = get_pwm_sample(pwm_index);
-    input_data data = get_input_pwm_data();
+    PWM_Sample const pwm_sample = get_pwm_sample(pwm_index);
+    Input_Data const input_data = get_input_pwm_data();
 
-    m_pwm0 = s.pwm0;
-    m_pwm1 = s.pwm1;
+    m_pwm0 = pwm_sample.pwm0;
+    m_pwm1 = pwm_sample.pwm1;
 
     m_identification_data = {
         .dt          = imu_data.time_dt,
@@ -147,11 +148,11 @@ Robot_Controller::normal_motors_control()
         .position    = encoders_data.robot_distance_m,
         .position_dt = encoders_data.robot_linear_speed};
 
-    if(pwm_timer >= data.pwm_durations_s[pwm_index])
+    if(pwm_timer >= input_data.pwm_durations_s[pwm_index])
     {
         pwm_timer = 0.0f;
 
-        if(pwm_index < data.pwm_values.size() - 1)
+        if(pwm_index < (MAX_INPUT_DATA_SAMPLES - 1u))
         {
             pwm_index++;
         }
@@ -386,7 +387,7 @@ Robot_Controller::ramp_pwm_to_stop(float& pwm)
 }
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-identification_data
+Identification_Data const&
 Robot_Controller::get_identification_data() const
 {
     return m_identification_data;

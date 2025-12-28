@@ -9,33 +9,98 @@ static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
 
 static Identification_Data g_identification_data {};
 static Input_Data g_input_data {};
-static bool g_send_status = false;
+static bool g_identification_active = false;
 
-Input_Data const&
-get_input_pwm_data()
+static size_t current_pwm_sample = 0u;
+static float pwm_timer           = 0.0f;
+
+void
+update(float dt)
 {
-    return g_input_data;
+    pwm_timer += dt;
+
+    if(pwm_timer >= g_input_data.pwm_durations_s[current_pwm_sample])
+    {
+        pwm_timer = 0.0f;
+
+        if(current_pwm_sample < (MAX_INPUT_DATA_SAMPLES - 1u))
+        {
+            current_pwm_sample++;
+        }
+        else
+        {
+            g_identification_active = false;
+            current_pwm_sample      = 0u;
+        }
+    }
+}
+
+void
+activate_identification()
+{
+    g_identification_active = true;
+}
+
+bool
+identification_active()
+{
+    return g_identification_active;
+}
+
+void
+new_regulator_data_for_identification(Identification_Data const& data)
+{
+    g_identification_data.angle       = data.angle;
+    g_identification_data.angle_dt    = data.angle_dt;
+    g_identification_data.position    = data.position;
+    g_identification_data.position_dt = data.position_dt;
+    g_identification_data.pwm         = data.pwm;
 }
 
 PWM_Sample const
-get_pwm_sample(uint32_t sample_index)
+get_pwm_sample()
 {
-    PWM_Sample sample {0.0f, 0.0f, false};
+    PWM_Sample sample {0.0f, 0.0f};
 
-    if(sample_index >= MAX_INPUT_DATA_SAMPLES)
+    if(current_pwm_sample < MAX_INPUT_DATA_SAMPLES)
     {
-        sample.pwm0        = g_input_data.pwm_values[MAX_INPUT_DATA_SAMPLES - 1u];
-        sample.pwm1        = g_input_data.pwm_values[MAX_INPUT_DATA_SAMPLES - 1u];
-        sample.last_sample = true;
-        return sample;
+        sample.pwm0 = g_input_data.pwm_values[current_pwm_sample];
+        sample.pwm1 = g_input_data.pwm_values[current_pwm_sample];
     }
-
-    sample.pwm0        = g_input_data.pwm_values[sample_index];
-    sample.pwm1        = g_input_data.pwm_values[sample_index];
-    sample.last_sample = (sample_index == (MAX_INPUT_DATA_SAMPLES - 1u));
 
     return sample;
 }
+
+static void
+identification_logger_thread(void*, void*, void*)
+{
+    static int64_t last_time_ms = 0;
+
+    while(true)
+    {
+        int64_t const now_ms = k_uptime_get();
+
+        if(last_time_ms != 0)
+        {
+            g_identification_data.dt = static_cast<float>(now_ms - last_time_ms) / 1000.0f;
+        }
+
+        last_time_ms = now_ms;
+
+        if(g_identification_active)
+        {
+            logger.platform_log(
+                LOG_LEVEL::INF, "dt=%.4f angle=%.4f angle_dt=%.4f pwm=%.4f pos=%.4f pos_dt=%.4f",
+                (double)g_identification_data.dt, (double)g_identification_data.angle,
+                (double)g_identification_data.angle_dt, (double)g_identification_data.pwm,
+                (double)g_identification_data.position, (double)g_identification_data.position_dt);
+        }
+
+        k_sleep(K_MSEC(CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME));
+    }
+}
+
+K_THREAD_DEFINE(ident_logger_tid, 8196, identification_logger_thread, nullptr, nullptr, nullptr, 1, 0, 0);
 
 void
 identification_data_nus_parser_callback(char const* data)
@@ -97,50 +162,3 @@ identification_data_nus_parser_callback(char const* data)
         ptr = underscore ? underscore + 1 : ptr + len;
     }
 }
-
-void
-new_regulator_data_for_identification(Identification_Data const& data)
-{
-    g_identification_data.angle       = data.angle;
-    g_identification_data.angle_dt    = data.angle_dt;
-    g_identification_data.position    = data.position;
-    g_identification_data.position_dt = data.position_dt;
-    g_identification_data.pwm         = data.pwm;
-}
-
-void
-set_identification_data_status(bool status)
-{
-    g_send_status = status;
-}
-
-static void
-identification_logger_thread(void*, void*, void*)
-{
-    static int64_t last_time_ms = 0;
-
-    while(true)
-    {
-        int64_t const now_ms = k_uptime_get();
-
-        if(last_time_ms != 0)
-        {
-            g_identification_data.dt = static_cast<float>(now_ms - last_time_ms) / 1000.0f;
-        }
-
-        last_time_ms = now_ms;
-
-        if(g_send_status)
-        {
-            logger.platform_log(
-                LOG_LEVEL::INF, "dt=%.4f angle=%.4f angle_dt=%.4f pwm=%.4f pos=%.4f pos_dt=%.4f",
-                (double)g_identification_data.dt, (double)g_identification_data.angle,
-                (double)g_identification_data.angle_dt, (double)g_identification_data.pwm,
-                (double)g_identification_data.position, (double)g_identification_data.position_dt);
-        }
-
-        k_sleep(K_MSEC(CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME));
-    }
-}
-
-K_THREAD_DEFINE(ident_logger_tid, 8196, identification_logger_thread, nullptr, nullptr, nullptr, 1, 0, 0);

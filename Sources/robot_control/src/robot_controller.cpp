@@ -129,13 +129,7 @@ Robot_Controller::normal_motors_control()
 
 #else   // CONFIG_MODEL_IDENTIFICATION_DRV
 
-    static size_t pwm_index = 0;
-    static float pwm_timer  = 0.0f;
-
-    pwm_timer += imu_data.time_dt;
-
-    PWM_Sample const pwm_sample = get_pwm_sample(pwm_index);
-    Input_Data const input_data = get_input_pwm_data();
+    PWM_Sample const pwm_sample = get_pwm_sample();
 
     m_pwm0 = pwm_sample.pwm0;
     m_pwm1 = pwm_sample.pwm1;
@@ -148,20 +142,10 @@ Robot_Controller::normal_motors_control()
         .position    = encoders_data.robot_distance_m,
         .position_dt = encoders_data.robot_linear_speed};
 
-    if(pwm_timer >= input_data.pwm_durations_s[pwm_index])
+    update(imu_data.time_dt);
+    if(!identification_active())
     {
-        pwm_timer = 0.0f;
-
-        if(pwm_index < (MAX_INPUT_DATA_SAMPLES - 1u))
-        {
-            pwm_index++;
-        }
-        else
-        {
-            set_identification_data_status(false);
-            Main_State_Machine::instance().set_ready_to_start();
-            pwm_index = 0;
-        }
+        Main_State_Machine::instance().set_ready_to_start();
     }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 

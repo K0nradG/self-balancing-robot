@@ -14,30 +14,32 @@ struct PWM_Sample
 {
     float pwm0;
     float pwm1;
-    bool last_sample;
 };
 
 struct Identification_Data
 {
-    float dt;
-    float pwm;
-    float angle;
-    float angle_dt;
-    float position;
-    float position_dt;
+    float dt {};
+    float pwm {};
+    float angle {};
+    float angle_dt {};
+    float position {};
+    float position_dt {};
 };
 
 void
-identification_data_nus_parser_callback(char const* data);
+update(float dt);
 
-Input_Data const&
-get_input_pwm_data();
+void
+activate_identification();
 
-PWM_Sample const
-get_pwm_sample(uint32_t sample_index);
+bool
+identification_active();
 
 void
 new_regulator_data_for_identification(Identification_Data const& data);
 
+PWM_Sample const
+get_pwm_sample();
+
 void
-set_identification_data_status(bool status);
+identification_data_nus_parser_callback(char const* data);

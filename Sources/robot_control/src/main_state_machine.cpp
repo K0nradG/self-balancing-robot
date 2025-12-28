@@ -90,7 +90,7 @@ Main_State_Machine::parse_nus_commands(char const* data)
                 m_flags.start = true;
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-                set_identification_data_status(true);
+                activate_identification();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             }
             break;

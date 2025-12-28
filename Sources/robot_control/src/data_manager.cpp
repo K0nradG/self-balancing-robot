@@ -25,7 +25,7 @@ DataManager::get_imu_data() const
     return m_imu_data;
 }
 
-encoders_data
+encoders_data const&
 DataManager::get_encoders_data() const
 {
     return m_encoders_data;

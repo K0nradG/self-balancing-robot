@@ -61,8 +61,8 @@ bool
 Robot_Controller::normal_motors_control()
 {
     DataManager::instance().update();
-    imu_data const imu_data           = DataManager::instance().get_imu_data();
-    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
+    imu_data const imu_data            = DataManager::instance().get_imu_data();
+    encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
 
     float const rotation_angle = DataManager::instance().get_rotation_angle();
 
@@ -136,8 +136,8 @@ Model_Identification::Identification_Data const
 Robot_Controller::model_identification()
 {
     DataManager::instance().update();
-    imu_data const imu_data           = DataManager::instance().get_imu_data();
-    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
+    imu_data const imu_data            = DataManager::instance().get_imu_data();
+    encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
 
     float const pwm_sample = Model_Identification::instance().get_pwm_sample();
     m_pwm0                 = pwm_sample;

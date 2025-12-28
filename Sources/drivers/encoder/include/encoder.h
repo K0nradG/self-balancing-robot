@@ -26,7 +26,7 @@ int
 encoders_init();
 
 // _ added since the same naming was used in data manager - causes wrong calls.
-encoders_data
+encoders_data const&
 _get_encoders_data();
 
 //! @brief Resets entire encoders struct

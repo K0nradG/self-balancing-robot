@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "model_identification.h"
-#endif
-
 namespace Robot_Control
 {
 

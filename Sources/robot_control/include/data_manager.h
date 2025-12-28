@@ -20,7 +20,7 @@ public:
     imu_data
     get_imu_data() const;
 
-    encoders_data
+    encoders_data const&
     get_encoders_data() const;
 
     float

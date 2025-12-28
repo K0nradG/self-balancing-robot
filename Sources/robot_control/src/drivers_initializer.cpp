@@ -17,10 +17,6 @@
 #include "encoder.h"
 #endif  // CONFIG_ENCODER_DRV
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "model_identification.h"
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
 namespace Robot_Control
 {
 

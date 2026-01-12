@@ -3,13 +3,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "model_identification.h"
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
 typedef void (*regulator_parameters_parser_cb_t)(char const* data);
 typedef void (*dfu_process_parser_cb_t)(char const* data);
 typedef void (*state_machine_commands_parser_cb_t)(char const* data);
+typedef void (*identification_process_cb_t)(char const* data);
 
 int
 ble_service_init();

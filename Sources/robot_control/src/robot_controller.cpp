@@ -7,7 +7,7 @@
 #include "zephyr/kernel.h"
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "main_state_machine.h"
+#include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 namespace Robot_Control
@@ -56,14 +56,13 @@ Robot_Controller::Robot_Controller()
 {
 }
 
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
 bool
 Robot_Controller::normal_motors_control()
 {
     DataManager::instance().update();
-    imu_data const imu_data           = DataManager::instance().get_imu_data();
-    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
-
-#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
+    imu_data const imu_data            = DataManager::instance().get_imu_data();
+    encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
 
     float const rotation_angle = DataManager::instance().get_rotation_angle();
 
@@ -126,53 +125,40 @@ Robot_Controller::normal_motors_control()
         }
     }
 
-#else   // CONFIG_MODEL_IDENTIFICATION_DRV
+    send_motors_data(m_pwm0, m_pwm1);
+    trigger_motors_update();
 
-    static size_t pwm_index = 0;
-    static float pwm_timer  = 0.0f;
+    return disable_motors_command;
+}
 
-    pwm_timer += imu_data.time_dt;
+#else
+Model_Identification::Identification_Data const
+Robot_Controller::model_identification()
+{
+    DataManager::instance().update();
+    imu_data const imu_data            = DataManager::instance().get_imu_data();
+    encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
 
-    pwm_sample s    = get_pwm_sample(pwm_index);
-    input_data data = get_input_pwm_data();
+    float const pwm_sample = Model_Identification::instance().get_pwm_sample();
+    m_pwm0                 = pwm_sample;
+    m_pwm1                 = pwm_sample;
 
-    m_pwm0 = s.pwm0;
-    m_pwm1 = s.pwm1;
-
-    m_identification_data = {
+    Model_Identification::Identification_Data const identification_data = {
         .dt          = imu_data.time_dt,
-        .pwm         = m_pwm0,
+        .pwm         = pwm_sample,
         .angle       = imu_data.angle_balance,
         .angle_dt    = imu_data.angle_balance_dt,
         .position    = encoders_data.robot_distance_m,
         .position_dt = encoders_data.robot_linear_speed};
 
-    if(pwm_timer >= data.pwm_durations_s[pwm_index])
-    {
-        pwm_timer = 0.0f;
-
-        if(pwm_index < data.pwm_values.size() - 1)
-        {
-            pwm_index++;
-        }
-        else
-        {
-            set_identification_data_status(false);
-            Main_State_Machine::instance().set_ready_to_start();
-            pwm_index = 0;
-        }
-    }
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+    Model_Identification::instance().update(imu_data.time_dt);
 
     send_motors_data(m_pwm0, m_pwm1);
     trigger_motors_update();
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    return false;
-#else
-    return disable_motors_command;
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+    return identification_data;
 }
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 bool
 Robot_Controller::soft_stop_motors()
@@ -384,13 +370,5 @@ Robot_Controller::ramp_pwm_to_stop(float& pwm)
 
     return motor_stopped;
 }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-identification_data
-Robot_Controller::get_identification_data() const
-{
-    return m_identification_data;
-}
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 }  // namespace Robot_Control

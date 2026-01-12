@@ -1,42 +1,69 @@
 #pragma once
 
-#include <array>
+#include <stdint.h>
 
-struct input_data
+class Model_Identification
 {
-    std::array<float, 10> pwm_values;
-    std::array<float, 10> pwm_durations_s;
+    static constexpr uint8_t MAX_INPUT_DATA_SAMPLES = 10u;
+
+public:
+    struct Identification_Data
+    {
+        float dt {};
+        float pwm {};
+        float angle {};
+        float angle_dt {};
+        float position {};
+        float position_dt {};
+    };
+
+    static Model_Identification&
+    instance()
+    {
+        static Model_Identification s_model_identification {};
+        return s_model_identification;
+    }
+
+    void
+    update(float dt);
+
+    void
+    activate_identification();
+
+    bool
+    identification_active();
+
+    void
+    new_regulator_data_for_identification(Identification_Data const& data);
+
+    float
+    get_pwm_sample();
+
+    void
+    identification_data_nus_parser_callback(char const* data);
+
+    void
+    set_current_dt(float dt);
+
+    Identification_Data const&
+    get_identification_data() const;
+
+private:
+    Model_Identification()                            = default;
+    Model_Identification(Model_Identification const&) = delete;
+    Model_Identification&
+    operator=(Model_Identification const&) = delete;
+
+    struct Input_Data
+    {
+        float pwm_values[MAX_INPUT_DATA_SAMPLES];
+        float pwm_durations_s[MAX_INPUT_DATA_SAMPLES];
+    };
+
+    Identification_Data m_identification_data {};
+    Input_Data m_input_data {};
+
+    bool m_identification_active  = false;
+    uint32_t m_current_pwm_sample = 0u;
+    float m_pwm_timer             = 0.0f;
 };
-
-struct pwm_sample
-{
-    float pwm0;
-    float pwm1;
-    bool last_sample;
-};
-
-struct identification_data
-{
-    float dt;
-    float pwm;
-    float angle;
-    float angle_dt;
-    float position;
-    float position_dt;
-};
-
-typedef void (*identification_process_cb_t)(char const* data);
-
-void
-identification_data_nus_parser_callback(char const* data);
-
-input_data&
-get_input_pwm_data();
-
-pwm_sample get_pwm_sample(std::size_t);
-
-void
-new_regulator_data_for_identification(identification_data data);
-
-void
-set_identification_data_status(bool status);

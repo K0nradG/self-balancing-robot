@@ -14,6 +14,7 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 DFU_SCRIPT = "dfu_ble.py"
+IDENT_CSV_PATH = "dane.csv"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 trajectory_ack_event = asyncio.Event()
@@ -330,17 +331,29 @@ def get_nus_client() -> NUSClient | None:
 
 @app.route("/nus/identification/download", methods=["GET"])
 def download_identification_csv():
-    client = get_nus_client()
-
-    if not client.last_ident_csv_path:
-        return jsonify({"error": "No identification data"}), 404
+    if not os.path.exists(IDENT_CSV_PATH):
+        return jsonify({"error": "No identification data file found. Run identification first."}), 404
 
     return send_file(
-        client.last_ident_csv_path,
-        as_attachment=True,
-        download_name=client.last_ident_csv_path.name,
-        mimetype="text/csv"
-    )
+            IDENT_CSV_PATH,
+            as_attachment=True,
+            download_name="robot_identification.csv",
+            mimetype="text/csv"
+        )
+
+@app.route('/ident/start', methods=['POST'])
+def start_identification():
+    try:
+        if os.path.exists(IDENT_CSV_PATH):
+            os.remove(IDENT_CSV_PATH)
+
+        import sys
+        subprocess.Popen([sys.executable, "collect_identification_data_UART.py"])
+
+        return jsonify({"status": "started"})
+    except Exception as e:
+        return jsonify({"status": "error", "msg": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

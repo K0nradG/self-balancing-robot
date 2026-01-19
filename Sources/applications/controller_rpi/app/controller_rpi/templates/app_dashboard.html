@@ -659,6 +659,9 @@
       console.log("IDENT CMD:", cmd);
       await post('/nus/send', { data: cmd });
 
+      // start UART data collecting
+      await fetch('/ident/start', { method: 'POST' });
+
       identModal.style.display = "none";
     };
 

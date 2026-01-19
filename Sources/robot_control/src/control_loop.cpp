@@ -95,6 +95,7 @@ control_loop_work_handler(k_work* work)
 
             if(!Model_Identification::instance().identification_active())
             {
+                Model_Identification::instance().acknowledge_identification_stop();
                 Main_State_Machine::instance().set_stop_command();
             }
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV

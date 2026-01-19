@@ -41,6 +41,15 @@ Model_Identification::identification_active()
 }
 
 void
+Model_Identification::acknowledge_identification_stop()
+{
+    if(!m_identification_active)
+    {
+        logger.platform_log(LOG_LEVEL::INF, "Identification stop");
+    }
+}
+
+void
 Model_Identification::new_regulator_data_for_identification(Identification_Data const& data)
 {
     m_identification_data.angle       = data.angle;

@@ -34,6 +34,9 @@ public:
     identification_active();
 
     void
+    acknowledge_identification_stop();
+
+    void
     new_regulator_data_for_identification(Identification_Data const& data);
 
     float

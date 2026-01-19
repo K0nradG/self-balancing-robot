@@ -8,6 +8,10 @@ config MODEL_IDENTIFICATION_LOG
 
 config MODEL_IDENTIFICATION_SAMPLE_TIME
     int "Model identification sampling time in milliseconds"
-    default 2
+    default 5
+    help
+       by some reason the sampling time is always 10ms higher than the value which we are setting here
+       it means that if we set 5ms sampling time, the real sampling time is 15ms.
+       maybe it is caused by the logging thread priority.
 
 endif #MODEL_IDENTIFICATION_DRV

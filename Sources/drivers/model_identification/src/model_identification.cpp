@@ -147,9 +147,6 @@ Model_Identification::identification_data_nus_parser_callback(char const* data)
     }
 }
 
-// send packed struct instead:
-// https://gemini.google.com/app/fdfd07ad8ceed938
-
 static void
 identification_logger_thread(void*, void*, void*)
 {

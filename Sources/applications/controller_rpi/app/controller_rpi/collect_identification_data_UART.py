@@ -4,9 +4,8 @@ import csv
 import time
 
 PORT = "/dev/serial0"
-BAUDRATE = 115200
+BAUDRATE = 1000000
 MAGIC = 0xDEADBEEF
-# Format: Magic (I), dt (f), angle (f), angle_dt (f), pwm (f), pos (f), pos_dt (f)
 FRAME_FORMAT = "<Iffffff"
 FRAME_SIZE = struct.calcsize(FRAME_FORMAT)
 
@@ -14,11 +13,12 @@ def collect():
     ser = serial.Serial(PORT, BAUDRATE, timeout=0.05)
     results = []
     raw_buffer = b""
+    should_stop = False
     
-    print(f"Rozpoczęto zbieranie na {PORT}...")
+    print(f"Started collecting on {PORT} at {BAUDRATE} bps...")
 
     try:
-        while True:
+        while not should_stop:
             chunk = ser.read(ser.in_waiting or 1)
             if not chunk:
                 continue
@@ -34,34 +34,33 @@ def collect():
                         decoded = struct.unpack(FRAME_FORMAT, frame_data)
                         
                         results.append(decoded[1:])
-                        
                         raw_buffer = raw_buffer[magic_idx + FRAME_SIZE:]
                         
                         if len(results) % 100 == 0:
-                            print(f"Odebrano {len(results)} ramek...")
+                            print(f"Received {len(results)} frames...")
                     else:
                         break
                 else:
-                    try:
-                        text_check = raw_buffer.decode('utf-8', errors='ignore')
-                        if "Identification stop" in text_check:
-                            print("Wykryto tekstowy komunikat STOP!")
-                    except:
-                        pass
+                    if b"Identification stop" in raw_buffer:
+                        print("\n>>> Identification stopped <<<")
+                        should_stop = True
+                        break
                     
-                    if len(raw_buffer) > 100:
-                        raw_buffer = raw_buffer[1:]
+                    if len(raw_buffer) > 200:
+                        raw_buffer = raw_buffer[-50:]
                     break
 
     except KeyboardInterrupt:
-        print("Zatrzymano ręcznie.")
+        print("\nStopped by user.")
     finally:
         if results:
             with open("identification_data.csv", "w", newline="") as f:
                 writer = csv.writer(f)
                 writer.writerow(["dt", "angle", "angle_dt", "pwm", "pos", "pos_dt"])
                 writer.writerows(results)
-            print(f"Zapisano {len(results)} wierszy do identification_data.csv")
+            print(f"Saved {len(results)} rows to identification_data.csv")
+        else:
+            print("No data received.")
         ser.close()
 
 if __name__ == "__main__":

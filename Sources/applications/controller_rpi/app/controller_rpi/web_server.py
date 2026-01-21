@@ -14,7 +14,7 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 DFU_SCRIPT = "dfu_ble.py"
-IDENT_CSV_PATH = "dane.csv"
+IDENT_CSV_PATH = "identification_data.csv"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 trajectory_ack_event = asyncio.Event()

@@ -63,7 +63,6 @@ private:
         float pwm_durations_s[MAX_INPUT_DATA_SAMPLES];
     };
 
-    Identification_Data m_identification_data {};
     Input_Data m_input_data {};
 
     bool m_identification_active  = false;

@@ -1,6 +1,10 @@
 #include "main_state_machine.h"
 #include "ble_commands.h"
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
 namespace Robot_Control
 {
 
@@ -17,10 +21,10 @@ Main_State_Machine::update()
         case READY_TO_START:
             if(m_flags.start)
             {
-                m_state = NORMAL_OPERATION;
+                m_state = OPERATION;
             }
             break;
-        case NORMAL_OPERATION:
+        case OPERATION:
             if(m_flags.disable_motors_command || m_flags.stop)
             {
                 m_state = SOFT_STOP;
@@ -61,9 +65,9 @@ Main_State_Machine::set_motors_stopped(bool motors_stopped)
 }
 
 void
-Main_State_Machine::set_identification_state()
+Main_State_Machine::set_stop_command()
 {
-    m_state = IDENTIFICATION;
+    m_flags.stop = true;
 }
 
 void
@@ -81,10 +85,14 @@ Main_State_Machine::parse_nus_commands(char const* data)
             if(m_state == READY_TO_START)
             {
                 m_flags.start = true;
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+                Model_Identification::instance().activate_identification();
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             }
             break;
         case BLE_Commands::State_Machine::STOP:
-            if(m_state == NORMAL_OPERATION)
+            if(m_state == OPERATION)
             {
                 m_flags.stop = true;
             }

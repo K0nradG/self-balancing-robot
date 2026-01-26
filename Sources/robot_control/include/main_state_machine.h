@@ -23,10 +23,17 @@ class Main_State_Machine
     };
 
 public:
+    static Main_State_Machine&
+    instance()
+    {
+        static Main_State_Machine inst;
+        return inst;
+    }
+
     enum State
     {
         READY_TO_START = 0,
-        NORMAL_OPERATION,
+        OPERATION,
         IDENTIFICATION,
         SOFT_STOP,
         RESET_AFTER_STOP
@@ -44,15 +51,21 @@ public:
     void
     set_motors_stopped(bool motors_stopped);
 
-    // This is basically a hack so that when identification is active, the state machine won't have any effect.
-    // TODO: Remove the state machine from identification driver and couple it with this one.
     void
-    set_identification_state();
+    set_stop_command();
 
     void
     parse_nus_commands(char const* data);
 
 private:
+    Main_State_Machine()                          = default;
+    Main_State_Machine(Main_State_Machine const&) = delete;
+    Main_State_Machine(Main_State_Machine&&)      = delete;
+    Main_State_Machine&
+    operator=(Main_State_Machine const&) = delete;
+    Main_State_Machine&
+    operator=(Main_State_Machine&&) = delete;
+
     State m_state = State::READY_TO_START;
     Transition_Flags m_flags {};
 };

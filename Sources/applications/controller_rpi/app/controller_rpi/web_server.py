@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string, Response
+from flask import Flask, request, jsonify, render_template_string, Response, send_file
 import subprocess, threading, re, os, asyncio
 from nus_service import NUSClient
 import zipfile
@@ -7,12 +7,14 @@ import time
 import asyncio
 
 
+
 trajectory_ack_event = asyncio.Event()
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 DFU_SCRIPT = "dfu_ble.py"
+IDENT_CSV_PATH = "identification_data.csv"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 trajectory_ack_event = asyncio.Event()
@@ -320,6 +322,38 @@ def camera_stream():
         return "Camera not started", 400
     return Response(generate_camera_stream(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+# --- Identification data endpoints --- 
+
+def get_nus_client() -> NUSClient | None:
+    return nus_client
+
+@app.route("/nus/identification/download", methods=["GET"])
+def download_identification_csv():
+    if not os.path.exists(IDENT_CSV_PATH):
+        return jsonify({"error": "No identification data file found. Run identification first."}), 404
+
+    return send_file(
+            IDENT_CSV_PATH,
+            as_attachment=True,
+            download_name="robot_identification.csv",
+            mimetype="text/csv"
+        )
+
+@app.route('/ident/start', methods=['POST'])
+def start_identification():
+    try:
+        if os.path.exists(IDENT_CSV_PATH):
+            os.remove(IDENT_CSV_PATH)
+
+        import sys
+        subprocess.Popen([sys.executable, "collect_identification_data_UART.py"])
+
+        return jsonify({"status": "started"})
+    except Exception as e:
+        return jsonify({"status": "error", "msg": str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)

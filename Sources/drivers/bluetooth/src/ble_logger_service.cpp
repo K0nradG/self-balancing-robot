@@ -14,6 +14,10 @@ static regulator_parameters_parser_cb_t s_regulator_parameters_parser_cb     = n
 static dfu_process_parser_cb_t s_dfu_process_parser_cb                       = nullptr;
 static state_machine_commands_parser_cb_t s_state_machine_commands_parser_cb = nullptr;
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+static identification_process_cb_t s_identification_process_parser_cb = nullptr;
+#endif
+
 bool
 get_notif_status()
 {
@@ -29,6 +33,17 @@ set_notif_status(bool nus_notification_enabled)
 static void
 data_selector(const char* data)
 {
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+    if(data[0] == BLE_Commands::Prefix::IDENTIFICATION)
+    {
+        if(s_identification_process_parser_cb)
+        {
+            s_identification_process_parser_cb(data);
+        }
+        return;
+    }
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
     if(data[0] == BLE_Commands::Prefix::DFU)
     {
         if(s_dfu_process_parser_cb)
@@ -144,6 +159,19 @@ dfu_process_parser_cb_register(dfu_process_parser_cb_t _dfu_process_parser_cb)
         s_dfu_process_parser_cb = _dfu_process_parser_cb;
     }
 }
+
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+
+void
+identification_process_parser_cb_register(identification_process_cb_t _identification_process_parser_cb)
+{
+    if(_identification_process_parser_cb)
+    {
+        s_identification_process_parser_cb = _identification_process_parser_cb;
+    }
+}
+
+#endif
 
 void
 state_machine_commands_parser_cb_register(state_machine_commands_parser_cb_t _state_machine_commands_parser_cb)

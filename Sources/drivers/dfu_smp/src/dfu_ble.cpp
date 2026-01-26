@@ -189,7 +189,7 @@ confirm_new_image()
     }
 }
 
-#ifdef CONFIG_BATTERY_LEVEL_DRV
+#if defined(CONFIG_BATTERY_LEVEL_DRV) && !defined(CONFIG_MODEL_IDENTIFICATION_DRV)
 
 #define MEASUREMENT_INTERVAL 9000
 
@@ -208,7 +208,7 @@ dfu_smp_init()
 {
     int ret;
 
-#ifdef CONFIG_BATTERY_LEVEL_DRV
+#if defined(CONFIG_BATTERY_LEVEL_DRV) && !defined(CONFIG_MODEL_IDENTIFICATION_DRV)
     new_battery_level_cb_register(new_battery_level_callback);
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
 #endif  // CONFIG_BATTERY_LEVEL_DRV

@@ -64,7 +64,7 @@ public:
             printk("[%s] %s: %s\n", level_str, m_module, log_msg);
 #endif  // CONFIG_LOG_OVER_SERIAL
 
-#ifdef CONFIG_BLUETOOTH_DRV
+#if defined(CONFIG_BLUETOOTH_DRV) && !defined(CONFIG_MODEL_IDENTIFICATION_DRV)
             ble_send(log_msg);
 #endif  // CONFIG_BLUETOOTH_DRV
 

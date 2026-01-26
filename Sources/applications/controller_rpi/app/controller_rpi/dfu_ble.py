@@ -5,7 +5,7 @@ import time
 from time import perf_counter
 import re
 
-NEWTMGR = "sudo /usr/local/bin/newtmgr"
+NEWTMGR = "sudo ~/mynewt-newtmgr/newtmgr/newtmgr"
 
 
 def run(cmd, check=True, retries=1, delay=1, print_cmd=True):

@@ -8,8 +8,6 @@ struct battery_level_data
     uint16_t battery_level_mv;
 };
 
-/* This means that battery_level_updated_cb_t is a pointer to a function that takes the battery_level_data structure as
- * an argument and returns nothing (void).*/
 typedef void (*battery_level_updated_cb_t)(battery_level_data battery_lvl_data);
 
 int

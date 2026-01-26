@@ -4,6 +4,13 @@ import logging
 import sys
 from bleak import BleakClient
 
+
+# Identification data
+import time
+import csv
+import re
+from pathlib import Path
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("NUS")
 
@@ -21,7 +28,69 @@ class NUSClient:
         self._notify_active = False
         self.on_data = None
         self.device_name = None
-        self.on_trajectory_ack = None 
+        self.on_trajectory_ack = None
+
+        # Identification data
+        self.recording_started = False
+        self.csv_file = None
+        self.csv_writer = None
+        self.last_ident_csv_path: Path | None = None
+
+    IDENT_LINE_RE = re.compile(
+    r"dt=(?P<dt>-?\d+(?:\.\d+)?)\s+"
+    r"angle=(?P<angle>-?\d+(?:\.\d+)?)\s+"
+    r"angle_dt=(?P<angle_dt>-?\d+(?:\.\d+)?)\s+"
+    r"pwm=(?P<pwm>-?\d+(?:\.\d+)?)\s+"
+    r"pos=(?P<pos>-?\d+(?:\.\d+)?)\s+"
+    r"pos_dt=(?P<pos_dt>-?\d+(?:\.\d+)?)\s*$"
+    )
+
+
+    def _ensure_recording_started(self):
+
+        if self.recording_started:
+            return
+
+        filename = time.strftime("ident_%Y%m%d_%H%M%S.csv")
+        path = Path(filename)
+        self.last_ident_csv_path = path
+
+        self.csv_file = path.open("w", newline="")
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(["timestamp", "dt", "angle", "angle_dt", "pwm", "pos", "pos_dt"])
+
+        self.recording_started = True
+        logger.info("AUTO-START zapisu identyfikacji: %s", path)
+
+
+    def start_recording(self, filename: str | None = None):
+        if self.recording:
+            logger.warning("Nagrywanie już trwa")
+            return
+
+        if filename is None:
+            filename = time.strftime("ident_%Y%m%d_%H%M%S.csv")
+
+        path = Path(filename)
+        self.csv_file = path.open("w", newline="")
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(["timestamp", "dt", "angle", "angle_dt", "pwm"])
+
+        self.recording = True
+        logger.info("Nagrywanie do pliku: %s", path)
+
+    def stop_recording(self):
+        if not self.recording:
+            logger.warning("Nagrywanie nieaktywne")
+            return
+
+        self.csv_file.close()
+        self.csv_file = None
+        self.csv_writer = None
+        self.recording = False
+        logger.info("Nagrywanie zakończone")
+
+
 
     async def connect(self):
         try:
@@ -48,6 +117,13 @@ class NUSClient:
             await self.client.disconnect()
             self.connected = False
             logger.info("Rozłączono")
+
+            if self.csv_file:
+                self.csv_file.close()
+                self.csv_file = None
+                self.csv_writer = None
+                logger.info("Plik CSV zamknięty")
+
         except Exception:
             pass
 
@@ -98,6 +174,26 @@ class NUSClient:
         logger.info("NOTIFY [%s]: hex=%s text=%r", sender_handle, hex_data, text)
         print(f"NOTIFY: {text}")
 
+
+        if text:
+            m = self.IDENT_LINE_RE.search(text)
+            if m:
+                self._ensure_recording_started()
+
+                row = [
+                    time.time(),
+                    float(m["dt"]),
+                    float(m["angle"]),
+                    float(m["angle_dt"]),
+                    float(m["pwm"]),
+                    float(m["pos"]),
+                    float(m["pos_dt"]),
+                ]
+                self.csv_writer.writerow(row)
+                self.csv_file.flush()
+
+
+
         if not text:
             return
 
@@ -137,6 +233,7 @@ async def interactive_loop(client: NUSClient):
     print(" notifications on")
     print(" notifications off")
     print(" disconnect / exit")
+
     while True:
         cmd = await async_input("> ")
         cmd = cmd.strip()

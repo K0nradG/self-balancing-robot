@@ -24,7 +24,7 @@ static gpio_callback encoder_0_b_data;
 static gpio_callback encoder_1_a_data;
 static gpio_callback encoder_1_b_data;
 
-encoders_data g_encoders_data {};
+static encoders_data g_encoders_data {};
 
 // Lookup table: 16 entries for all possible transitions
 // -1 = CCW, +1 = CW, 0 = invalid/bounce
@@ -146,7 +146,7 @@ update_encoder(encoder_data* encoder, float prev_angle_rad, float dt)
     encoder->linear_velocity_m_s    = encoder->angular_velocity_rad_s * WHEEL_RADIUS_M;
 }
 
-encoders_data
+encoders_data const&
 _get_encoders_data()
 {
     static float prev_angle_rad_encoder_0 = 0.0f;

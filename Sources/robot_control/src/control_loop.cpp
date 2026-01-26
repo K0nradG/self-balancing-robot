@@ -7,6 +7,10 @@
 #include "robot_controller.h"
 #include "zephyr/kernel.h"
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
 #ifdef CONFIG_WATCHDOG_CONTROLLER_DRV
 #include "watchdog_controller.h"
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
@@ -20,14 +24,16 @@ static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_
 namespace Robot_Control
 {
 
-static Main_State_Machine s_main_state_machine {};
+#ifdef CONFIG_BLUETOOTH_DRV
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-send_identification_data_cb_t g_send_identification_data_cb = nullptr;
-s_main_state_machine.set_identification_state();
+void
+parse_nus_identification_process_callback(char const* data)
+{
+    Model_Identification::instance().identification_data_nus_parser_callback(data);
+}
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
-#ifdef CONFIG_BLUETOOTH_DRV
 void
 nus_data_parse_callback(char const* data)
 {
@@ -37,13 +43,18 @@ nus_data_parse_callback(char const* data)
 void
 parse_nus_commands_callback(char const* data)
 {
-    s_main_state_machine.parse_nus_commands(data);
+    Main_State_Machine::instance().parse_nus_commands(data);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 
 int
 control_loop_init()
 {
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+    identification_process_parser_cb_register(&parse_nus_identification_process_callback);
+    robot_control_logger.platform_log(LOG_LEVEL::INF, "Model identification driver is enabled.");
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
     Drivers_Initializer::init();
 
 #ifdef CONFIG_BLUETOOTH_DRV
@@ -68,36 +79,43 @@ control_loop_work_handler(k_work* work)
 
     using State = Main_State_Machine::State;
 
-    s_main_state_machine.update();
-    State const state = s_main_state_machine.get_state();
+    Main_State_Machine::instance().update();
+    State const state = Main_State_Machine::instance().get_state();
     switch(state)
     {
-        case State::IDENTIFICATION:
-        case State::NORMAL_OPERATION:
+        case State::OPERATION:
         {
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
             bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
-            s_main_state_machine.set_disable_motors_command(disable_motors_command);
+            Main_State_Machine::instance().set_disable_motors_command(disable_motors_command);
+#else
+            Model_Identification::Identification_Data const identification_data =
+                Robot_Controller::instance().model_identification();
+            Model_Identification::instance().new_regulator_data_for_identification(identification_data);
+
+            if(!Model_Identification::instance().identification_active())
+            {
+                Model_Identification::instance().acknowledge_identification_stop();
+                Main_State_Machine::instance().set_stop_command();
+            }
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
             break;
         }
         case State::SOFT_STOP:
         {
             bool const motors_stopped = Robot_Controller::instance().soft_stop_motors();
-            s_main_state_machine.set_motors_stopped(motors_stopped);
+            Main_State_Machine::instance().set_motors_stopped(motors_stopped);
             break;
         }
         case State::RESET_AFTER_STOP:
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
             Robot_Controller::instance().reset();
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
             break;
         default:
             break;
     }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    if(g_send_identification_data_cb)
-    {
-        g_send_identification_data_cb(Robot_Controller::instance().get_identification_data());
-    }
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }
 
 static K_WORK_DELAYABLE_DEFINE(s_control_work, control_loop_work_handler);
@@ -114,16 +132,5 @@ stop_control_loop()
     set_enable_controller(false);
     led_stop_periodic_blinking();
 }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-void
-new_send_identification_data_cb_register(send_identification_data_cb_t new_send_identification_data_cb)
-{
-    if(new_send_identification_data_cb)
-    {
-        g_send_identification_data_cb = new_send_identification_data_cb;
-    }
-}
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 }  // namespace Robot_Control

@@ -2,37 +2,70 @@
 
 #include <stdint.h>
 
-#define RECORD_TIME_MS 10000
-#define BUFFER_SIZE    (RECORD_TIME_MS / CONFIG_MODEL_IDENTIFICATION_SAMPLE_TIME)
-
-#define BUFFER_COUNT       4u  // Independent buffers number. One buffer is 4kB (1000 floats), 4 buffers - 16kB
-#define ANGLE_BUFFER_ID    0u
-#define ANGLE_DT_BUFFER_ID 1u
-#define U_BUFFER_ID        2u
-#define TIME_BUFFER_ID     3u
-
-struct identification_data
+class Model_Identification
 {
-    float dt;
-    float pwm;
-    float angle;
-    float angle_dt;
+    static constexpr uint8_t MAX_INPUT_DATA_SAMPLES = 10u;
+
+public:
+    struct Identification_Data
+    {
+        float dt {};
+        float pwm {};
+        float angle {};
+        float angle_dt {};
+        float position {};
+        float position_dt {};
+    };
+
+    static Model_Identification&
+    instance()
+    {
+        static Model_Identification s_model_identification {};
+        return s_model_identification;
+    }
+
+    void
+    update(float dt);
+
+    void
+    activate_identification();
+
+    bool
+    identification_active();
+
+    void
+    acknowledge_identification_stop();
+
+    void
+    new_regulator_data_for_identification(Identification_Data const& data);
+
+    float
+    get_pwm_sample();
+
+    void
+    identification_data_nus_parser_callback(char const* data);
+
+    void
+    set_current_dt(float dt);
+
+    Identification_Data const&
+    get_identification_data() const;
+
+private:
+    Model_Identification()                            = default;
+    Model_Identification(Model_Identification const&) = delete;
+    Model_Identification&
+    operator=(Model_Identification const&) = delete;
+
+    struct Input_Data
+    {
+        float pwm_values[MAX_INPUT_DATA_SAMPLES];
+        float pwm_durations_s[MAX_INPUT_DATA_SAMPLES];
+    };
+
+    Input_Data m_input_data {};
+
+    bool m_identification_active  = false;
+    uint32_t m_current_pwm_sample = 0u;
+    float m_pwm_timer             = 0.0f;
 };
-
-void
-new_regulator_data_for_identification(identification_data data);
-
-int
-identification_init();
-
-uint16_t
-buffer_get(uint8_t buffer_id, float* data, uint16_t max_len);
-
-void
-model_identification_start();
-
-void
-notify_data_sent();
-
-void
-trigger_collecting_identification_data();

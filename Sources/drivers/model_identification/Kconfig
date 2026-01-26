@@ -1,18 +1,16 @@
 config MODEL_IDENTIFICATION_DRV
     bool "motor controller module"
-    depends on LOG_OVER_SERIAL
-    depends on IMU_DRV
-    depends on MOTOR_CONTROLLER_DRV
-    depends on ROBOT_CONTROL
 
 if MODEL_IDENTIFICATION_DRV
 
 config MODEL_IDENTIFICATION_LOG
     bool "Enable logging from model identification driver"
-    depends on LOGGER_DRV
 
 config MODEL_IDENTIFICATION_SAMPLE_TIME
     int "Model identification sampling time in milliseconds"
-    default 1
+    default 5
+    help
+      TODO:
+      make sapling time stable (now it is oscilating a little bit betweeen 6 and 7ms)
 
 endif #MODEL_IDENTIFICATION_DRV

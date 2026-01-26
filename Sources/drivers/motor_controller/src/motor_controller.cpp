@@ -6,7 +6,7 @@
 #include "logger.h"
 #include "zephyr/kernel.h"
 
-#define N_GPIO_PINS                      5u
+#define N_GPIO_PINS                      4u
 #define DIRECTION_CONTROL_PINS_BEGIN_IDX 1u
 #define PWM_PERIOD_NS                    PWM_USEC(CONFIG_PWM_PERIOD_US)
 
@@ -15,13 +15,12 @@ static Logger<IS_ENABLED(CONFIG_MOTOR_CONTROLLER_LOG)> motor_controller_logger("
 static bool g_controller_enabled = false;
 static MOTORS_DATA g_motors_data = {.duty_cycle_percent_motor0 = 0u, .duty_cycle_percent_motor1 = 0u, .start = false};
 
-static gpio_dt_spec a_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
-static gpio_dt_spec a_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in2), gpios);
-static gpio_dt_spec b_in1  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in1), gpios);
-static gpio_dt_spec b_in2  = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in2), gpios);
-static gpio_dt_spec h_b_en = GPIO_DT_SPEC_GET(DT_NODELABEL(h_b_en), gpios);
+static gpio_dt_spec a_in1 = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in1), gpios);
+static gpio_dt_spec a_in2 = GPIO_DT_SPEC_GET(DT_NODELABEL(a_in2), gpios);
+static gpio_dt_spec b_in1 = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in1), gpios);
+static gpio_dt_spec b_in2 = GPIO_DT_SPEC_GET(DT_NODELABEL(b_in2), gpios);
 
-static const gpio_dt_spec* gpio_pins[] = {&h_b_en, &a_in1, &a_in2, &b_in1, &b_in2};
+static const gpio_dt_spec* gpio_pins[] = {&a_in1, &a_in2, &b_in1, &b_in2};
 
 static const pwm_dt_spec pwm_dc_1 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_1));
 static const pwm_dt_spec pwm_dc_2 = PWM_DT_SPEC_GET(DT_NODELABEL(dc_2));
@@ -75,7 +74,7 @@ int
 motor_controller_init()
 {
     if(!device_is_ready(a_in1.port) || !device_is_ready(a_in2.port) || !device_is_ready(b_in1.port) ||
-       !device_is_ready(b_in2.port) || !device_is_ready(h_b_en.port) || !pwm_is_ready_dt(&pwm_dc_2))
+       !device_is_ready(b_in2.port) || !pwm_is_ready_dt(&pwm_dc_2))
     {
         motor_controller_logger.platform_log(LOG_LEVEL::ERR, "motors pwm not ready");
         return -ENODEV;
@@ -86,7 +85,6 @@ motor_controller_init()
     ret |= gpio_pin_configure_dt(&a_in2, GPIO_OUTPUT_ACTIVE);
     ret |= gpio_pin_configure_dt(&b_in1, GPIO_OUTPUT_ACTIVE);
     ret |= gpio_pin_configure_dt(&b_in2, GPIO_OUTPUT_ACTIVE);
-    ret |= gpio_pin_configure_dt(&h_b_en, GPIO_OUTPUT_ACTIVE);
 
     if(ret != 0)
     {
@@ -115,25 +113,12 @@ stop_motors()
 static void
 disable_controller()
 {
-    int const ret = gpio_pin_set_dt(&h_b_en, 0);
-
-    if(ret != 0)
-    {
-        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "stop controller failed");
-    }
-
     stop_motors();
 }
 
 static void
 enable_controller()
 {
-    int const ret = gpio_pin_set_dt(&h_b_en, 1);
-
-    if(ret != 0)
-    {
-        motor_controller_logger.platform_log(LOG_LEVEL::ERR, "enable controller failed");
-    }
 }
 
 static void

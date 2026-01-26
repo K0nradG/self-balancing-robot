@@ -17,10 +17,6 @@
 #include "encoder.h"
 #endif  // CONFIG_ENCODER_DRV
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-#include "model_identification.h"
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
 namespace Robot_Control
 {
 
@@ -48,11 +44,6 @@ Drivers_Initializer::init()
     ret = encoders_init();
     reboot_on_error(ret);
 #endif  // CONFIG_ENCODER_DRV
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    ret = model_identification_init();
-    reboot_on_error(ret);
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 }
 
 void

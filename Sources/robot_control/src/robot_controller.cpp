@@ -6,6 +6,10 @@
 #include "saturation.h"
 #include "zephyr/kernel.h"
 
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+#include "model_identification.h"
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+
 namespace Robot_Control
 {
 
@@ -52,13 +56,15 @@ Robot_Controller::Robot_Controller()
 {
 }
 
+#ifndef CONFIG_MODEL_IDENTIFICATION_DRV
 bool
 Robot_Controller::normal_motors_control()
 {
     DataManager::instance().update();
-    imu_data const imu_data           = DataManager::instance().get_imu_data();
-    encoders_data const encoders_data = DataManager::instance().get_encoders_data();
-    float const rotation_angle        = DataManager::instance().get_rotation_angle();
+    imu_data const imu_data            = DataManager::instance().get_imu_data();
+    encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
+
+    float const rotation_angle = DataManager::instance().get_rotation_angle();
 
 #ifdef CONFIG_VALIDATE_ROBOT_ANGLE
     bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
@@ -117,21 +123,42 @@ Robot_Controller::normal_motors_control()
                     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
             }
         }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-        m_identification_data = {
-            .dt       = static_cast<float>(CONFIG_BALANCE_REGULATOR_SAMPLE_TIME) / 1000.0f,
-            .pwm      = (pwm0 + pwm1) / 2.0f,
-            .angle    = imu_data.angle_balance,
-            .angle_dt = imu_data.angle_balance_dt};
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
-        send_motors_data(m_pwm0, m_pwm1);
-        trigger_motors_update();
     }
+
+    send_motors_data(m_pwm0, m_pwm1);
+    trigger_motors_update();
 
     return disable_motors_command;
 }
+
+#else
+Model_Identification::Identification_Data const
+Robot_Controller::model_identification()
+{
+    DataManager::instance().update();
+    imu_data const imu_data            = DataManager::instance().get_imu_data();
+    encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
+
+    float const pwm_sample = Model_Identification::instance().get_pwm_sample();
+    m_pwm0                 = pwm_sample;
+    m_pwm1                 = pwm_sample;
+
+    Model_Identification::Identification_Data const identification_data = {
+        .dt          = imu_data.time_dt,
+        .pwm         = pwm_sample,
+        .angle       = imu_data.angle_balance,
+        .angle_dt    = imu_data.angle_balance_dt,
+        .position    = encoders_data.robot_distance_m,
+        .position_dt = encoders_data.robot_linear_speed};
+
+    Model_Identification::instance().update(imu_data.time_dt);
+
+    send_motors_data(m_pwm0, m_pwm1);
+    trigger_motors_update();
+
+    return identification_data;
+}
+#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 bool
 Robot_Controller::soft_stop_motors()
@@ -343,13 +370,5 @@ Robot_Controller::ramp_pwm_to_stop(float& pwm)
 
     return motor_stopped;
 }
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-identification_data
-Robot_Controller::get_identification_data() const
-{
-    return m_identification_data;
-}
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
 }  // namespace Robot_Control

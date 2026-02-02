@@ -1,3 +1,5 @@
+# Builds the nRF52840dongle application using West build system
+
 import os
 import subprocess
 import sys

@@ -4,16 +4,20 @@
 
 In order for `clangd` to work properly, `compile_commands.json` must be acquired from `CMake` build. The `get_compile_commands.py` takes the generated file from build directory and formats it by getting rid of flags not recognized by `clang`.
 
-Whenever compilation warnings/errors occur, try running `get_compile_commands.py` script and reloading the VS Code window (ctrl + shift + p). This should fix the issues.
+The `build_dongle_sw.py` script already obtains the appropriate file, however whenever compilation warnings/errors occur, one can run the `get_compile_commands.py` script and reload the VS Code window (ctrl + shift + p). This should fix the issues.
 
-## General Serial Data Logging
+## Formatting files
 
-- plug in NRF Dongle via USB cable,
-- open `receive_serial_data.py` - modify `COM` port name (specific to Windows and Linux),
-- run `receive_serial_data.py` script,
-- press button on Dongle to start receiving through the script,
-- once the sending is finished, data will be logged to a specified location.
+For this task we are using the `clang-format` tool.
 
-## Parsing to valid .mat file
+The `format_all_files.py` script can be used to manually format all source and header files present in the repo.
 
-MATLAB scripts created to **identify object model** based on the data gathered from Dongle accept only a **specific** data format. After receiving the serial data (e.g. running `receive_serial_data.py`) run `parse_to_mat_with_merge.py`. The script will take the specified data and combine them into one `.mat` format accepted by the `.m` scripts. After that, MATLAB scripts can be run to perform identification and/or regulators tuning.
+The `format_changed_files.py` can also be used, however it is automatically launched during FW build with the use of `build_dongle_sw.py` script.
+
+## FW flashing with external debugger
+
+The `flash_dongle.py` wraps the commands necessary to flash the *nRF52840* board with a pre-built FW. This has to be done with the use of an **external debugger**, e.g. the *nRF7002dk* board. 
+
+## Building nRF7002dk firmware
+
+The `build_dk_sw.py` script allows for building the *nRF7002dk* FW from `Sources/applications/controller`.

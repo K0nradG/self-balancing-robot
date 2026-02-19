@@ -1,0 +1,36 @@
+# --- CONFIGURATION ---
+FILE_PATH = 'identification_signal_1/robot_identification_side_backward_2.csv'
+T_START = 205.0
+T_END = 215.0
+CUTOFF_FREQ = 15 # Hz
+
+==================================================
+IDENTIFIED MODEL MATRICES
+==================================================
+
+Discrete-Time Matrix A_d (System Dynamics):
+[[ 1.      0.0047  0.      0.    ]
+ [-0.0009  0.9257 -0.0109  0.    ]
+ [-0.     -0.0036  0.9869  0.0054]
+ [-0.0111  0.5551 -0.8753  0.9969]]
+
+Discrete-Time Matrix B_d (Input Influence):
+[[ 0.    ]
+ [ 0.001 ]
+ [ 0.0001]
+ [-0.0024]]
+--------------------------------------------------
+
+Continuous-Time Matrix A_c (Physical Dynamics):
+[[   0.0008    0.8789    0.012     0.0015]
+ [  -0.1671  -13.9934   -2.0523    0.0134]
+ [  -0.0015   -0.9733   -1.9562    0.9806]
+ [  -1.9607  104.1849 -159.0126   -0.1366]]
+
+Continuous-Time Matrix B_c (Physical Input):
+[[ 0.0013]
+ [ 0.1942]
+ [ 0.0243]
+ [-0.4882]]
+==================================================
+

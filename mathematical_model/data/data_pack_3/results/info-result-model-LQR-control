@@ -1,0 +1,23 @@
+# --- CONFIGURATION ---
+FILE_PATH = 'identification_signal_1/robot_identification_side_backward_2.csv'
+T_START, T_END = 180.0, 215.0
+CUTOFF_FREQ = 15  # Low-pass filter cutoff frequency in Hz
+
+# LQR Weights (Tune these to change robot behavior)
+# Q matrix: Penalizes state error [position, velocity, angle, angular_velocity]
+Q = np.diag([10000, 1, 100000, 1])  
+# R matrix: Penalizes control effort (Lower R = more aggressive PWM usage)
+R = 1                       
+
+==================================================
+IDENTIFIED LQR GAIN MATRIX (K)
+==================================================
+K_pos (Position):   -9.4529
+K_vel (Velocity):   130.2260
+K_ang (Angle):      649.0576
+K_omg (Ang. Vel):   49.8830
+
+Implementation for C++:
+pwm = -( -9.4529*pos + 130.2260*vel + 649.0576*angle + 49.8830*omega )
+==================================================
+

@@ -5,7 +5,7 @@ from scipy.signal import butter, filtfilt
 import scipy.linalg as la
 
 # --- CONFIGURATION ---
-FILE_PATH = 'identification_signal_1/robot_identification_side_backward_2.csv'
+FILE_PATH = 'data/identification_signal_1/robot_identification_side_backward_2.csv'
 T_START = 180.0
 T_END = 215.0
 CUTOFF_FREQ = 15 # Hz

@@ -38,7 +38,8 @@ class Robot_Controller
     static constexpr float balance_pid_filter_alpha         = 0.9f;
     static constexpr float max_speed_rad_s                  = 90.0f;
 #else
-    static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
+    static constexpr LQR::Parameters balance_lqr_parameters = {
+        .K_position = -0.3162f, .K_position_derivative = 137.1469f, .K_angle = 660.1196f, .K_angle_derivative = 0.0f};
 #endif  // CONFIG_PID_ENABLED
 
     static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 50.0f, .Ki = 25.0f, .Kd = 0.0f};

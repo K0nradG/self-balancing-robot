@@ -1,229 +1,146 @@
 import pandas as pd
 import numpy as np
-from scipy.signal import butter, filtfilt
 import scipy.linalg as la
+from scipy.integrate import odeint
+from scipy.optimize import minimize
+from scipy.interpolate import interp1d
 from dataclasses import dataclass
-from typing import Optional, Tuple
-
-
-@dataclass
-class RobotData:
-    """Stores processed robot data"""
-    time: np.ndarray
-    pos: np.ndarray
-    pos_dt: np.ndarray
-    angle: np.ndarray
-    angle_dt: np.ndarray
-    pwm: np.ndarray
-    dt: float
-
+import matplotlib.pyplot as plt
 
 @dataclass
 class ModelMatrices:
-    """Stores identified model matrices"""
-    A_d: np.ndarray  # discrete-time system matrix
-    B_d: np.ndarray  # discrete-time input matrix
-    A_c: np.ndarray  # continuous-time system matrix
-    B_c: np.ndarray  # continuous-time input matrix
-    
-    @property
-    def eigenvalues_d(self):
-        return np.linalg.eigvals(self.A_d)
+    """Struktura przechowująca macierze modelu."""
+    A_c: np.ndarray; B_c: np.ndarray
+    A_d: np.ndarray; B_d: np.ndarray
 
+class TrajectoryIdentifier:
+    def __init__(self, deadband=10.0):
+        self.deadband = deadband 
 
-class DataProcessor:
-    """Handles data loading, filtering and preprocessing"""
-    
-    def __init__(self, cutoff_freq: float = 15.0):
-        self.cutoff_freq = cutoff_freq
-        self.dt = None
-        self.fs = None
+    def _apply_deadband(self, pwm):
+        """Kompensacja strefy nieczułości silników."""
+        return np.sign(pwm) * np.maximum(0, np.abs(pwm) - self.deadband)
+
+    def system_ode(self, x, t, u_func, p):
+        """
+        Model ciągły stanu: x = [pos, dpos, angle, dangle]
+        p = [a22, a23, a24, b2, a42, a43, a44, b4]
+        """
+        u = u_func(t)
+        d_pos = x[1]
+        # Równanie przyspieszenia liniowego
+        dd_pos = p[0]*x[1] + p[1]*x[2] + p[2]*x[3] + p[3]*u
+        d_angle = x[3]
+        # Równanie przyspieszenia kątowego
+        dd_angle = p[4]*x[1] + p[5]*x[2] + p[6]*x[3] + p[7]*u
+        return [d_pos, dd_pos, d_angle, dd_angle]
+
+    def loss_function(self, p, time, pwm, real_pos, real_angle):
+        """Funkcja celu: różnica między symulacją a rzeczywistością."""
+        u_func = interp1d(time, self._apply_deadband(pwm), fill_value="extrapolate")
+        x0 = [real_pos[0], 0, real_angle[0], 0]
         
-    def load_and_preprocess(self, file_path: str, t_start: float, t_end: float) -> RobotData:
-        """Load CSV and preprocess data within time window"""
-        # Load data
-        df = pd.read_csv(file_path)
-        df['time'] = df['dt'].cumsum()
-        self.dt = df['dt'].mean()
-        self.fs = 1.0 / self.dt
-        
-        # Filter velocities
-        df = self._apply_lowpass_filter(df)
-        
-        # Extract time window
+        try:
+            sol = odeint(self.system_ode, x0, time, args=(u_func, p))
+            # Wagi błędu: angle (100) vs pos (1)
+            err = np.mean((real_pos - sol[:,0])**2) + 100 * np.mean((real_angle - sol[:,2])**2)
+            
+            # Kary fizyczne (wymuszanie stabilności zwisu)
+            if p[0] > 0: err += p[0]*5000 
+            if p[6] > 0: err += p[6]*5000
+            return err
+        except:
+            return 1e12
+
+    def identify(self, df, t_start, t_end):
+        """Główna pętla identyfikacji parametrów."""
         mask = (df['time'] >= t_start) & (df['time'] <= t_end)
         df_cut = df.loc[mask].copy()
+        dt = df_cut['dt'].mean()
         
-        # Remove angle offset (hanging equilibrium)
-        angle_off = df_cut['angle'].mean()
-        df_cut['angle_c'] = df_cut['angle'] - angle_off
-        
-        return RobotData(
-            time=df_cut['time'].values,
-            pos=df_cut['pos'].values,
-            pos_dt=df_cut['pos_dt_f'].values,
-            angle=df_cut['angle_c'].values,
-            angle_dt=df_cut['angle_dt_f'].values,
-            pwm=df_cut['pwm'].values,
-            dt=self.dt
-        )
-    
-    def _apply_lowpass_filter(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply 4th order Butterworth lowpass filter"""
-        b, a = butter(4, self.cutoff_freq / (0.5 * self.fs), btype='low')
-        df['angle_dt_f'] = filtfilt(b, a, df['angle_dt'])
-        df['pos_dt_f'] = filtfilt(b, a, df['pos_dt'])
-        return df
+        # Precyzyjne zerowanie kąta (pierwsze 0.2s)
+        angle_offset = df_cut['angle'].iloc[:max(1, int(0.2/dt))].mean()
+        angle_c = df_cut['angle'].values - angle_offset
+        pos_c = df_cut['pos'].values - df_cut['pos'].iloc[0]
+        time = df_cut['time'].values - df_cut['time'].iloc[0]
+        pwm = df_cut['pwm'].values
 
+        # Początkowe parametry [a22, a23, a24, b2, a42, a43, a44, b4]
+        p0 = [-10.0, -2.0, 0.0, 0.2, 50.0, -100.0, -5.0, -0.2]
+        
+        print(f"Rozpoczynam optymalizację (okno: {t_end-t_start:.1f}s)...")
+        res = minimize(self.loss_function, p0, args=(time, pwm, pos_c, angle_c), 
+                       method='Nelder-Mead', options={'maxiter': 2000})
+        
+        p = res.x
+        A_c = np.array([[0, 1, 0, 0], [0, p[0], p[1], p[2]], [0, 0, 0, 1], [0, p[4], p[5], p[6]]])
+        B_c = np.array([[0], [p[3]], [0], [p[7]]])
+        
+        # Dyskretyzacja (Zero-Order Hold)
+        sys_d = la.expm(np.block([[A_c, B_c], [np.zeros((1, 5))]]) * dt)
+        return ModelMatrices(A_c, B_c, sys_d[:4, :4], sys_d[:4, 4:]), (time, pwm, pos_c, angle_c, p)
 
-class ModelIdentifier:
-    """Identifies discrete and continuous-time models from data"""
+def plot_final_validation(debug_data, deadband):
+    """Generuje wykresy porównawcze po identyfikacji."""
+    time, pwm, real_pos, real_angle, p = debug_data
+    u_func = interp1d(time, np.sign(pwm) * np.maximum(0, np.abs(pwm) - deadband), fill_value="extrapolate")
+    x0 = [real_pos[0], 0, real_angle[0], 0]
     
-    @staticmethod
-    def identify(data: RobotData) -> ModelMatrices:
-        """Identify model matrices from robot data"""
-        # Prepare state and input matrices
-        X = np.column_stack([data.pos, data.pos_dt, data.angle, data.angle_dt])
-        U = data.pwm.reshape(-1, 1)
-        
-        # Create shifted matrices for identification
-        X_k = X[:-1, :]
-        X_k1 = X[1:, :]
-        U_k = U[:-1, :]
-        
-        # Solve least squares: X_k1 = [A_d B_d] * [X_k; U_k]
-        Phi = np.column_stack((X_k, U_k))
-        theta = np.linalg.lstsq(Phi, X_k1, rcond=None)[0].T
-        
-        # Extract discrete matrices
-        A_d = theta[:, :4]
-        B_d = theta[:, 4:].reshape(-1, 1)
-        
-        # Convert to continuous time
-        A_c = la.logm(A_d) / data.dt
-        B_c = la.inv(A_d - np.eye(4)) @ A_c @ B_d
-        
-        return ModelMatrices(
-            A_d=A_d,
-            B_d=B_d,
-            A_c=A_c.real,
-            B_c=B_c.real
-        )
-    
-    @staticmethod
-    def create_upright_model(matrices: ModelMatrices) -> ModelMatrices:
-        """Modify model to be stable around upright position"""
-        A_upright = matrices.A_c.copy()
-        A_upright[3, 2] = abs(matrices.A_c[3, 2])  # Ensure stability in angle acceleration
-        A_upright[1, 2] = -matrices.A_c[1, 2]      # Ensure position coupling
-        
-        return ModelMatrices(
-            A_d=matrices.A_d,
-            B_d=matrices.B_d,
-            A_c=A_upright,
-            B_c=matrices.B_c
-        )
+    ident = TrajectoryIdentifier(deadband=deadband)
+    sol = odeint(ident.system_ode, x0, time, args=(u_func, p))
 
+    fig, ax = plt.subplots(3, 1, figsize=(10, 10), sharex=True)
+    ax[0].plot(time, real_pos, label='Dane (Enkoder)', alpha=0.7)
+    ax[0].plot(time, sol[:,0], '--', label='Model (Symulacja)', color='black')
+    ax[0].set_ylabel('Pozycja [m]')
+    
+    ax[1].plot(time, real_angle, label='Dane (IMU)', color='green', alpha=0.7)
+    ax[1].plot(time, sol[:,2], '--', label='Model (Symulacja)', color='black')
+    ax[1].set_ylabel('Kąt [rad]')
+    
+    ax[2].step(time, pwm, color='purple', label='Sygnał PWM')
+    ax[2].set_ylabel('PWM [%]')
+    ax[2].set_xlabel('Czas [s]')
+    
+    for a in ax: a.legend(); a.grid(True, ls=':')
+    plt.suptitle('Walidacja Modelu: Trajectory Matching', fontsize=14)
+    plt.tight_layout()
+    plt.show()
 
-class ModelValidator:
-    """Validates identified model against real data"""
+def create_upright_model(hanging_matrices, dt):
+    """Konwersja: zwis -> balans (odwrócenie znaku grawitacji)."""
+    A_up = hanging_matrices.A_c.copy()
+    A_up[1, 2] = -A_up[1, 2]
+    A_up[3, 2] = -A_up[3, 2]
     
-    @staticmethod
-    def simulate_discrete(initial_state: np.ndarray, U: np.ndarray, 
-                          matrices: ModelMatrices) -> np.ndarray:
-        """Simulate discrete-time model"""
-        n_steps = len(U)
-        X_sim = np.zeros((n_steps + 1, 4))
-        X_sim[0] = initial_state
-        
-        for k in range(n_steps):
-            X_sim[k+1] = matrices.A_d @ X_sim[k] + matrices.B_d.flatten() * U[k]
-        
-        return X_sim
-    
-    @staticmethod
-    def plot_comparison(data: RobotData, X_sim: np.ndarray, 
-                        matrices: ModelMatrices, title: str = "Model Validation"):
-        """Plot real data vs model prediction"""
-        fig, axes = plt.subplots(5, 1, figsize=(12, 16), sharex=True)
-        
-        states = [
-            ('Position [m]', data.pos, X_sim[:-1, 0], 'forestgreen'),
-            ('Velocity [m/s]', data.pos_dt, X_sim[:-1, 1], 'darkorange'),
-            ('Angle [rad]', data.angle, X_sim[:-1, 2], 'royalblue'),
-            ('Angular Vel [rad/s]', data.angle_dt, X_sim[:-1, 3], 'firebrick')
-        ]
-        
-        for i, (label, real, sim, color) in enumerate(states):
-            axes[i].plot(data.time, real, label='Real', color=color, alpha=0.4, lw=2)
-            axes[i].plot(data.time, sim, '--', label='Model', color='black', lw=1.5)
-            axes[i].set_ylabel(label)
-            axes[i].legend(loc='upper right')
-            axes[i].grid(True, ls=':')
-        
-        # PWM plot
-        axes[4].step(data.time, data.pwm, color='purple', label='PWM [%]')
-        axes[4].set_ylabel('PWM [%]')
-        axes[4].set_xlabel('Time [s]')
-        axes[4].grid(True, ls=':')
-        axes[4].legend(loc='upper right')
-        
-        plt.suptitle(title, fontsize=16)
-        plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        plt.show()
-    
-    @staticmethod
-    def print_matrices(matrices: ModelMatrices):
-        """Pretty print model matrices"""
-        np.set_printoptions(suppress=True, precision=4)
-        print("\n" + "="*50)
-        print("IDENTIFIED MODEL MATRICES")
-        print("="*50)
-        print("\nDiscrete-Time Matrix A_d (System Dynamics):")
-        print(matrices.A_d)
-        print("\nDiscrete-Time Matrix B_d (Input Influence):")
-        print(matrices.B_d)
-        print("-" * 50)
-        print("\nContinuous-Time Matrix A_c (Physical Dynamics):")
-        print(matrices.A_c)
-        print("\nContinuous-Time Matrix B_c (Physical Input):")
-        print(matrices.B_c)
-        print("="*50 + "\n")
+    sys_d = la.expm(np.block([[A_up, hanging_matrices.B_c], [np.zeros((1, 5))]]) * dt)
+    return ModelMatrices(A_up, hanging_matrices.B_c, sys_d[:4, :4], sys_d[:4, 4:])
 
+def run_full_process(csv_path, t_start, t_end, db=12.0):
+    df = pd.read_csv(csv_path)
+    df['time'] = df['dt'].cumsum()
+    dt = df['dt'].mean()
 
-# Main function for standalone execution
-def identify_model(file_path: str, t_start: float, t_end: float, 
-                   cutoff_freq: float = 15.0, plot: bool = True) -> ModelMatrices:
-    """Complete model identification pipeline"""
+    ident = TrajectoryIdentifier(deadband=db)
+    hanging_model, debug_data = ident.identify(df, t_start, t_end)
     
-    # Process data
-    processor = DataProcessor(cutoff_freq)
-    data = processor.load_and_preprocess(file_path, t_start, t_end)
+    # Wywołanie lokalnej funkcji rysującej
+    plot_final_validation(debug_data, db)
     
-    # Identify model
-    identifier = ModelIdentifier()
-    matrices = identifier.identify(data)
+    upright_model = create_upright_model(hanging_model, dt)
     
-    # Validate
-    validator = ModelValidator()
-    X_sim = validator.simulate_discrete(
-        np.array([data.pos[0], data.pos_dt[0], data.angle[0], data.angle_dt[0]]),
-        data.pwm, matrices
-    )
+    np.set_printoptions(suppress=True, precision=4)
+    print("\n" + "="*30)
+    print("IDENTYFIKACJA ZAKOŃCZONA")
+    print("="*30)
+    print("Macierz A_c (Stojący):\n", upright_model.A_c)
+    print("Macierz B_c (Stojący):\n", upright_model.B_c)
+    print("="*30)
     
-    if plot:
-        validator.plot_comparison(data, X_sim, matrices, 
-                                 f"Model Validation ({t_start}s-{t_end}s)")
-        validator.print_matrices(matrices)
-    
-    return matrices
+    return upright_model
 
-
-# Jeśli uruchamiamy bezpośrednio
 if __name__ == "__main__":
-    # Przykład użycia
+    # PODSTAW SWOJĄ ŚCIEŻKĘ
     FILE_PATH = 'data/identification_signal_1/robot_identification_side_backward_2.csv'
-    T_START, T_END = 180.0, 215.0
-    CUTOFF_FREQ = 15
-    
-    matrices = identify_model(FILE_PATH, T_START, T_END, CUTOFF_FREQ)
+    # Wybierz okno czasowe, gdzie robot wykonuje wyraźne ruchy
+    run_full_process(FILE_PATH, 100.0, 145.0, db=5.0)

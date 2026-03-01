@@ -120,6 +120,7 @@ imu_init()
 #endif  // CONFIG_MPU6050_TRIGGER
 
     set_dlpf();
+    set_measurement_interval();
     imu_logger.platform_log(LOG_LEVEL::INF, "imu dlpf set");
 
     imu_logger.platform_log(LOG_LEVEL::INF, "imu init finished");

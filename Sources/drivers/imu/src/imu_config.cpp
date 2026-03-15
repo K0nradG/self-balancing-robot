@@ -10,7 +10,7 @@
 #define DLPF_44_HZ_REG_VAL 0x02
 
 #define IMU_MEASUREMENT_INTERVAL_REG_ADDR 0x19
-#define IMU_MEASUREMENT_INTERVAL_REG_VAL  0x01
+#define IMU_MEASUREMENT_INTERVAL_REG_VAL  0x04
 
 #define PWR_MGMT_1 0x68
 
@@ -81,15 +81,14 @@ mpu_reset(uint8_t conf)
 void
 set_dlpf()
 {
-    uint8_t tmp   = 0u;
-    int const err = get_sensor_settings(DLPF_REG_ADDR, &tmp);
-    if(err != 0)
-    {
-        imu_logger.platform_log(LOG_LEVEL::ERR, "Failed to get MPU settings, err: %d", err);
-        return;
-    }
+    uint8_t tmp = 0u;
 
-    tmp |= DLPF_44_HZ_REG_VAL & 0x7;
+    if(get_sensor_settings(DLPF_REG_ADDR, &tmp) != 0)
+        return;
+
+    tmp &= ~0x07;  // wyczyść bity DLPF (2:0)
+    tmp |= (DLPF_44_HZ_REG_VAL & 0x07);
+
     set_sensor_settings(DLPF_REG_ADDR, tmp);
 }
 

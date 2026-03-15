@@ -8,7 +8,7 @@
 #define GYRO_CALIBRATION_SAMPLES 100000
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
-#define ALPHA               0.997f
+#define ALPHA               0.98f
 #define PI                  3.14159265358979323846f
 #define MILLI_PARTS_CONVERT 1e-03f
 
@@ -120,6 +120,7 @@ imu_init()
 #endif  // CONFIG_MPU6050_TRIGGER
 
     set_dlpf();
+    set_measurement_interval();
     imu_logger.platform_log(LOG_LEVEL::INF, "imu dlpf set");
 
     imu_logger.platform_log(LOG_LEVEL::INF, "imu init finished");

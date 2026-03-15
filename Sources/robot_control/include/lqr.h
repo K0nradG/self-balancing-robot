@@ -8,8 +8,10 @@ class LQR
 public:
     struct Parameters
     {
-        float Kx = 0.0f;
-        float Ky = 0.0f;
+        float K_position;
+        float K_position_derivative;
+        float K_angle;
+        float K_angle_derivative;
     };
 
     LQR(Parameters parameters, float output_saturation)
@@ -17,8 +19,16 @@ public:
     {
     }
 
+    struct system_state
+    {
+        float position;
+        float position_derivative;
+        float angle;
+        float angle_derivative;
+    };
+
     float
-    calculate_output(float x, float y);
+    calculate_output(system_state state);
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void

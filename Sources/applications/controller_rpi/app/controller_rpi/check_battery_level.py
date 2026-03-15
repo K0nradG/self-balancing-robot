@@ -29,14 +29,14 @@ class BatterySupervisor:
         self.client.on_data = self._handle_nus_data
 
     async def connect_until_success(self):
-        """Próbuje łączyć aż się powiedzie."""
+        """Keep trying to connect until it succeeds."""
         while True:
-            logger.info("Próba połączenia...")
+            logger.info("Attempting connection...")
             await self.client.connect()
             if self.client.connected:
-                logger.info("Połączono pomyślnie.")
+                logger.info("Connected successfully.")
                 return
-            logger.info("Nieudane — retry za 2 sek.")
+            logger.info("Connection failed — retrying in 2 seconds.")
             await asyncio.sleep(2)
 
     async def enable_notifications(self):
@@ -45,18 +45,18 @@ class BatterySupervisor:
                 await self.client.notifications_on()
                 await asyncio.sleep(1)
             except Exception as e:
-                logger.error(f"Błąd notify: {e}")
+                logger.error(f"Notification error: {e}")
                 await asyncio.sleep(2)
 
     def _handle_nus_data(self, text: str):
-        """Callback wywoływany bezpośrednio przez NUSClient."""
+        """Callback invoked directly by NUSClient."""
         m = BATTERY_REGEX.search(text)
         if not m:
             return
 
         mv = int(m.group(1))
         self.current_bat_mv = mv
-        logger.info(f"Poziom baterii: {mv} mV")
+        logger.info(f"Battery level: {mv} mV")
 
         if mv < LOW_BATTERY_THRESHOLD:
             self._start_blinking()
@@ -65,12 +65,12 @@ class BatterySupervisor:
 
     def _start_blinking(self):
         if self.blink_task is None:
-            logger.warning("Bateria niska → miganie GPIO4")
+            logger.warning("Low battery → blinking GPIO4")
             self.blink_task = asyncio.create_task(self._blink_loop())
 
     def _stop_blinking(self):
         if self.blink_task:
-            logger.info("Bateria OK → stop miganie")
+            logger.info("Battery OK → stop blinking")
             self.blink_task.cancel()
             self.blink_task = None
             self.led.off()
@@ -87,13 +87,14 @@ class BatterySupervisor:
         await self.connect_until_success()
         await self.enable_notifications()
 
-        logger.info("Monitoring baterii uruchomiony.")
+        logger.info("Battery monitoring started.")
         while True:
             await asyncio.sleep(1)
 
+
 async def main():
     if len(sys.argv) != 2:
-        print("Użycie: python3 monitor_battery_with_nus.py AA:BB:CC:DD:EE:FF")
+        print("Usage: python3 monitor_battery_with_nus.py AA:BB:CC:DD:EE:FF")
         sys.exit(1)
 
     addr = sys.argv[1]
@@ -106,4 +107,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\nZatrzymano.")
+        print("\nStopped.")

@@ -117,11 +117,6 @@ disable_controller()
 }
 
 static void
-enable_controller()
-{
-}
-
-static void
 run_backward_motor(gpio_dt_spec* in1, gpio_dt_spec* in2)
 {
     int err = 0;
@@ -211,7 +206,6 @@ motor_controller_work_handler(k_work* work)
     }
     else
     {
-        enable_controller();
         update_motors_control();
     }
 }

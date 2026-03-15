@@ -1,6 +1,6 @@
 # LiPo 7.4V Battery Discharge Characteristics
 
-This readme presents the discharge characteristics of a LiPo 7.4V battery and tests a function that calculates the battery charge level based on voltage.
+This readme presents the **discharge characteristics of a LiPo 7.4V battery** and tests a function that calculates the battery charge level based on voltage.
 
 ## Battery Discharge Curve
 
@@ -18,8 +18,8 @@ The test of the `battery_charge_level()` function shows how the charge level cha
 
 All scripts are located in the `doc/scripts` directory:
 
-- `**discharge_plot.py**` – Python script generating the battery discharge curve.
-- `**battery_test.c**` – C script testing the function that calculates the battery charge level.
+- `discharge_plot.py` – Python script generating the battery discharge curve.
+- `battery_test.c` – C script testing the function that calculates the battery charge level.
 
 ## How to Use?
 

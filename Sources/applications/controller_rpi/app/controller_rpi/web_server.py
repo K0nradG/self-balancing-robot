@@ -4,9 +4,6 @@ from nus_service import NUSClient
 import zipfile
 from camera_driver import CameraDriver
 import time
-import asyncio
-
-
 
 trajectory_ack_event = asyncio.Event()
 
@@ -36,7 +33,7 @@ nus_client: NUSClient | None = None
 nus_loop: asyncio.AbstractEventLoop | None = None
 nus_log_buffer = []
 
-# --- Asyncio loop w tle ---
+# --- Background asyncio loop ---
 def nus_loop_thread():
     global nus_loop
     nus_loop = asyncio.new_event_loop()
@@ -69,6 +66,7 @@ def run_dfu(path):
     for line in iter(process.stdout.readline, ''):
         if not line.strip():
             continue
+
         log_buffer.append(line)
         print(line.strip(), flush=True)
 
@@ -104,6 +102,7 @@ async def async_connect(addr):
     def on_data(text):
         print(f"[NUS_LOG] {text}")
         nus_log_buffer.append(text)
+
         if len(nus_log_buffer) > 500:
             nus_log_buffer.pop(0)
 
@@ -130,7 +129,7 @@ async def async_notify_off():
 
 
 def run_in_nus_loop(coro):
-    """Uruchamia coroutine w tle w tym samym loop Bleak"""
+    """Run coroutine in background inside the same Bleak event loop"""
     return asyncio.run_coroutine_threadsafe(coro, nus_loop)
 
 
@@ -139,11 +138,14 @@ camera = CameraDriver()
 
 def generate_camera_stream():
     boundary = "--frame"
+
     while camera.running:
         frame = camera.get_frame()
+
         if not frame:
             time.sleep(0.05)
             continue
+
         yield (b"%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n" %
                (boundary.encode(), len(frame)))
         yield frame
@@ -163,10 +165,12 @@ def app_dashboard():
 def motion_page():
     return render_template_string(open("templates/motion.html").read())
 
+
 # --- DFU endpoints ---
 @app.route("/upload", methods=["POST"])
 def upload():
     f = request.files.get("file")
+
     if not f:
         return jsonify({"error": "no file"}), 400
 
@@ -175,6 +179,7 @@ def upload():
     f.save(path)
 
     log_buffer.clear()
+
     dfu.update({
         "status": "idle",
         "percent": 0.0,
@@ -186,51 +191,66 @@ def upload():
     })
 
     extracted_bin = None
+
     if filename.lower().endswith(".zip"):
         try:
             with zipfile.ZipFile(path, 'r') as z:
                 z.extractall(UPLOAD_FOLDER)
+
                 for name in z.namelist():
                     if name.lower().endswith(".bin"):
                         extracted_bin = os.path.join(UPLOAD_FOLDER, name)
                         break
+
             if not extracted_bin or not os.path.exists(extracted_bin):
                 return jsonify({"error": "no .bin file found in ZIP"}), 400
+
             os.remove(path)
             path = extracted_bin
+
         except Exception as e:
             return jsonify({"error": f"zip extract failed: {e}"}), 500
 
     return jsonify({"file_path": path})
 
+
 @app.route("/start_dfu", methods=["POST"])
 def start_dfu():
     path = request.json.get("file_path")
+
     if not path or not os.path.exists(path):
         return jsonify({"error": "file not found"}), 404
+
     threading.Thread(target=run_dfu, args=(path,), daemon=True).start()
+
     return jsonify({"status": "started"})
+
 
 @app.route("/status")
 def status():
     return jsonify(dfu)
 
+
 @app.route("/logs")
 def logs():
     return jsonify({"logs": log_buffer[-200:]})
 
+
 @app.route("/download_logs")
 def download_logs():
     logs = "".join(log_buffer)
+
     return Response(
         logs,
         mimetype="text/plain",
         headers={"Content-Disposition": "attachment;filename=dfu_logs.txt"}
     )
 
+
 @app.route("/reset", methods=["POST"])
 def reset():
     log_buffer.clear()
+
     dfu.update({
         "status": "idle",
         "percent": 0.0,
@@ -240,6 +260,7 @@ def reset():
         "avg_speed": 0.0,
         "size": 0.0
     })
+
     return jsonify({"status": "reset"})
 
 
@@ -247,38 +268,49 @@ def reset():
 @app.route("/nus/connect", methods=["POST"])
 def nus_connect():
     addr = request.json.get("address")
+
     run_in_nus_loop(async_connect(addr))
+
     return jsonify({"status": "connecting"})
+
 
 @app.route("/nus/disconnect", methods=["POST"])
 def nus_disconnect():
     run_in_nus_loop(async_disconnect())
     return jsonify({"status": "disconnecting"})
 
+
 @app.route("/nus/send", methods=["POST"])
 def nus_send():
     data = request.json.get("data")
+
     run_in_nus_loop(async_send(data))
+
     return jsonify({"status": "sending"})
+
 
 @app.route("/nus/notify_on", methods=["POST"])
 def nus_notify_on():
     run_in_nus_loop(async_notify_on())
     return jsonify({"status": "notify_on"})
 
+
 @app.route("/nus/notify_off", methods=["POST"])
 def nus_notify_off():
     run_in_nus_loop(async_notify_off())
     return jsonify({"status": "notify_off"})
 
+
 @app.route("/nus/logs")
 def nus_logs():
     return jsonify({"logs": nus_log_buffer[-200:]})
+
 
 @app.route("/nus/status")
 def nus_status():
     if nus_client:
         return jsonify(nus_client.get_status())
+
     return jsonify({
         "connected": False,
         "notify_active": False,
@@ -286,60 +318,74 @@ def nus_status():
         "device_name": None
     })
 
-# --- Trajectory endpoints ---
 
+# --- Trajectory endpoints ---
 @app.route("/nus/wait_ack")
 def wait_ack():
-    """Czeka na ACK z trajektorii (blokujące, synchronizowane)"""
+    """Wait for trajectory ACK (blocking, synchronized)"""
     try:
         fut = asyncio.run_coroutine_threadsafe(trajectory_ack_event.wait(), nus_loop)
-        fut.result() 
+        fut.result()
+
         trajectory_ack_event.clear()
+
         return jsonify({"ack": True})
+
     except asyncio.TimeoutError:
         return jsonify({"ack": False})
+
 
 # --- Motion endpoints ---
 @app.route("/motion/data", methods=["POST"])
 def motion_data():
     payload = request.json
-    print(f"Otrzymano dane z telefonu: {payload}")
+    print(f"Received motion data from phone: {payload}")
     return jsonify(status="ok")
+
 
 @app.route("/camera/start", methods=["POST"])
 def camera_start():
     camera.start()
     return jsonify({"status": "started"})
 
+
 @app.route("/camera/stop", methods=["POST"])
 def camera_stop():
     camera.stop()
     return jsonify({"status": "stopped"})
 
+
 @app.route("/camera/stream")
 def camera_stream():
     if not camera.running:
         return "Camera not started", 400
-    return Response(generate_camera_stream(),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+    return Response(
+        generate_camera_stream(),
+        mimetype='multipart/x-mixed-replace; boundary=frame'
+    )
 
 
-# --- Identification data endpoints --- 
-
+# --- Identification data endpoints ---
 def get_nus_client() -> NUSClient | None:
     return nus_client
 
+
 @app.route("/nus/identification/download", methods=["GET"])
 def download_identification_csv():
+
     if not os.path.exists(IDENT_CSV_PATH):
-        return jsonify({"error": "No identification data file found. Run identification first."}), 404
+        return jsonify({
+            "error": "No identification data file found. Run identification first."
+        }), 404
 
     return send_file(
-            IDENT_CSV_PATH,
-            as_attachment=True,
-            download_name="robot_identification.csv",
-            mimetype="text/csv"
-        )
+        IDENT_CSV_PATH,
+        as_attachment=True,
+        download_name="robot_identification.csv",
+        mimetype="text/csv"
+    )
+
 
 @app.route('/ident/start', methods=['POST'])
 def start_identification():
@@ -351,6 +397,7 @@ def start_identification():
         subprocess.Popen([sys.executable, "collect_identification_data_UART.py"])
 
         return jsonify({"status": "started"})
+
     except Exception as e:
         return jsonify({"status": "error", "msg": str(e)}), 500
 

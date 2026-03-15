@@ -489,7 +489,7 @@
           chartData.time.push(new Date().toLocaleTimeString());
         }
       }
-      if (chartData.time.length > 50) {  // 🧹 utrzymuj 50 punktów
+      if (chartData.time.length > 50) {
         for (const key in chartData) chartData[key].splice(0, 1);
       }
     }

@@ -42,29 +42,25 @@ class TrajectoryIdentifier:
         return [d_pos, dd_pos, d_angle, dd_angle]
 
     def loss_function(self, p, time, pwm, real_pos, real_angle):
-        """Trajectory matching loss."""
-        u_func = interp1d(time, self._apply_deadband(pwm),
-                          fill_value="extrapolate")
-
+        u_func = interp1d(time, self._apply_deadband(pwm), fill_value="extrapolate")
         x0 = [real_pos[0], 0, real_angle[0], 0]
-
+        
         try:
-            sol = odeint(self.system_ode, x0, time,
-                         args=(u_func, p))
-
+            sol = odeint(self.system_ode, x0, time, args=(u_func, p))
+            
+            # Obliczamy pochodne numeryczne danych rzeczywistych, by model musiał je gonić
+            dt = time[1] - time[0]
+            real_ang_vel = np.gradient(real_angle, dt)
+            
             pos_err = np.mean((real_pos - sol[:, 0])**2)
             ang_err = np.mean((real_angle - sol[:, 2])**2)
+            ang_vel_err = np.mean((real_ang_vel - sol[:, 3])**2) # NOWOŚĆ
 
-            err = pos_err + 100 * ang_err  # angle weighted
-
-            # Stability penalties
-            if p[0] > 0:
-                err += p[0] * 5000
-            if p[6] > 0:
-                err += p[6] * 5000
+            # Zwiększamy wagę błędu dynamiki kąta
+            # Model musi teraz dopasować nie tylko GDZIE jest robot, ale jak SZYBKO się rusza
+            err = pos_err + 50000 * ang_err + 500 * ang_vel_err
 
             return err
-
         except Exception:
             return 1e12
 
@@ -124,7 +120,7 @@ class TrajectoryIdentifier:
 
 
 def plot_final_validation(debug_data, deadband):
-    """Compare real data vs simulation."""
+    """Compare real data vs simulation including derivatives."""
     time, pwm, real_pos, real_angle, p = debug_data
 
     u_func = interp1d(
@@ -139,27 +135,43 @@ def plot_final_validation(debug_data, deadband):
     sol = odeint(ident.system_ode, x0, time,
                  args=(u_func, p))
 
-    fig, ax = plt.subplots(3, 1, figsize=(10, 10), sharex=True)
+    # Compute derivatives from measured data
+    dt = time[1] - time[0]
+    real_vel = np.gradient(real_pos, dt)
+    real_ang_vel = np.gradient(real_angle, dt)
 
+    fig, ax = plt.subplots(5, 1, figsize=(10, 14), sharex=True)
+
+    # Position
     ax[0].plot(time, real_pos, label='Encoder', alpha=0.7)
     ax[0].plot(time, sol[:, 0], '--', color='black', label='Model')
     ax[0].set_ylabel('Position [m]')
 
-    ax[1].plot(time, real_angle, label='IMU',
-               color='green', alpha=0.7)
-    ax[1].plot(time, sol[:, 2], '--',
-               color='black', label='Model')
-    ax[1].set_ylabel('Angle [rad]')
+    # Linear velocity
+    ax[1].plot(time, real_vel, label='dPos/dt', alpha=0.7)
+    ax[1].plot(time, sol[:, 1], '--', color='black', label='Model vel')
+    ax[1].set_ylabel('Velocity [m/s]')
 
-    ax[2].step(time, pwm, color='purple', label='PWM')
-    ax[2].set_ylabel('PWM [%]')
-    ax[2].set_xlabel('Time [s]')
+    # Angle
+    ax[2].plot(time, real_angle, label='IMU', color='green', alpha=0.7)
+    ax[2].plot(time, sol[:, 2], '--', color='black', label='Model')
+    ax[2].set_ylabel('Angle [rad]')
+
+    # Angular velocity
+    ax[3].plot(time, real_ang_vel, label='dAngle/dt', color='orange', alpha=0.7)
+    ax[3].plot(time, sol[:, 3], '--', color='black', label='Model ang_vel')
+    ax[3].set_ylabel('Angular Vel [rad/s]')
+
+    # PWM signal
+    ax[4].step(time, pwm, color='purple', label='PWM')
+    ax[4].set_ylabel('PWM [%]')
+    ax[4].set_xlabel('Time [s]')
 
     for a in ax:
         a.legend()
         a.grid(True, ls=':')
 
-    plt.suptitle('Model Validation: Trajectory Matching')
+    plt.suptitle('Model Validation: Trajectory Matching + Derivatives')
     plt.tight_layout()
     plt.show()
 
@@ -189,6 +201,8 @@ def run_full_process(csv_path, t_start, t_end, db=12.0):
 
     df['time'] = df['dt'].cumsum()
     dt = df['dt'].mean()
+
+    print(dt)
 
     ident = TrajectoryIdentifier(deadband=db)
 
@@ -220,5 +234,5 @@ if __name__ == "__main__":
     # Select time window with clear motion
     run_full_process(FILE_PATH,
                      100.0,
-                     245.0,
-                     db=3.0)
+                     128.0,
+                     db=5.0)

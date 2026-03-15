@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 from scipy.integrate import odeint
 from model_identification import run_full_process
 
+import scipy.linalg as la
+from scipy.signal import cont2discrete
+
+TS = 0.005520796680457168
+
 
 def simulate_lqr(matrices, K, t_max=5.0):
     """Simulate continuous-time LQR closed-loop response."""
@@ -17,7 +22,7 @@ def simulate_lqr(matrices, K, t_max=5.0):
         return A @ x + B.flatten() * u
 
     # Initial condition: 0.1 rad tilt
-    x0 = [0.0, 0.0, 0.1, 0.0]
+    x0 = [0.0, 0.0, -0.1, 0.0]
     t = np.linspace(0, t_max, 500)
 
     x_sol = odeint(closed_loop_system, x0, t)
@@ -28,20 +33,23 @@ def simulate_lqr(matrices, K, t_max=5.0):
 
 # 1. Load identified upright model
 FILE_PATH = 'data/identification_signal_1/robot_identification_side_backward_2.csv'
-matrices_upright = run_full_process(FILE_PATH, 100.0, 168.0, db=5.0)
+matrices_upright = run_full_process(FILE_PATH, 150.0, 168.0, db=3.0)
+
+A_c = matrices_upright.A_c
+B_c = matrices_upright.B_c
+
+sys_d = cont2discrete((A_c, B_c, np.eye(4), np.zeros((4, 1))), TS)
+A_d = sys_d[0]
+B_d = sys_d[1]
 
 # 2. LQR design
-Q = np.diag([100, 10000, 1000, 10000])  # state weights
-R = np.array([[1000]])                 # input weight
+Q = np.diag([1000, 100, 100, 10])  # state weights
+R = np.array([[10]])                 # input weight
 
-P = la.solve_continuous_are(
-    matrices_upright.A_c,
-    matrices_upright.B_c,
-    Q,
-    R
-)
+P = la.solve_discrete_are(A_d, B_d, Q, R)
 
-K = (la.inv(R) @ matrices_upright.B_c.T @ P).flatten()
+K = la.inv(R + B_d.T @ P @ B_d) @ (B_d.T @ P @ A_d)
+K = K.flatten()
 
 # 3. Simulation
 t, x, u = simulate_lqr(matrices_upright, K)

@@ -62,11 +62,22 @@ Robot_Controller::normal_motors_control()
     imu_data const imu_data           = DataManager::instance().get_imu_data();
     encoders_data const& encoder_data = DataManager::instance().get_encoders_data();
 
+    // robot_control_logger.platform_log(LOG_LEVEL::INF, "dt: %f", imu_data.time_dt);
+    // robot_control_logger.platform_log(
+    //     LOG_LEVEL::INF, "angle: %f, angle_dt: %f", (double)(imu_data.angle_balance * (180.0f / pi)),
+    //     (double)(imu_data.angle_balance_dt * (180.0f / pi)));
+
 #ifdef CONFIG_VALIDATE_ROBOT_ANGLE
     bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
 #else
     bool const disable_motors_command = false;
 #endif
+
+    // TODO: adjust LPF to work with LQR angle_dt gain
+    // when gain is 0, robot is balancing
+    // so there si problem with angle_dt data
+    static float filtered_gyro = 0.0f;
+    // filtered_gyro              = (0.8f * filtered_gyro) + (0.2f * imu_data.angle_balance_dt);
 
     if(!disable_motors_command)
     {
@@ -76,7 +87,6 @@ Robot_Controller::normal_motors_control()
             .angle               = imu_data.angle_balance - m_balance_setpoint,
             .angle_derivative    = imu_data.angle_balance_dt};
 
-        // LQR balansuje robota tylko na podstawie kąta i jego pochodnej
         float const target_speed = m_balance_lqr.calculate_output(sys_state);
 
         // oba koła dostają ten sam sygnał

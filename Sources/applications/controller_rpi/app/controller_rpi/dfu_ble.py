@@ -83,7 +83,6 @@ def main():
             continue
         print(line, flush=True)
 
-        # Parsowanie procentów i prędkości
         m = re.search(r"\s([0-9.]+)%\s+([0-9.]+)\s*KiB/s", line)
         if m:
             percent = float(m.group(1))

@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include <bluetooth/gatt_dm.h>
 #include <bluetooth/scan.h>
 #include <bluetooth/services/nus.h>

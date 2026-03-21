@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 description: PWM-driven DC motor.
 
 compatible: "pwm-dc"

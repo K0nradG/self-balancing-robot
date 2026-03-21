@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "control_loop.h"
 #include "drivers_initializer.h"
 #include "interface.h"

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 set(UTIL_DRV_INC include)
 set(UTIL_DRV_SRC_DIR src)
 

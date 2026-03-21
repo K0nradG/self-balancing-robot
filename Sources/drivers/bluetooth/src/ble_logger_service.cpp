@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include <bluetooth/services/nus.h>
 #include <string.h>
 #include <zephyr/logging/log.h>

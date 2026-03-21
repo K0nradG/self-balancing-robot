@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 config ROBOT_CONTROL
     bool "Regulator driver module"
     depends on IMU_DRV

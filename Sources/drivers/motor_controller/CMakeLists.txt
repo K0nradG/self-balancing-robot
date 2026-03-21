@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 set(MOTOR_CONTROLLER_DRV_INC include)
 set(MOTOR_CONTROLLER_DRV_SRC_DIR src)
 

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 mcuboot:
   address: 0x0
   end_address: 0x8000

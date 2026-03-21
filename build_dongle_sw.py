@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 # Builds the nRF52840dongle application using West build system
 
 import os

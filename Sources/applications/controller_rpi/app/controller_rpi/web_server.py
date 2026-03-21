@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 from flask import Flask, request, jsonify, render_template_string, Response, send_file
 import subprocess, threading, re, os, asyncio
 from nus_service import NUSClient

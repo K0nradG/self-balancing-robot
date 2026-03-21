@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 
 config DFU_BLE
     bool "Enable DFU over BLE SMP"

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 
 import numpy as np
 import matplotlib.pyplot as plt

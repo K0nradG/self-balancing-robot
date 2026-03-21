@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "low_pass_filter.h"
 #include "zephyr/sys/util.h"
 

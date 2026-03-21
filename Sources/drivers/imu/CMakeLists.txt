@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 set(IMU_DRV_INC include)
 set(IMU_DRV_SRC_DIR src)
 

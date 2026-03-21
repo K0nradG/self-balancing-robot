@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "lqr.h"
 #include <stdlib.h>
 #include "zephyr/sys/util.h"

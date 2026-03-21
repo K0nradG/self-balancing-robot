@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 # Script allowing to flash the nrf52840 dongle device with the use of external debugger (nrf7002dk in this case) with pre-built firmware.
 
 import os

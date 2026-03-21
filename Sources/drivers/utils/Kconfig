@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 config  UTILS_LOG
     bool "Enable logs from utils module"
     depends on LOGGER_DRV

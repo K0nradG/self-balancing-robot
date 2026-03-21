@@ -1,2 +1,4 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 rsource "drivers/Kconfig"
 rsource "robot_control/Kconfig"

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 config MOTOR_CONTROLLER_DRV
     bool "motor controller module"
     select PWM

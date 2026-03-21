@@ -1,3 +1,5 @@
+% Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 function [t, x] = rk4(x0, u , time, theta)
     % Steps:
     timesteps = length(u);

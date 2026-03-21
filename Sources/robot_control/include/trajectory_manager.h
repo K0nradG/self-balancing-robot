@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 // Performs trajectory tracking by controlling distance and rotation angle setpoints directly - passed by reference, to
 // allow for free modification of their value
 

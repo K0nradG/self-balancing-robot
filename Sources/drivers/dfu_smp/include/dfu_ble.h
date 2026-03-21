@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #pragma once
 
 typedef void (*dfu_action_cb_t)();

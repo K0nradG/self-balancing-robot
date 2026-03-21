@@ -1,3 +1,5 @@
+% Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 init;
 
 K = lqr(ss_continous.A, ss_continous.B, Q, R);

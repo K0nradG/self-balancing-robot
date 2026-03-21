@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "imu_config.h"
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>

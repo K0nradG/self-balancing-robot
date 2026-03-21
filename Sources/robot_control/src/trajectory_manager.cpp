@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "trajectory_manager.h"
 #include <math.h>
 #include <stdlib.h>

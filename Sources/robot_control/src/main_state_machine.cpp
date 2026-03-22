@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "main_state_machine.h"
 #include "ble_commands.h"
 

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 set(MODEL_IDENTIFICATION_DRV_INC include)
 set(MODEL_IDENTIFICATION_DRV_SRC_DIR src)
 

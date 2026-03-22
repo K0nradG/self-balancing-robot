@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "interface.h"
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>

@@ -1,3 +1,5 @@
+% Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 init;
 
 K = dlqr(ss_object_discrete.A, ss_object_discrete.B, Q, R);

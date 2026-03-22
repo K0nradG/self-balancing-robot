@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "motor_controller.h"
 #include <stdlib.h>
 #include <zephyr/drivers/gpio.h>

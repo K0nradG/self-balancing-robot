@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #pragma once
 
 /*These are the commands which come from the ble central (control device - phone or 7002DK) to interact with robot*/

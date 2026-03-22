@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "battery_level.h"
 #include <zephyr/drivers/adc.h>
 #include <zephyr/init.h>

@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "imu.h"
 #include <zephyr/init.h>
 #include "control_loop.h"

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 config IMU_DRV
     bool "IMU driver module"
     select MPU6050

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 config WATCHDOG_CONTROLLER_DRV
     bool "Watchdog controller driver module"
     select WATCHDOG

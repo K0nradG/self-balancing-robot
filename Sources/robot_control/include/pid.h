@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #pragma once
 #include <stdint.h>
 #include "low_pass_filter.h"

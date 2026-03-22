@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 if(CONFIG_ROBOT_CONTROL)
     set(ROBOT_CONTROL_INC include)
     set(ROBOT_CONTROL_SRC_DIR src)

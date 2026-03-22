@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 # camera_driver.py
 import sys
 sys.path.append("/usr/lib/python3/dist-packages")

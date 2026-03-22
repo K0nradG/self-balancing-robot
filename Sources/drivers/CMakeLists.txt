@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 add_subdirectory(logger)
 
 if(DEFINED CONFIG_BATTERY_LEVEL_DRV OR DEFINED CONFIG_INTERFACE_DRV OR DEFINED CONFIG_CONTROLLER_APP)

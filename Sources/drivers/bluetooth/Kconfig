@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 config BLUETOOTH_DRV
     bool  "Enable BLE driver"
     select BT

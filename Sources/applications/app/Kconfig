@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 # It must be present to get all zephyr Kconfigs using in nrf-sdk
 
 menu "Zephyr"

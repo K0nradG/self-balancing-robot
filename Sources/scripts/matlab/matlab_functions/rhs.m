@@ -1,3 +1,5 @@
+% Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 function dx = rhs(~, x, u, params)
     a = params(1);
     b = params(2);

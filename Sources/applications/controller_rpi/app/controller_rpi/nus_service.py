@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 import asyncio
 import logging
 import sys

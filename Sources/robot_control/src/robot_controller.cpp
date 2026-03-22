@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "robot_controller.h"
 #include "ble_commands.h"
 #include "data_manager.h"

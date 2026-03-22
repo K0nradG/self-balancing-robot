@@ -1,3 +1,5 @@
+% Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 % Adding appropriate paths:
 current_dir = pwd;
 functions_dir = sprintf('%s\\matlab_functions', current_dir); 

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 set(DFU_BLE_DRV_SRC_INC include)
 set(DFU_BLE_DRV_SRC_SRC_DIR src)
 

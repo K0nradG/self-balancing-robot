@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 config MODEL_IDENTIFICATION_DRV
     bool "motor controller module"
 

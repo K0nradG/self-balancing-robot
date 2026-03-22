@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "trajectory_state_machine.h"
 
 namespace Robot_Control

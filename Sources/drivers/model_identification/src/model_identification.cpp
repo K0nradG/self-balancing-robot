@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "model_identification.h"
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>

@@ -1,3 +1,5 @@
+// Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 #include "logger.h"
 
 static Logger<IS_ENABLED(CONFIG_APP_LOG)> app_logger("APP");

@@ -1,3 +1,5 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
 rsource "logger/Kconfig"
 rsource "utils/Kconfig"
 rsource "battery_level/Kconfig"

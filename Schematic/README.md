@@ -1,3 +1,13 @@
+## License
+
+This project is licensed under the **CERN Open Hardware Licence Version 2 - Permissive (CERN-OHL-P)**. 
+
+The license covers all design files in this directory, including:
+* **Electronics:** KiCad schematics, PCB layouts, and libraries.
+*  **Mechanics:** Physical case design (Fusion 360 files in the `robot-case` directory).
+
+Copyright © 2026 Dymczyk Filip and Konrad Grucel
+
 # **Project Based on KiCad 7.0**
 
 ## **Generating Gerber Files**

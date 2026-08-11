@@ -9,7 +9,7 @@ import os
 # Configuration
 # ============================================================
 
-SMPMGR_PATH = r".\smpmgr.exe"
+SMPMGR_PATH = r".\3rdParty\smpmngr\smpmgr.exe"
 DEVICE_NAME = "SELF_BALANCING_ROBOT"
 FIRMWARE_PATH = r".\app.signed.bin"
 

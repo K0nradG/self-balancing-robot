@@ -17,7 +17,7 @@ FIRMWARE_PATH = os.path.join(
 
 TIMEOUT = "10"
 MAX_RETRIES = 5
-RETRY_DELAY = 1
+RETRY_DELAY = 2
 REBOOT_WAIT = 15
 
 
@@ -89,12 +89,6 @@ def run_cmd(args, retries=MAX_RETRIES):
 
     cmd_str = " ".join(command)
 
-    env = os.environ.copy()
-    # env["PYTHONIOENCODING"] = "utf-8"
-    # env["PYTHONUTF8"] = "1"
-    # env["TERM"] = "dumb"
-    # env["NO_COLOR"] = "1"
-
     for attempt in range(1, retries + 1):
 
         print(
@@ -108,7 +102,6 @@ def run_cmd(args, retries=MAX_RETRIES):
             text=True,
             encoding="utf-8",
             errors="replace",
-            env=env,
         )
 
         output = (

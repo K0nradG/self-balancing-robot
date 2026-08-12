@@ -1,176 +1,164 @@
-import subprocess
-import time
+#!/usr/bin/env python3
+"""
+Cross-platform MCUboot DFU over Bluetooth LE using smpmgr.
+
+On Windows it uses the patched smpmgr.exe from 3rdParty/smpmgr/.
+On Linux it uses smpmgr installed via pipx (or available in PATH).
+"""
+
+import argparse
 import re
-import sys
-import os
-import zipfile
 import shutil
+import subprocess
+import sys
+import time
+import zipfile
+from pathlib import Path
 
-DEVICE_NAME = "SELF_BALANCING_ROBOT"
-SMPMGR_PATH = r".\3rdParty\smpmgr\smpmgr.exe"
-DFU_ZIP_PATH = r".\Sources\applications\app\build\dfu_application.zip"
+DEFAULT_BLE_TARGET = "SELF_BALANCING_ROBOT"
+TARGET_FILENAME = "app.signed.bin"
 
-FIRMWARE_PATH = os.path.join(
-    os.path.dirname(DFU_ZIP_PATH),
-    "app.signed.bin",
-)
+BASE_DIR = Path(__file__).resolve().parent
+BUILD_DIR = BASE_DIR / "Sources" / "applications" / "app" / "build"
+ZIP_FILE_PATH = BUILD_DIR / "dfu_application.zip"
+EXTRACT_DIR = BUILD_DIR / "extracted"
+EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
 
-TIMEOUT = "10"
-MAX_RETRIES = 5
-RETRY_DELAY = 2
-REBOOT_WAIT = 15
+DEFAULT_IMAGE = EXTRACT_DIR / TARGET_FILENAME
 
+DEFAULT_REQUEST_TIMEOUT = 10
+DEFAULT_UPLOAD_TIMEOUT = 40
+DEFAULT_RECONNECT_ATTEMPTS = 12
+DEFAULT_RECONNECT_DELAY = 5.0
+DEFAULT_RETRIES = 5
+DEFAULT_RETRY_DELAY = 2.0
+DEFAULT_POST_UPLOAD_DELAY = 3.0 if sys.platform == "win32" else 0.0
 
-def extract_firmware_from_zip():
+if sys.platform == "win32":
+    SMPMGR_PATH = BASE_DIR / "3rdParty" / "smpmgr" / "smpmgr.exe"
+else:
+    SMPMGR_PATH = "smpmgr"
 
-    zip_path = os.path.abspath(DFU_ZIP_PATH)
-    firmware_path = os.path.abspath(FIRMWARE_PATH)
+def extract_firmware_from_zip() -> Path:
+    if not ZIP_FILE_PATH.exists():
+        print(f"Warning: Archive {ZIP_FILE_PATH} not found.")
+        return DEFAULT_IMAGE
 
-    if not os.path.isfile(zip_path):
-        print("ERROR: Firmware ZIP was not found:")
-        print(f"  {zip_path}")
-        sys.exit(1)
-
+    print(f"Extracting {TARGET_FILENAME} from {ZIP_FILE_PATH} ...")
     try:
-        with zipfile.ZipFile(zip_path, "r") as archive:
-
-            if "app.signed.bin" not in archive.namelist():
-                print()
+        with zipfile.ZipFile(ZIP_FILE_PATH, "r") as archive:
+            if TARGET_FILENAME not in archive.namelist():
                 print(
-                    "ERROR: app.signed.bin was not found "
-                    "in the root of dfu_application.zip."
+                    f"Error: {TARGET_FILENAME} not found in the root of "
+                    f"{ZIP_FILE_PATH}"
                 )
                 sys.exit(1)
 
-            with archive.open("app.signed.bin", "r") as source, open(
-                firmware_path,
-                "wb",
+            with archive.open(TARGET_FILENAME, "r") as source, open(
+                DEFAULT_IMAGE, "wb"
             ) as destination:
                 shutil.copyfileobj(source, destination)
 
     except zipfile.BadZipFile:
-        print()
-        print(
-            "ERROR: dfu_application.zip is invalid "
-            "or corrupted."
-        )
-        print(f"  {zip_path}")
+        print(f"Error: {ZIP_FILE_PATH} is invalid or corrupted.")
         sys.exit(1)
-
     except Exception as exc:
-        print()
-        print("ERROR: Failed to extract firmware:")
-        print(f"  {exc}")
+        print(f"Error: Failed to extract firmware: {exc}")
         sys.exit(1)
 
-    if not os.path.isfile(firmware_path):
-        print()
-        print("ERROR: app.signed.bin was not created.")
+    if not DEFAULT_IMAGE.is_file():
+        print(f"Error: {TARGET_FILENAME} was not created.")
         sys.exit(1)
 
-    file_size = os.path.getsize(firmware_path)
-
-    print()
-    print("Firmware extracted successfully.")
-    print(f"  File: {firmware_path}")
-    print(f"  Size: {file_size:,} bytes")
-    print()
+    file_size = DEFAULT_IMAGE.stat().st_size
+    print(f"Firmware extracted successfully: {DEFAULT_IMAGE}")
+    print(f"Size: {file_size:,} bytes\n")
+    return DEFAULT_IMAGE
 
 
-def run_cmd(args, retries=MAX_RETRIES):
-
+def run_smpmgr(
+    ble_target: str,
+    timeout: int,
+    *arguments: str,
+    check: bool = True,
+    capture_output: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    executable = str(SMPMGR_PATH) if sys.platform == "win32" else SMPMGR_PATH
     command = [
-        SMPMGR_PATH,
+        executable,
         "--timeout",
-        TIMEOUT,
+        str(timeout),
         "--ble",
-        DEVICE_NAME,
-    ] + args
+        ble_target,
+        *arguments,
+    ]
+    result = subprocess.run(
+        command,
+        check=False,
+        stdout=subprocess.PIPE if capture_output else None,
+        stderr=subprocess.STDOUT if capture_output else None,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if check and result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, command)
+    return result
 
-    cmd_str = " ".join(command)
 
+def run_smpmgr_with_retry(
+    ble_target: str,
+    timeout: int,
+    *arguments: str,
+    retries: int = DEFAULT_RETRIES,
+    retry_delay: float = DEFAULT_RETRY_DELAY,
+    check: bool = True,
+    capture_output: bool = False,
+) -> subprocess.CompletedProcess[str]:
+    last_error = None
     for attempt in range(1, retries + 1):
-
-        print(
-            f"[Attempt {attempt}/{retries}] "
-            f"Executing: {cmd_str}"
-        )
-
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
-
-        output = (
-            (result.stdout or "")
-            + "\n"
-            + (result.stderr or "")
-        )
-
-        print(output)
-
-        if result.returncode == 0:
-            return output
-
-        print(
-            f"Command failed with return code "
-            f"{result.returncode}."
-        )
-
-        if attempt < retries:
-
-            print(
-                f"Retrying in {RETRY_DELAY} seconds..."
+        try:
+            result = run_smpmgr(
+                ble_target,
+                timeout,
+                *arguments,
+                check=check,
+                capture_output=capture_output,
             )
+            return result
+        except subprocess.CalledProcessError as error:
+            last_error = error
+            print(
+                f"Attempt {attempt}/{retries} failed (code {error.returncode})."
+            )
+            if attempt < retries:
+                print(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print("Max retries reached.")
+                raise
+    if last_error:
+        raise last_error
+    raise RuntimeError("Unexpected retry loop exit")
 
-            time.sleep(RETRY_DELAY)
 
-        else:
-
-            print()
-            print("Max retries reached. Exiting.")
-            sys.exit(1)
-
-    return ""
-
-
-def extract_slot_hash(output, requested_slot=1):
-
+def extract_slot_hash(output: str, requested_slot: int = 1) -> str | None:
     blocks = re.findall(
         r"ImageState\s*\((.*?)(?=\s*ImageState\s*\(|\s*splitStatus\s*:|\Z)",
         output,
         flags=re.DOTALL | re.IGNORECASE,
     )
 
-    print(
-        f"Found {len(blocks)} ImageState block(s)."
-    )
-
-    for index, block in enumerate(
-        blocks,
-        start=1,
-    ):
-
+    for block in blocks:
         slot_match = re.search(
             r"\bslot\s*=\s*(\d+)",
             block,
             flags=re.IGNORECASE,
         )
-
         if not slot_match:
             continue
 
-        slot = int(
-            slot_match.group(1)
-        )
-
-        print(
-            f"ImageState #{index}: slot={slot}"
-        )
-
+        slot = int(slot_match.group(1))
         if slot != requested_slot:
             continue
 
@@ -179,171 +167,362 @@ def extract_slot_hash(output, requested_slot=1):
             block,
             flags=re.DOTALL | re.IGNORECASE,
         )
-
         if hash_match:
-
-            firmware_hash = hash_match.group(1).upper()
-
-            print()
-            print(
-                f"Found slot {requested_slot} hash:"
-            )
-            print(
-                f"  {firmware_hash}"
-            )
-            print()
-
-            return firmware_hash
-
+            return hash_match.group(1).upper()
     return None
 
 
-def main():
+def read_secondary_image_hash(
+    ble_target: str,
+    request_timeout: int,
+    retries: int = DEFAULT_RETRIES,
+    retry_delay: float = DEFAULT_RETRY_DELAY,
+) -> str:
 
-    start_time = time.perf_counter()
+    for attempt in range(1, retries + 1):
+        try:
+            result = run_smpmgr_with_retry(
+                ble_target,
+                request_timeout,
+                "image",
+                "state-read",
+                retries=1,
+                capture_output=True,
+            )
+            output = result.stdout or ""
+            print(output, end="" if output.endswith("\n") else "\n")
 
-    print("============================================================")
-    print(" STEP 1: Extracting Firmware")
-    print("============================================================")
+            image_hash = extract_slot_hash(output, requested_slot=1)
+            if image_hash and len(image_hash) in (64, 96, 128):
+                return image_hash
 
-    extract_firmware_from_zip()
+            print(
+                f"Attempt {attempt}/{retries}: "
+                "valid hash for slot 1 not found."
+            )
+        except subprocess.CalledProcessError as error:
+            print(
+                f"Attempt {attempt}/{retries}: "
+                f"smpmgr error (code {error.returncode})."
+            )
 
-    print()
-    print("============================================================")
-    print(" STEP 2: Uploading Firmware")
-    print("============================================================")
-    print()
+        if attempt < retries:
+            print(f"Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
 
-    print(
-        f"Firmware: {os.path.abspath(FIRMWARE_PATH)}"
+    raise RuntimeError("could not find a valid hash for MCUboot slot 1")
+
+
+def format_duration(seconds: float) -> str:
+    minutes, remaining_seconds = divmod(seconds, 60)
+    if minutes:
+        return f"{int(minutes)}m {remaining_seconds:.1f}s"
+    return f"{remaining_seconds:.1f}s"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Perform a safe MCUboot test update over Bluetooth LE using "
+            "smpmgr. Supports Windows and Linux."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""examples:
+  Linux:
+    python3 dfu_update.py --ble "nRF54LM20B SMP" zephyr.signed.bin
+
+  Windows PowerShell:
+    py dfu_update.py --ble "nRF54LM20B SMP" zephyr.signed.bin
+
+The default flow uploads, marks the secondary image for a test boot, resets,
+reconnects, and confirms the running image. Use --no-confirm to keep it in
+test mode so MCUboot can revert it after another reset.
+""",
     )
-
-    run_cmd(
-        [
-            "image",
-            "upload",
-            FIRMWARE_PATH,
-        ]
+    parser.add_argument(
+        "image",
+        nargs="?",
+        type=Path,
+        default=DEFAULT_IMAGE,
+        help=f"signed MCUboot image (default: {DEFAULT_IMAGE})",
     )
+    parser.add_argument(
+        "--ble",
+        default=DEFAULT_BLE_TARGET,
+        metavar="NAME_OR_ADDRESS",
+        help=f"BLE device name or address (default: {DEFAULT_BLE_TARGET})",
+    )
+    parser.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="leave the updated image in MCUboot test state",
+    )
+    parser.add_argument(
+        "--request-timeout",
+        type=int,
+        default=DEFAULT_REQUEST_TIMEOUT,
+        metavar="SECONDS",
+        help=(
+            "timeout for normal SMP requests "
+            f"(default: {DEFAULT_REQUEST_TIMEOUT})"
+        ),
+    )
+    parser.add_argument(
+        "--upload-timeout",
+        type=int,
+        default=DEFAULT_UPLOAD_TIMEOUT,
+        metavar="SECONDS",
+        help=(
+            "timeout for each upload request "
+            f"(default: {DEFAULT_UPLOAD_TIMEOUT})"
+        ),
+    )
+    parser.add_argument(
+        "--reconnect-attempts",
+        type=int,
+        default=DEFAULT_RECONNECT_ATTEMPTS,
+        metavar="COUNT",
+        help=(
+            "attempts to reconnect after reset "
+            f"(default: {DEFAULT_RECONNECT_ATTEMPTS})"
+        ),
+    )
+    parser.add_argument(
+        "--reconnect-delay",
+        type=float,
+        default=DEFAULT_RECONNECT_DELAY,
+        metavar="SECONDS",
+        help=(
+            "delay between reconnection attempts "
+            f"(default: {DEFAULT_RECONNECT_DELAY:g})"
+        ),
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=DEFAULT_RETRIES,
+        metavar="COUNT",
+        help=(
+            "number of retries for each SMP command "
+            f"(default: {DEFAULT_RETRIES})"
+        ),
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=DEFAULT_RETRY_DELAY,
+        metavar="SECONDS",
+        help=(
+            "delay between retries of SMP command "
+            f"(default: {DEFAULT_RETRY_DELAY:g})"
+        ),
+    )
+    parser.add_argument(
+        "--post-upload-delay",
+        type=float,
+        default=DEFAULT_POST_UPLOAD_DELAY,
+        metavar="SECONDS",
+        help=(
+            "extra delay after upload before reading hash/state-write "
+            f"(default: {DEFAULT_POST_UPLOAD_DELAY:g})"
+        ),
+    )
+    return parser.parse_args()
 
-    print()
-    print("Upload completed successfully.")
 
-    print()
-    print("============================================================")
-    print(" STEP 3: Reading Image States")
-    print("============================================================")
+def main() -> int:
+    args = parse_args()
 
-    state_output = run_cmd(
-        [
+    if (
+        args.request_timeout <= 0
+        or args.upload_timeout <= 0
+        or args.reconnect_attempts <= 0
+        or args.reconnect_delay < 0
+        or args.retries <= 0
+        or args.retry_delay < 0
+        or args.post_upload_delay < 0
+    ):
+        print(
+            "Error: timeouts, retries, and delays must be positive; "
+            "delays cannot be negative.",
+            file=sys.stderr,
+        )
+        return 2
+
+    if sys.platform == "win32":
+        if not Path(SMPMGR_PATH).is_file():
+            print(
+                f"Error: smpmgr executable not found at {SMPMGR_PATH}\n"
+                "Ensure it exists in 3rdParty/smpmgr/",
+                file=sys.stderr,
+            )
+            return 1
+    else:
+        if shutil.which("smpmgr") is None:
+            print(
+                "Error: smpmgr is not installed or is not in PATH.\n"
+                "Install it with: pipx install smpmgr",
+                file=sys.stderr,
+            )
+            return 1
+
+    default_image = extract_firmware_from_zip()
+    image = args.image.expanduser().resolve()
+
+    if str(image) == str(DEFAULT_IMAGE):
+        image = default_image
+
+    if not image.is_file():
+        print(
+            f"Error: signed firmware image not found: {image}\n"
+            "Build the sample first, or pass the path to zephyr.signed.bin.",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"BLE target: {args.ble}")
+    print(f"Firmware:   {image}\n")
+
+    dfu_started = time.monotonic()
+
+    def finish(return_code: int) -> int:
+        elapsed = time.monotonic() - dfu_started
+        print(f"\nTotal DFU time: {format_duration(elapsed)}")
+        return return_code
+
+    try:
+        print("Checking the current image state...")
+        run_smpmgr_with_retry(
+            args.ble,
+            args.request_timeout,
             "image",
             "state-read",
-        ]
-    )
-
-    firmware_hash = extract_slot_hash(
-        state_output,
-        requested_slot=1,
-    )
-
-    if firmware_hash is None:
-
-        print(
-            "ERROR: Could not find hash for slot 1 "
-            "in the device response."
+            retries=args.retries,
+            retry_delay=args.retry_delay,
         )
 
-        sys.exit(1)
+        print("\nUploading the image...")
+        upload_started = time.monotonic()
+        run_smpmgr_with_retry(
+            args.ble,
+            args.upload_timeout,
+            "image",
+            "upload",
+            "--format",
+            "any",
+            str(image),
+            retries=args.retries,
+            retry_delay=args.retry_delay,
+        )
+        print(
+            "Upload time: "
+            f"{format_duration(time.monotonic() - upload_started)}"
+        )
 
-    print()
-    print(
-        f"-> Extracted Slot 1 Hash: "
-        f"{firmware_hash}"
-    )
+        if args.post_upload_delay > 0:
+            print(
+                f"Waiting {args.post_upload_delay:g} seconds "
+                "after upload..."
+            )
+            time.sleep(args.post_upload_delay)
 
-    print()
-    print("============================================================")
-    print(" STEP 4: Marking Image for Test")
-    print("============================================================")
+        print("\nReading the uploaded image hash...")
+        image_hash = read_secondary_image_hash(
+            args.ble,
+            args.request_timeout,
+            retries=args.retries,
+            retry_delay=args.retry_delay,
+        )
 
-    run_cmd(
-        [
+        print("\nScheduling the uploaded image for a test boot...")
+        run_smpmgr_with_retry(
+            args.ble,
+            args.request_timeout,
             "image",
             "state-write",
-            firmware_hash,
-        ]
-    )
+            image_hash,
+            retries=args.retries,
+            retry_delay=args.retry_delay,
+        )
 
-    print()
-    print("Image marked for test successfully.")
-
-    print()
-    print("============================================================")
-    print(" STEP 5: Resetting Device")
-    print("============================================================")
-
-    run_cmd(
-        [
+        print("\nResetting into the test image...")
+        run_smpmgr_with_retry(
+            args.ble,
+            args.request_timeout,
             "os",
             "reset",
-        ]
-    )
+            retries=args.retries,
+            retry_delay=args.retry_delay,
+        )
+    except (subprocess.CalledProcessError, RuntimeError) as error:
+        if isinstance(error, subprocess.CalledProcessError):
+            detail = f"smpmgr exited with status {error.returncode}"
+            return_code = error.returncode
+        else:
+            detail = str(error)
+            return_code = 1
+        print(f"\nError: {detail}.", file=sys.stderr)
+        return finish(return_code)
 
-    print()
-    print(
-        f"Waiting {REBOOT_WAIT} seconds "
-        "for device to reboot..."
-    )
+    if args.no_confirm:
+        print(
+            "\nUpdate was left in MCUboot test mode.\n"
+            "After verifying it, confirm with:\n"
+            f'smpmgr --timeout {args.request_timeout} --ble "{args.ble}" '
+            "image state-write --confirm"
+        )
+        return finish(0)
 
-    time.sleep(REBOOT_WAIT)
-
-    print()
-    print("============================================================")
-    print(" STEP 6: Confirming Image")
-    print("============================================================")
-
-    run_cmd(
-        [
+    print("\nWaiting for the updated firmware to advertise SMP...")
+    for attempt in range(1, args.reconnect_attempts + 1):
+        result = run_smpmgr_with_retry(
+            args.ble,
+            args.request_timeout,
             "image",
-            "state-write",
-            "--confirm",
-        ]
-    )
+            "state-read",
+            retries=1,
+            check=False,
+        )
+        if result.returncode == 0:
+            print(
+                "\nThe updated firmware is reachable. "
+                "Confirming the running image..."
+            )
+            try:
+                run_smpmgr_with_retry(
+                    args.ble,
+                    args.request_timeout,
+                    "image",
+                    "state-write",
+                    "--confirm",
+                    retries=args.retries,
+                    retry_delay=args.retry_delay,
+                )
+            except subprocess.CalledProcessError as error:
+                print(
+                    "\nError: confirmation failed; MCUboot rollback "
+                    "remains available.",
+                    file=sys.stderr,
+                )
+                return finish(error.returncode)
 
-    elapsed_seconds = time.perf_counter() - start_time
+            print("\nDFU update completed and the running image was confirmed.")
+            return finish(0)
 
-    hours = int(elapsed_seconds // 3600)
-    minutes = int((elapsed_seconds % 3600) // 60)
-    seconds = elapsed_seconds % 60
+        if attempt < args.reconnect_attempts:
+            print(
+                f"Reconnect attempt {attempt}/{args.reconnect_attempts} "
+                f"failed; retrying in {args.reconnect_delay:g} seconds..."
+            )
+            time.sleep(args.reconnect_delay)
 
-    print()
-    print("============================================================")
-    print(" OTA UPDATE COMPLETE")
-    print("============================================================")
-    print()
-
-    print(f"Slot 1 hash: {firmware_hash}")
     print(
-        f"Firmware file: "
-        f"{os.path.abspath(FIRMWARE_PATH)}"
+        "\nError: the device did not become reachable after the test boot.\n"
+        "The image was not confirmed; MCUboot rollback remains available.",
+        file=sys.stderr,
     )
-
-    print()
-    print("============================================================")
-    print(" TOTAL EXECUTION TIME")
-    print("============================================================")
-    print()
-
-    print(
-        f"{hours:02d}:{minutes:02d}:{seconds:05.2f}"
-    )
-
-    print(
-        f"Total: {elapsed_seconds:.2f} seconds"
-    )
-
-    print()
+    return finish(1)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

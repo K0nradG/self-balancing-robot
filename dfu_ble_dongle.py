@@ -39,6 +39,66 @@ if sys.platform == "win32":
 else:
     SMPMGR_PATH = "smpmgr"
 
+
+class ProgressBar:
+    """Simple progress bar for terminal output."""
+    
+    def __init__(self, total_steps=100, width=50, description=""):
+        self.total_steps = total_steps
+        self.current_step = 0
+        self.width = width
+        self.description = description
+        self.start_time = time.monotonic()
+        self._last_print_length = 0
+        
+    def update(self, step=None, description=None):
+        """Update progress bar to specific step or increment by 1."""
+        if step is not None:
+            self.current_step = step
+        else:
+            self.current_step += 1
+            
+        if description:
+            self.description = description
+            
+        # Ensure we don't exceed 100%
+        self.current_step = min(self.current_step, self.total_steps)
+        
+        # Calculate percentage
+        percentage = (self.current_step / self.total_steps) * 100
+        
+        # Calculate elapsed time
+        elapsed = time.monotonic() - self.start_time
+        
+        # Build progress bar
+        filled_length = int(self.width * self.current_step // self.total_steps)
+        bar = '█' * filled_length + '░' * (self.width - filled_length)
+        
+        # Calculate ETA
+        if self.current_step > 0 and self.current_step < self.total_steps:
+            eta = (elapsed / self.current_step) * (self.total_steps - self.current_step)
+            eta_str = f"ETA: {eta:.0f}s"
+        else:
+            eta_str = ""
+        
+        # Clear previous line and print new progress
+        output = f'\r{self.description} [{bar}] {percentage:5.1f}% {eta_str}'
+        
+        # Pad with spaces to clear any remaining characters from previous output
+        if len(output) < self._last_print_length:
+            output += ' ' * (self._last_print_length - len(output))
+        self._last_print_length = len(output)
+        
+        sys.stdout.write(output)
+        sys.stdout.flush()
+        
+    def finish(self, message="\n"):
+        """Complete the progress bar."""
+        self.update(self.total_steps)
+        sys.stdout.write(message)
+        sys.stdout.flush()
+
+
 def extract_firmware_from_zip() -> Path:
     if not ZIP_FILE_PATH.exists():
         print(f"Warning: Archive {ZIP_FILE_PATH} not found.")
@@ -81,7 +141,7 @@ def run_smpmgr(
     timeout: int,
     *arguments: str,
     check: bool = True,
-    capture_output: bool = False,
+    capture_output: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     executable = str(SMPMGR_PATH) if sys.platform == "win32" else SMPMGR_PATH
     command = [
@@ -113,7 +173,7 @@ def run_smpmgr_with_retry(
     retries: int = DEFAULT_RETRIES,
     retry_delay: float = DEFAULT_RETRY_DELAY,
     check: bool = True,
-    capture_output: bool = False,
+    capture_output: bool = True,
 ) -> subprocess.CompletedProcess[str]:
     last_error = None
     for attempt in range(1, retries + 1):
@@ -128,14 +188,9 @@ def run_smpmgr_with_retry(
             return result
         except subprocess.CalledProcessError as error:
             last_error = error
-            print(
-                f"Attempt {attempt}/{retries} failed (code {error.returncode})."
-            )
             if attempt < retries:
-                print(f"Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
             else:
-                print("Max retries reached.")
                 raise
     if last_error:
         raise last_error
@@ -190,24 +245,15 @@ def read_secondary_image_hash(
                 capture_output=True,
             )
             output = result.stdout or ""
-            print(output, end="" if output.endswith("\n") else "\n")
 
             image_hash = extract_slot_hash(output, requested_slot=1)
             if image_hash and len(image_hash) in (64, 96, 128):
                 return image_hash
 
-            print(
-                f"Attempt {attempt}/{retries}: "
-                "valid hash for slot 1 not found."
-            )
-        except subprocess.CalledProcessError as error:
-            print(
-                f"Attempt {attempt}/{retries}: "
-                f"smpmgr error (code {error.returncode})."
-            )
+        except subprocess.CalledProcessError:
+            pass
 
         if attempt < retries:
-            print(f"Retrying in {retry_delay} seconds...")
             time.sleep(retry_delay)
 
     raise RuntimeError("could not find a valid hash for MCUboot slot 1")
@@ -385,13 +431,19 @@ def main() -> int:
 
     dfu_started = time.monotonic()
 
-    def finish(return_code: int) -> int:
+    def finish(return_code: int, message: str = "") -> int:
         elapsed = time.monotonic() - dfu_started
-        print(f"\nTotal DFU time: {format_duration(elapsed)}")
+        if message:
+            print(f"\n{message}")
+        print(f"Total DFU time: {format_duration(elapsed)}")
         return return_code
 
+    # Create progress bar for overall process
+    progress = ProgressBar(total_steps=100, width=50, description="DFU Progress")
+
     try:
-        print("Checking the current image state...")
+        # Step 1: Check current state (0-5%)
+        progress.update(0, "Checking current state...")
         run_smpmgr_with_retry(
             args.ble,
             args.request_timeout,
@@ -399,9 +451,12 @@ def main() -> int:
             "state-read",
             retries=args.retries,
             retry_delay=args.retry_delay,
+            capture_output=True,
         )
+        progress.update(5)
 
-        print("\nUploading the image...")
+        # Step 2: Upload image (5-60%)
+        progress.update(5, "Uploading image...")
         upload_started = time.monotonic()
         run_smpmgr_with_retry(
             args.ble,
@@ -413,28 +468,25 @@ def main() -> int:
             str(image),
             retries=args.retries,
             retry_delay=args.retry_delay,
+            capture_output=True,
         )
-        print(
-            "Upload time: "
-            f"{format_duration(time.monotonic() - upload_started)}"
-        )
-
+        progress.update(60)
+        
         if args.post_upload_delay > 0:
-            print(
-                f"Waiting {args.post_upload_delay:g} seconds "
-                "after upload..."
-            )
             time.sleep(args.post_upload_delay)
 
-        print("\nReading the uploaded image hash...")
+        # Step 3: Read hash (60-70%)
+        progress.update(60, "Reading image hash...")
         image_hash = read_secondary_image_hash(
             args.ble,
             args.request_timeout,
             retries=args.retries,
             retry_delay=args.retry_delay,
         )
+        progress.update(70)
 
-        print("\nScheduling the uploaded image for a test boot...")
+        # Step 4: Write state (70-80%)
+        progress.update(70, "Scheduling test boot...")
         run_smpmgr_with_retry(
             args.ble,
             args.request_timeout,
@@ -443,9 +495,12 @@ def main() -> int:
             image_hash,
             retries=args.retries,
             retry_delay=args.retry_delay,
+            capture_output=True,
         )
+        progress.update(80)
 
-        print("\nResetting into the test image...")
+        # Step 5: Reset (80-85%)
+        progress.update(80, "Resetting device...")
         run_smpmgr_with_retry(
             args.ble,
             args.request_timeout,
@@ -453,7 +508,10 @@ def main() -> int:
             "reset",
             retries=args.retries,
             retry_delay=args.retry_delay,
+            capture_output=True,
         )
+        progress.update(85)
+
     except (subprocess.CalledProcessError, RuntimeError) as error:
         if isinstance(error, subprocess.CalledProcessError):
             detail = f"smpmgr exited with status {error.returncode}"
@@ -461,10 +519,11 @@ def main() -> int:
         else:
             detail = str(error)
             return_code = 1
-        print(f"\nError: {detail}.", file=sys.stderr)
-        return finish(return_code)
+        return finish(return_code, f"Error: {detail}")
 
     if args.no_confirm:
+        progress.update(100)
+        progress.finish()
         print(
             "\nUpdate was left in MCUboot test mode.\n"
             "After verifying it, confirm with:\n"
@@ -473,7 +532,9 @@ def main() -> int:
         )
         return finish(0)
 
-    print("\nWaiting for the updated firmware to advertise SMP...")
+    # Step 6: Reconnect (85-95%)
+    progress.update(85, "Waiting for device...")
+    reconnect_success = False
     for attempt in range(1, args.reconnect_attempts + 1):
         result = run_smpmgr_with_retry(
             args.ble,
@@ -482,47 +543,49 @@ def main() -> int:
             "state-read",
             retries=1,
             check=False,
+            capture_output=True,
         )
         if result.returncode == 0:
-            print(
-                "\nThe updated firmware is reachable. "
-                "Confirming the running image..."
-            )
-            try:
-                run_smpmgr_with_retry(
-                    args.ble,
-                    args.request_timeout,
-                    "image",
-                    "state-write",
-                    "--confirm",
-                    retries=args.retries,
-                    retry_delay=args.retry_delay,
-                )
-            except subprocess.CalledProcessError as error:
-                print(
-                    "\nError: confirmation failed; MCUboot rollback "
-                    "remains available.",
-                    file=sys.stderr,
-                )
-                return finish(error.returncode)
-
-            print("\nDFU update completed and the running image was confirmed.")
-            return finish(0)
-
+            reconnect_success = True
+            break
         if attempt < args.reconnect_attempts:
-            print(
-                f"Reconnect attempt {attempt}/{args.reconnect_attempts} "
-                f"failed; retrying in {args.reconnect_delay:g} seconds..."
-            )
             time.sleep(args.reconnect_delay)
 
-    print(
-        "\nError: the device did not become reachable after the test boot.\n"
-        "The image was not confirmed; MCUboot rollback remains available.",
-        file=sys.stderr,
-    )
-    return finish(1)
+    if not reconnect_success:
+        progress.finish()
+        return finish(
+            1,
+            "Error: device did not become reachable after test boot. "
+            "MCUboot rollback remains available."
+        )
+
+    progress.update(95, "Confirming image...")
+
+    # Step 7: Confirm (95-100%)
+    try:
+        run_smpmgr_with_retry(
+            args.ble,
+            args.request_timeout,
+            "image",
+            "state-write",
+            "--confirm",
+            retries=args.retries,
+            retry_delay=args.retry_delay,
+            capture_output=True,
+        )
+    except subprocess.CalledProcessError as error:
+        progress.finish()
+        return finish(
+            error.returncode,
+            "Error: confirmation failed; MCUboot rollback remains available."
+        )
+
+    progress.update(100, "Update complete!")
+    progress.finish()
+    
+    return finish(0, "DFU update completed successfully!")
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

@@ -1,0 +1,12 @@
+Simple Management Protocol Manager (smpmgr)
+
+Copyright (c) Intercreate, Inc. 2023-2025
+SPDX-License-Identifier: Apache-2.0
+
+https://www.intercreate.io/
+https://github.com/intercreate/smpmgr
+
+Version: 0.18.1
+Build date: 2026-05-26 19:04:55.343561
+Build platform: Windows-2025Server-10.0.26100-SP0
+Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]

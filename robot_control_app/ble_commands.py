@@ -1,0 +1,5 @@
+SKIP_DFU = "ds"
+START_CONTROL = "mb"
+STOP_CONTROL = "ms"
+DRIVE = "f"
+ROTATE = "r"

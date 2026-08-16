@@ -2,7 +2,6 @@
 
 # Robot Control application utilizing BLE NUS for communication with the self-balancing robot. 
 
-
 import logging
 import time
 
@@ -22,7 +21,6 @@ from PyQt6.QtWidgets import (
 
 from .ble_worker import BLEWorker
 from .dfu_worker import DFUWorker
-
 from .ble_commands import *
 
 logging.basicConfig(level=logging.INFO)
@@ -86,7 +84,7 @@ class RobotControlApp(QMainWindow):
         self.skip_btn.clicked.connect(lambda: self.send_command(SKIP_DFU))
 
         self.start_dfu_btn = QPushButton("Start DFU")
-        self.start_dfu_btn.setEnabled(False)  # Ready when disconnected
+        self.start_dfu_btn.setEnabled(False)
         self.start_dfu_btn.clicked.connect(self.start_dfu_process)
 
         dfu_layout.addWidget(self.skip_btn)
@@ -104,10 +102,9 @@ class RobotControlApp(QMainWindow):
 
         self.cmd_input = QLineEdit()
         self.cmd_input.setPlaceholderText("Enter command to send...")
-        self.cmd_input.returnPressed.connect(self.send_command_console)
 
         self.send_btn = QPushButton("Send")
-        self.send_btn.clicked.connect(self.send_command)
+        self.send_btn.clicked.connect(self.send_command_console)
 
         self.auto_rec_cb = QCheckBox("Auto-record Telemetry")
         self.auto_rec_cb.setChecked(True)
@@ -132,7 +129,7 @@ class RobotControlApp(QMainWindow):
         self._set_controls_enabled(connecting=True)
         self.ble_worker.disconnect_device()
 
-    def update_connection_status(self, connected, address):
+    def update_connection_status(self, connected: bool, address: str):
         self.is_connected = connected
 
         if connected:
@@ -151,7 +148,6 @@ class RobotControlApp(QMainWindow):
             self.target_name_input.setEnabled(True)
 
     def start_dfu_process(self):
-        """Disconnects BLE if connected, locks controls, and starts DFUWorker thread."""
         target_name = self.target_name_input.text().strip()
         if not target_name:
             self.log_message("Error: Device target name is required for DFU.")
@@ -179,9 +175,8 @@ class RobotControlApp(QMainWindow):
             self.log_message(f"<font color='green'><b>DFU Success:</b> {message}</font>")
         else:
             self.log_message(f"<font color='red'><b>DFU Failed (Code {return_code}):</b> {message}</font>")
-        self.log_message(f"Connection can be restored")
+        self.log_message("Connection can be restored")
 
-        # Restore disconnected state controls
         self.status_label.setText("Status: Disconnected")
         self.connect_btn.setEnabled(True)
         self.disconnect_btn.setEnabled(False)
@@ -190,7 +185,6 @@ class RobotControlApp(QMainWindow):
         self.target_name_input.setEnabled(True)
 
     def _set_dfu_running_state(self):
-        """Disables connect and DFU buttons while DFU runs."""
         self.connect_btn.setEnabled(False)
         self.disconnect_btn.setEnabled(False)
         self.skip_btn.setEnabled(False)
@@ -212,7 +206,8 @@ class RobotControlApp(QMainWindow):
             self.cmd_input.clear()
 
     def send_command(self, text: str):
-        self.ble_worker.send_command(text)
+        if isinstance(text, str) and text.strip():
+            self.ble_worker.send_command(text)
 
     def display_received_data(self, data):
         self.console.append(f"<font color='green'>&lt;&lt; {data}</font>")

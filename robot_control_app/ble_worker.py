@@ -11,18 +11,14 @@ import time
 from bleak import BleakClient, BleakScanner
 from PyQt6.QtCore import QThread, pyqtSignal
 
-# NUS UUIDs
 NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"  # Host -> Robot
 NUS_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # Robot -> Host
 
-# Log setup
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BLEWorker")
 
 
 class BLEWorker(QThread):
-    """Background thread running an asyncio event loop for BLE operations."""
-
     connected_signal = pyqtSignal(bool, str)
     data_received_signal = pyqtSignal(str)
     log_signal = pyqtSignal(str)
@@ -34,8 +30,8 @@ class BLEWorker(QThread):
         self.client = None
         self.target_address = None
         self._notify_active = False
+        self._expected_disconnect = False
 
-        # Telemetry / CSV variables
         self.auto_record = True
         self.csv_file = None
         self.csv_writer = None
@@ -89,10 +85,24 @@ class BLEWorker(QThread):
             )
             self.connected_signal.emit(False, "")
 
+    def _on_ble_disconnected(self, client):
+        """Callback invoked automatically by Bleak when BLE connection drops."""
+        self._notify_active = False
+        self._close_csv()
+
+        if not self._expected_disconnect:
+            self.log_signal.emit("Connection lost.")
+            self.connected_signal.emit(False, "")
+
     async def _async_connect(self, address: str):
         self.target_address = address
+        self._expected_disconnect = False
         try:
-            self.client = BleakClient(self.target_address)
+            # Attach disconnected_callback to catch unexpected dropouts
+            self.client = BleakClient(
+                self.target_address,
+                disconnected_callback=self._on_ble_disconnected
+            )
             await self.client.connect()
             if self.client.is_connected:
                 await self.client.start_notify(
@@ -111,6 +121,7 @@ class BLEWorker(QThread):
         asyncio.run_coroutine_threadsafe(self._async_disconnect(), self.loop)
 
     async def _async_disconnect(self):
+        self._expected_disconnect = True
         if self.client and self.client.is_connected:
             try:
                 if self._notify_active:

@@ -74,9 +74,7 @@ class BLEWorker(QThread):
             )
             await self._async_connect(matched_device.address)
         else:
-            self.log_signal.emit(
-                f"Device '{target_name}' not found within timeout."
-            )
+            self.log_signal.emit(f"Device '{target_name}' not found within timeout.")
             self.connected_signal.emit(False, "")
 
     def _on_ble_disconnected(self, client):
@@ -147,7 +145,9 @@ class BLEWorker(QThread):
             if self.enable_logs:
                 self.data_received_signal.emit(text)
 
-            parsed: ParsedData = self.data_processor.process(text, auto_record=self.auto_record)
+            parsed: ParsedData = self.data_processor.process(
+                text, auto_record=self.auto_record
+            )
 
             if parsed.telemetry is not None:
                 self.telemetry_signal.emit(parsed.telemetry)

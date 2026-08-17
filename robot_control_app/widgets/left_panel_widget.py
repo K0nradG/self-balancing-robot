@@ -3,7 +3,17 @@
 # Left panel widget handling BLE Connection, DFU Firmware Updates, logging console, and direct commands
 
 
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QGroupBox, QCheckBox, QTextEdit)
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QGroupBox,
+    QCheckBox,
+    QTextEdit,
+)
 from PyQt6.QtCore import pyqtSignal
 
 DEFAULT_CONNECT_TARGET_NAME = "SELF_BALANCING_ROBOT"
@@ -134,7 +144,9 @@ class LeftPanelWidget(QWidget):
         self.battery_label.setText(f"Battery Level: {volts:.2f} V")
         self.set_battery_led("#2ea44f" if volts >= 7.0 else "#d73a49")
 
-    def update_connection_status(self, connected: bool, address: str, dfu_skipped: bool):
+    def update_connection_status(
+        self, connected: bool, address: str, dfu_skipped: bool
+    ):
         if connected:
             self.status_label.setText(f"Status: Connected ({address})")
             self.connect_btn.setEnabled(False)

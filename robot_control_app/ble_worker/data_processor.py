@@ -46,17 +46,13 @@ class DataProcessor:
             self.csv_writer = None
 
     def __parse_telemetry(self, text: str) -> dict[str, float] | None:
-        matches = re.findall(
-            r"([a-zA-Z0-9_]+):\s*(-?\d+(?:\.\d+)?)", text
-        )
+        matches = re.findall(r"([a-zA-Z0-9_]+):\s*(-?\d+(?:\.\d+)?)", text)
         if matches:
             return {key: float(val) for key, val in matches}
         return None
 
     def __parse_battery(self, text: str) -> float | None:
-        match = re.search(
-            r"bat\s+lvl\s+mv\s*:?\s*(\d+)", text, re.IGNORECASE
-        )
+        match = re.search(r"bat\s+lvl\s+mv\s*:?\s*(\d+)", text, re.IGNORECASE)
         if match:
             return float(match.group(1))
         return None
@@ -94,9 +90,7 @@ class DataProcessor:
             os.makedirs(self.log_dir)
 
         if not self.csv_file:
-            filename = time.strftime(
-                f"{self.log_dir}/data_%Y%m%d_%H%M%S.csv"
-            )
+            filename = time.strftime(f"{self.log_dir}/data_%Y%m%d_%H%M%S.csv")
             self.csv_file = open(filename, "w", newline="")
             self.csv_writer = csv.writer(self.csv_file)
             headers = ["timestamp"] + list(data.keys())

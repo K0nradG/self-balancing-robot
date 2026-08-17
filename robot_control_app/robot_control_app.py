@@ -18,7 +18,7 @@ from .widgets.left_panel_widget import LeftPanelWidget
 from .widgets.right_panel_widget import RightPanelWidget
 from .ble_worker.ble_worker import BLEWorker
 from .dfu_worker.dfu_worker import DFUWorker
-from .ble_commands import (SKIP_DFU, GET_CONTROL_LOOP_PARAMS)
+from .ble_commands import SKIP_DFU, GET_CONTROL_LOOP_PARAMS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("NUS_App")
@@ -76,14 +76,16 @@ class RobotControlApp(QMainWindow):
         # Right panel signals connections
         self.right_panel.send_command_requested.connect(self.send_command)
 
-        # BLE worker signals connections 
+        # BLE worker signals connections
         self.ble_worker.connected_signal.connect(self.update_connection_status)
         self.ble_worker.data_received_signal.connect(
             self.left_panel.display_received_data
         )
         self.ble_worker.battery_signal.connect(self.left_panel.update_battery_status)
         self.ble_worker.log_signal.connect(self.left_panel.log_message)
-        self.ble_worker.telemetry_signal.connect(self.right_panel.update_telemetry_plots)
+        self.ble_worker.telemetry_signal.connect(
+            self.right_panel.update_telemetry_plots
+        )
         self.ble_worker.pid_params_signal.connect(
             self.right_panel.update_pid_parameters
         )

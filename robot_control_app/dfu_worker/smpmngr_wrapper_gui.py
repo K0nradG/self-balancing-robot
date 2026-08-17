@@ -21,7 +21,13 @@ def run_smpmgr_stream(
 ) -> str:
     """Runs smpmgr and streams stdout line-by-line to GUI callbacks."""
     executable = str(SMPMGR_PATH) if sys.platform == "win32" else SMPMGR_PATH
-    command = [executable, "--timeout", str(timeout), "--ble", ble_target] + command_arguments
+    command = [
+        executable,
+        "--timeout",
+        str(timeout),
+        "--ble",
+        ble_target,
+    ] + command_arguments
 
     process = subprocess.Popen(
         command,

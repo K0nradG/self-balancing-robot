@@ -5,7 +5,17 @@
 
 from robot_control_app.ble_commands import *
 
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QLineEdit, QGroupBox, QGridLayout, QMessageBox)
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QGroupBox,
+    QGridLayout,
+    QMessageBox,
+)
 from PyQt6.QtCore import pyqtSignal
 from collections import deque
 import pyqtgraph as pg
@@ -20,6 +30,7 @@ PID_SET_COMMAND_MAP = {
     "rotate": ROTATE_PID,
     "wheel_speed": WHEEL_PID,
 }
+
 
 class RightPanelWidget(QWidget):
     """Handles Robot Control Actions, PID Parameter Tuning, and Real-time Telemetry Plots."""
@@ -228,8 +239,8 @@ class RightPanelWidget(QWidget):
     def update_pid_parameters(self, pid_data: dict):
 
         if not self.isEnabled():
-            return 
-        
+            return
+
         for ctrl_key, params in pid_data.items():
             if ctrl_key in self.pid_inputs:
                 self.pid_inputs[ctrl_key]["kp"].setText(f"{params['kp']:.4f}")
@@ -239,8 +250,8 @@ class RightPanelWidget(QWidget):
     def update_telemetry_plots(self, data: dict):
 
         if not self.isEnabled():
-            return 
-        
+            return
+
         self.sample_idx += 1
         self.plot_time.append(self.sample_idx)
 

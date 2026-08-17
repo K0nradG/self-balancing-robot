@@ -1,5 +1,5 @@
 SKIP_DFU = "ds"
 START_CONTROL = "mb"
 STOP_CONTROL = "ms"
-DRIVE = "f"
-ROTATE = "r"
+DISTANCE_SETPOINT = "fs"
+ROTATE_SETPOINT = "rs"

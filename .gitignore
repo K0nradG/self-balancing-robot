@@ -11,10 +11,4 @@ slprj
 *.zip
 __pycache__
 
-app/controller_rpi/uploads/
-
-controller_rpi/wifi_AP_setup.txt
-app/controller_rpi/syn_local.sh
-app/controller_rpi/syn_rpi.sh
-
-app/controller_rpi/dfu_log.txt
+*robot_data_logs*

@@ -5,6 +5,7 @@
 import asyncio
 import csv
 import logging
+import os
 import re
 import time
 
@@ -17,10 +18,12 @@ NUS_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # Robot -> Host
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("BLEWorker")
 
+DEFAULT_LOG_DIR = "robot_data_logs"
 
 class BLEWorker(QThread):
     connected_signal = pyqtSignal(bool, str)
     data_received_signal = pyqtSignal(str)
+    telemetry_signal = pyqtSignal(dict)
     log_signal = pyqtSignal(str)
 
     def __init__(self):
@@ -32,17 +35,9 @@ class BLEWorker(QThread):
         self._notify_active = False
         self._expected_disconnect = False
 
-        self.auto_record = True
+        self.auto_record = False
         self.csv_file = None
         self.csv_writer = None
-        self.ident_re = re.compile(
-            r"dt=(?P<dt>-?\d+(?:\.\d+)?)\s+"
-            r"angle=(?P<angle>-?\d+(?:\.\d+)?)\s+"
-            r"angle_dt=(?P<angle_dt>-?\d+(?:\.\d+)?)\s+"
-            r"pwm=(?P<pwm>-?\d+(?:\.\d+)?)\s+"
-            r"pos=(?P<pos>-?\d+(?:\.\d+)?)\s+"
-            r"pos_dt=(?P<pos_dt>-?\d+(?:\.\d+)?)\s*$"
-        )
 
     def run(self):
         self.loop = asyncio.new_event_loop()
@@ -86,7 +81,6 @@ class BLEWorker(QThread):
             self.connected_signal.emit(False, "")
 
     def _on_ble_disconnected(self, client):
-        """Callback invoked automatically by Bleak when BLE connection drops."""
         self._notify_active = False
         self._close_csv()
 
@@ -98,7 +92,6 @@ class BLEWorker(QThread):
         self.target_address = address
         self._expected_disconnect = False
         try:
-            # Attach disconnected_callback to catch unexpected dropouts
             self.client = BleakClient(
                 self.target_address,
                 disconnected_callback=self._on_ble_disconnected
@@ -153,40 +146,37 @@ class BLEWorker(QThread):
             text = data.decode("utf-8", errors="replace").strip()
             self.data_received_signal.emit(text)
 
-            if self.auto_record:
-                match = self.ident_re.search(text)
-                if match:
-                    self._record_telemetry(match)
+            # Parse key-value telemetry pairs:
+            parsed_data = self._parse_telemetry(text)
+            if parsed_data:
+                self.telemetry_signal.emit(parsed_data)
+                if self.auto_record:
+                    self._record_telemetry(parsed_data)
         except Exception as e:
             logger.error(f"Error handling notification: {e}")
 
-    def _record_telemetry(self, match):
+    def _parse_telemetry(self, text: str) -> dict:
+        """Parses telemetry output string into a dictionary of floats."""
+        matches = re.findall(r'([a-zA-Z0-9_]+):\s*(-?\d+(?:\.\d+)?)', text)
+        if matches:
+            return {key: float(val) for key, val in matches}
+        return {}
+
+    def _record_telemetry(self, data: dict):
+
+        if not os.path.exists(DEFAULT_LOG_DIR):
+            os.makedirs(DEFAULT_LOG_DIR)
+    
         if not self.csv_file:
-            filename = time.strftime("ident_%Y%m%d_%H%M%S.csv")
+
+            filename = time.strftime(f"{DEFAULT_LOG_DIR}/data_%Y%m%d_%H%M%S.csv")
             self.csv_file = open(filename, "w", newline="")
             self.csv_writer = csv.writer(self.csv_file)
-            self.csv_writer.writerow(
-                [
-                    "timestamp",
-                    "dt",
-                    "angle",
-                    "angle_dt",
-                    "pwm",
-                    "pos",
-                    "pos_dt",
-                ]
-            )
-            self.log_signal.emit(f"Started telemetry log: {filename}")
+            headers = ["timestamp"] + list(data.keys())
+            self.csv_writer.writerow(headers)
+            self.log_signal.emit(f"Started data logging: {filename}")
 
-        row = [
-            time.time(),
-            float(match["dt"]),
-            float(match["angle"]),
-            float(match["angle_dt"]),
-            float(match["pwm"]),
-            float(match["pos"]),
-            float(match["pos_dt"]),
-        ]
+        row = [time.time()] + list(data.values())
         self.csv_writer.writerow(row)
         self.csv_file.flush()
 

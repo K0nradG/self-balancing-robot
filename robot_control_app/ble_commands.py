@@ -1,3 +1,7 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
+# This file contains BLE commands used to communicate with the robot.
+
 SKIP_DFU = "ds"
 START_CONTROL = "mb"
 STOP_CONTROL = "ms"

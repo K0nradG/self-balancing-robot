@@ -1,4 +1,4 @@
-
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 # Class for handling processing of the data received through NUS.
 

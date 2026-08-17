@@ -3,6 +3,7 @@
 # Robot Control application utilizing BLE NUS for communication with the self-balancing robot. 
 
 import logging
+import re
 import time
 from collections import deque
 
@@ -85,11 +86,13 @@ class RobotControlApp(QMainWindow):
 
     def __create_left_ui_panel_widget(self):
         self.left_widget = QWidget()
-        left_layout = QVBoxLayout( self.left_widget)
+        left_layout = QVBoxLayout(self.left_widget)
 
         conn_group = QGroupBox("BLE Connection")
-        conn_layout = QHBoxLayout(conn_group)
+        conn_layout = QVBoxLayout(conn_group)
 
+        # Top row: Connection controls
+        conn_row1 = QHBoxLayout()
         self.target_name_input = QLineEdit(DEFAULT_CONNECT_TARGET_NAME)
         self.connect_btn = QPushButton("Scan && Connect")
         self.connect_btn.clicked.connect(self.start_connect)
@@ -100,11 +103,30 @@ class RobotControlApp(QMainWindow):
 
         self.status_label = QLabel("Status: Disconnected")
 
-        conn_layout.addWidget(QLabel("Target Device Name:"))
-        conn_layout.addWidget(self.target_name_input, stretch=2)
-        conn_layout.addWidget(self.connect_btn)
-        conn_layout.addWidget(self.disconnect_btn)
-        conn_layout.addWidget(self.status_label, stretch=1)
+        conn_row1.addWidget(QLabel("Target Device Name:"))
+        conn_row1.addWidget(self.target_name_input, stretch=2)
+        conn_row1.addWidget(self.connect_btn)
+        conn_row1.addWidget(self.disconnect_btn)
+        conn_row1.addWidget(self.status_label, stretch=1)
+        conn_layout.addLayout(conn_row1)
+
+        conn_row2 = QHBoxLayout()
+        self.battery_led = QLabel()
+        self.battery_led.setFixedSize(14, 14)
+        self.set_battery_led("#888888")  # Initial gray state
+
+        self.battery_label = QLabel("Battery Level: N/A")
+        
+        conn_row2.addWidget(QLabel("Battery Status:"))
+        conn_row2.addWidget(self.battery_led)
+        conn_row2.addStretch()
+        conn_layout.addLayout(conn_row2)
+
+        conn_row3 = QHBoxLayout()
+        conn_row3.addWidget(self.battery_label)
+        conn_row3.addStretch()
+        conn_layout.addLayout(conn_row3)
+        
         left_layout.addWidget(conn_group)
 
         self.dfu_group = QGroupBox("DFU")
@@ -143,6 +165,21 @@ class RobotControlApp(QMainWindow):
         input_layout.addWidget(self.send_btn)
         input_layout.addWidget(self.auto_rec_cb)
         left_layout.addWidget(input_group)
+
+    def set_battery_led(self, color: str):
+        """Helper method to update the CSS stylesheet of the circular LED widget."""
+        self.battery_led.setStyleSheet(
+            f"background-color: {color}; border-radius: 7px; border: 1px solid #444;"
+        )
+
+    def update_battery_status(self, mv: float):
+        """Scales mV to Volts and updates the LED color (> 7.0V Green, < 7.0V Red)."""
+        volts = mv / 1000.0
+        self.battery_label.setText(f"Battery Level: {volts:.2f} V")
+        if volts >= 7.0:
+            self.set_battery_led("#2ea44f")  # Green
+        else:
+            self.set_battery_led("#d73a49")  # Red
 
     def __create_right_ui_panel_widget(self):
         self.right_widget = QGroupBox("Robot Control Panel")
@@ -248,9 +285,12 @@ class RobotControlApp(QMainWindow):
             else:
                 self.right_widget.setEnabled(True)
         else:
-            # Reset DFU state upon disconnection so next connection forces DFU decisions again
+            # Reset DFU state & Battery state upon disconnection
             self.dfu_skipped = False
             self.status_label.setText("Status: Disconnected")
+            self.battery_label.setText("Battery Level: N/A")
+            self.set_battery_led("#888888")
+
             self.connect_btn.setEnabled(True)
             self.disconnect_btn.setEnabled(False)
             
@@ -308,6 +348,9 @@ class RobotControlApp(QMainWindow):
 
         self.dfu_skipped = False
         self.status_label.setText("Status: Disconnected")
+        self.battery_label.setText("Battery Level: N/A")
+        self.set_battery_led("#888888")
+
         self.connect_btn.setEnabled(True)
         self.disconnect_btn.setEnabled(False)
         self.dfu_group.setEnabled(True)
@@ -333,7 +376,6 @@ class RobotControlApp(QMainWindow):
         self.target_name_input.setEnabled(not connecting)
 
     def send_dist_setpoint(self):
-
         dist_str = self.dist_ref_input.text().strip().replace(",", ".")
         try:
             dist_val = float(dist_str)
@@ -349,7 +391,6 @@ class RobotControlApp(QMainWindow):
         self.send_command(f"{DISTANCE_SETPOINT}{dist_val:.2f}")
 
     def send_rot_setpoint(self):
-
         rot_str = self.rot_ref_input.text().strip().replace(",", ".")
         try:
             rot_val = float(rot_str)
@@ -374,7 +415,6 @@ class RobotControlApp(QMainWindow):
         if isinstance(text, str) and text.strip():
             self.ble_worker.send_command(text)
 
-
     def update_telemetry_plots(self, data: dict):
         self.sample_idx += 1
         self.plot_time.append(self.sample_idx)
@@ -392,6 +432,9 @@ class RobotControlApp(QMainWindow):
         if "pwm1" in data:
             self.pwm1_buf.append(data["pwm1"])
 
+        if "bat_mv" in data:
+            self.update_battery_status(data["bat_mv"])
+
         t_data = list(self.plot_time)
         if self.bs_buf:
             self.curve_bs.setData(t_data, list(self.bs_buf))
@@ -406,8 +449,14 @@ class RobotControlApp(QMainWindow):
         if self.pwm1_buf:
             self.curve_pwm1.setData(t_data, list(self.pwm1_buf))
 
-    def display_received_data(self, data):
+    def display_received_data(self, data: str):
         self.console.append(f"<font color='green'>&lt;&lt; {data}</font>")
+
+        # Parse text like "bat lvl mv 7953" or "bat lvl mv: 7953"
+        match = re.search(r'bat\s+lvl\s+mv\s*:?\s*(\d+)', data, re.IGNORECASE)
+        if match:
+            mv = float(match.group(1))
+            self.update_battery_status(mv)
 
     def log_message(self, msg):
         self.console.append(f"<i>{msg}</i>")

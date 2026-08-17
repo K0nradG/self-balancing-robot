@@ -1,9 +1,8 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-# Robot Control application utilizing BLE NUS for communication with the self-balancing robot. 
+# Robot Control application utilizing BLE NUS for communication with the self-balancing robot.
 
 import logging
-import re
 import time
 from collections import deque
 
@@ -12,6 +11,7 @@ from PyQt6.QtCore import QThread
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
     QCheckBox,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -35,17 +35,28 @@ logger = logging.getLogger("NUS_App")
 DEFAULT_CONNECT_TARGET_NAME = "SELF_BALANCING_ROBOT"
 MAX_PLOT_POINTS = 200
 
+PID_SET_COMMAND_MAP = {
+    "distance": DISTANCE_PID,
+    "linear_speed": LINEAR_SPEED_PID,
+    "balance": BALANCE_PID,
+    "rotate": ROTATE_PID,
+    "wheel_speed": WHEEL_PID,
+}
+
 
 class RobotControlApp(QMainWindow):
 
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Robot Control Application")
-        self.resize(1200, 720)
+        self.resize(1300, 800)
 
         self.is_connected = False
         self.dfu_skipped = False
         self.dfu_thread = None
+
+        # PID inputs structure map
+        self.pid_inputs = {}
 
         # Telemetry plot buffers
         self.plot_time = deque(maxlen=MAX_PLOT_POINTS)
@@ -57,11 +68,13 @@ class RobotControlApp(QMainWindow):
         self.pwm1_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.sample_idx = 0
 
-        # Start BLE Background Thread
+        # Start BLE Background Thread & Connect Signals
         self.ble_worker = BLEWorker()
         self.ble_worker.connected_signal.connect(self.update_connection_status)
         self.ble_worker.data_received_signal.connect(self.display_received_data)
         self.ble_worker.telemetry_signal.connect(self.update_telemetry_plots)
+        self.ble_worker.battery_signal.connect(self.update_battery_status)
+        self.ble_worker.pid_params_signal.connect(self.update_pid_parameters)
         self.ble_worker.log_signal.connect(self.log_message)
         self.ble_worker.start()
 
@@ -110,23 +123,20 @@ class RobotControlApp(QMainWindow):
         conn_row1.addWidget(self.status_label, stretch=1)
         conn_layout.addLayout(conn_row1)
 
+        # Bottom row: Battery Level LED & Status
         conn_row2 = QHBoxLayout()
         self.battery_led = QLabel()
         self.battery_led.setFixedSize(14, 14)
         self.set_battery_led("#888888")  # Initial gray state
 
         self.battery_label = QLabel("Battery Level: N/A")
-        
+
         conn_row2.addWidget(QLabel("Battery Status:"))
         conn_row2.addWidget(self.battery_led)
+        conn_row2.addWidget(self.battery_label)
         conn_row2.addStretch()
         conn_layout.addLayout(conn_row2)
 
-        conn_row3 = QHBoxLayout()
-        conn_row3.addWidget(self.battery_label)
-        conn_row3.addStretch()
-        conn_layout.addLayout(conn_row3)
-        
         left_layout.addWidget(conn_group)
 
         self.dfu_group = QGroupBox("DFU")
@@ -147,6 +157,11 @@ class RobotControlApp(QMainWindow):
         self.console = QTextEdit()
         self.console.setReadOnly(True)
         left_layout.addWidget(self.console, stretch=1)
+
+        self.enable_logs_checkbox = QCheckBox("Enable BLE Logs")
+        self.enable_logs_checkbox.setChecked(False)
+        left_layout.addWidget(self.enable_logs_checkbox)
+        self.enable_logs_checkbox.toggled.connect(self.toggle_enable_logs)
 
         input_group = QGroupBox("Command Interface")
         input_layout = QHBoxLayout(input_group)
@@ -173,13 +188,23 @@ class RobotControlApp(QMainWindow):
         )
 
     def update_battery_status(self, mv: float):
-        """Scales mV to Volts and updates the LED color (> 7.0V Green, < 7.0V Red)."""
+        """Callback slot: Scales mV to Volts and updates the battery status LED/label."""
         volts = mv / 1000.0
         self.battery_label.setText(f"Battery Level: {volts:.2f} V")
         if volts >= 7.0:
             self.set_battery_led("#2ea44f")  # Green
         else:
             self.set_battery_led("#d73a49")  # Red
+
+    def update_pid_parameters(self, pid_data: dict):
+        """Callback slot: Updates PID line inputs from parsed controller dictionary."""
+        for ctrl_key, params in pid_data.items():
+            if ctrl_key in self.pid_inputs:
+                self.pid_inputs[ctrl_key]["kp"].setText(f"{params['kp']:.4f}")
+                self.pid_inputs[ctrl_key]["ki"].setText(f"{params['ki']:.4f}")
+                self.pid_inputs[ctrl_key]["kd"].setText(f"{params['kd']:.4f}")
+
+        self.log_message(">>PID Parameters parsed and updated in UI")
 
     def __create_right_ui_panel_widget(self):
         self.right_widget = QGroupBox("Robot Control Panel")
@@ -229,6 +254,9 @@ class RobotControlApp(QMainWindow):
         ctrl_actions_layout.addLayout(rot_layout)
         right_layout.addWidget(ctrl_actions_group)
 
+        pid_group = self.__create_pid_tuning_group()
+        right_layout.addWidget(pid_group)
+
         pg.setConfigOption("background", "#1e1e1e")
         pg.setConfigOption("foreground", "#dcdcdc")
 
@@ -253,6 +281,83 @@ class RobotControlApp(QMainWindow):
         self.curve_pwm0 = self.pwm_plot.plot(pen=pg.mkPen("r", width=2), name="PWM0")
         self.curve_pwm1 = self.pwm_plot.plot(pen=pg.mkPen("b", width=2), name="PWM1")
         right_layout.addWidget(self.pwm_plot)
+
+    def __create_pid_tuning_group(self) -> QGroupBox:
+        pid_group = QGroupBox("Control loop parameters")
+        pid_layout = QVBoxLayout(pid_group)
+
+        top_bar = QHBoxLayout()
+        self.fetch_pid_btn = QPushButton("Get control loop parameters")
+        self.fetch_pid_btn.clicked.connect(self.get_pid_parameters)
+        top_bar.addWidget(self.fetch_pid_btn)
+        top_bar.addStretch()
+        pid_layout.addLayout(top_bar)
+
+        grid = QGridLayout()
+        grid.addWidget(QLabel("<b>Controller</b>"), 0, 0)
+        grid.addWidget(QLabel("<b>Kp</b>"), 0, 1)
+        grid.addWidget(QLabel("<b>Ki</b>"), 0, 2)
+        grid.addWidget(QLabel("<b>Kd</b>"), 0, 3)
+        grid.addWidget(QLabel("<b>Action</b>"), 0, 4)
+
+        controllers = [
+            ("distance", "Distance PID"),
+            ("linear_speed", "Linear Speed PID"),
+            ("balance", "Balance Angle PID"),
+            ("rotate", "Rotation Angle PID"),
+            ("wheel_speed", "Wheel Speed PID"),
+        ]
+
+        pid_validator = QDoubleValidator(-10000.0, 10000.0, 6)
+        pid_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+
+        for row, (key, label_text) in enumerate(controllers, start=1):
+            grid.addWidget(QLabel(label_text), row, 0)
+
+            kp_input = QLineEdit("0.0")
+            kp_input.setValidator(pid_validator)
+            ki_input = QLineEdit("0.0")
+            ki_input.setValidator(pid_validator)
+            kd_input = QLineEdit("0.0")
+            kd_input.setValidator(pid_validator)
+
+            set_btn = QPushButton(f"Set {label_text}")
+            set_btn.clicked.connect(lambda _, k=key: self.send_pid_parameters(k))
+
+            grid.addWidget(kp_input, row, 1)
+            grid.addWidget(ki_input, row, 2)
+            grid.addWidget(kd_input, row, 3)
+            grid.addWidget(set_btn, row, 4)
+
+            self.pid_inputs[key] = {"kp": kp_input, "ki": ki_input, "kd": kd_input}
+
+        pid_layout.addLayout(grid)
+        return pid_group
+
+    def get_pid_parameters(self):
+        self.send_command(GET_CONTROL_LOOP_PARAMS)
+        self.log_message(">> Requested control loop PID parameters.")
+
+    def send_pid_parameters(self, controller_key: str):
+        inputs = self.pid_inputs.get(controller_key)
+        if not inputs:
+            return
+
+        try:
+            kp = float(inputs["kp"].text().strip().replace(",", "."))
+            ki = float(inputs["ki"].text().strip().replace(",", "."))
+            kd = float(inputs["kd"].text().strip().replace(",", "."))
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Invalid Input",
+                f"Command rejected: Please enter valid numeric PID values for {controller_key}.",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+
+        self.send_command(f"{PID_SET_COMMAND_MAP[controller_key]}k{kp:.4f}i{ki:.4f}d{kd:.4f}")
+        self.log_message(f">> Updated {controller_key} PID: Kp={kp}, Ki={ki}, Kd={kd}")
 
     def start_connect(self):
         target_name = self.target_name_input.text().strip()
@@ -285,7 +390,6 @@ class RobotControlApp(QMainWindow):
             else:
                 self.right_widget.setEnabled(True)
         else:
-            # Reset DFU state & Battery state upon disconnection
             self.dfu_skipped = False
             self.status_label.setText("Status: Disconnected")
             self.battery_label.setText("Battery Level: N/A")
@@ -293,28 +397,26 @@ class RobotControlApp(QMainWindow):
 
             self.connect_btn.setEnabled(True)
             self.disconnect_btn.setEnabled(False)
-            
-            # Re-enable DFU container for the next connection session
+
             self.dfu_group.setEnabled(True)
             self.skip_btn.setEnabled(False)
             self.start_dfu_btn.setEnabled(False)
-            
+
             self.target_name_input.setEnabled(True)
             self.right_widget.setEnabled(False)
 
     def handle_skip_dfu(self):
-        """Sends SKIP_DFU command, permanently locks DFU actions for the session, and unlocks Control Panel."""
         self.send_command(SKIP_DFU)
         self.dfu_skipped = True
 
-        # Disable DFU buttons for this active session
         self.skip_btn.setEnabled(False)
         self.start_dfu_btn.setEnabled(False)
         self.dfu_group.setEnabled(False)
 
-        # Unlock control panel
         self.right_widget.setEnabled(True)
         self.log_message(">> DFU Skipped. Robot control panel unlocked.")
+
+        self.get_pid_parameters()
 
     def start_dfu_process(self):
         target_name = self.target_name_input.text().strip()
@@ -388,7 +490,7 @@ class RobotControlApp(QMainWindow):
             )
             return
 
-        self.send_command(f"{DISTANCE_SETPOINT}{dist_val:.2f}")
+        self.send_command(f"{DISTANCE_PID}{SETPOINT}{dist_val:.2f}")
 
     def send_rot_setpoint(self):
         rot_str = self.rot_ref_input.text().strip().replace(",", ".")
@@ -403,7 +505,7 @@ class RobotControlApp(QMainWindow):
             )
             return
 
-        self.send_command(f"{ROTATE_SETPOINT}{rot_val:.2f}")
+        self.send_command(f"{ROTATE_PID}{SETPOINT}{rot_val:.2f}")
 
     def send_command_console(self):
         cmd = self.cmd_input.text().strip()
@@ -432,9 +534,6 @@ class RobotControlApp(QMainWindow):
         if "pwm1" in data:
             self.pwm1_buf.append(data["pwm1"])
 
-        if "bat_mv" in data:
-            self.update_battery_status(data["bat_mv"])
-
         t_data = list(self.plot_time)
         if self.bs_buf:
             self.curve_bs.setData(t_data, list(self.bs_buf))
@@ -450,19 +549,21 @@ class RobotControlApp(QMainWindow):
             self.curve_pwm1.setData(t_data, list(self.pwm1_buf))
 
     def display_received_data(self, data: str):
+        """Callback slot: Logs raw incoming BLE string to the console text box."""
         self.console.append(f"<font color='green'>&lt;&lt; {data}</font>")
-
-        # Parse text like "bat lvl mv 7953" or "bat lvl mv: 7953"
-        match = re.search(r'bat\s+lvl\s+mv\s*:?\s*(\d+)', data, re.IGNORECASE)
-        if match:
-            mv = float(match.group(1))
-            self.update_battery_status(mv)
 
     def log_message(self, msg):
         self.console.append(f"<i>{msg}</i>")
 
     def toggle_auto_record(self, checked):
         self.ble_worker.auto_record = checked
+
+    def toggle_enable_logs(self, checked):
+        self.ble_worker.enable_logs = checked
+        if checked:
+            self.log_message(">> BLE Logs Enabled")
+        else:
+            self.log_message(">> BLE Logs Disabled")
 
     def closeEvent(self, event):
         if self.dfu_thread and self.dfu_thread.isRunning():

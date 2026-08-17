@@ -20,10 +20,13 @@ logger = logging.getLogger("BLEWorker")
 
 DEFAULT_LOG_DIR = "robot_data_logs"
 
+
 class BLEWorker(QThread):
     connected_signal = pyqtSignal(bool, str)
     data_received_signal = pyqtSignal(str)
     telemetry_signal = pyqtSignal(dict)
+    battery_signal = pyqtSignal(float)
+    pid_params_signal = pyqtSignal(dict)
     log_signal = pyqtSignal(str)
 
     def __init__(self):
@@ -35,6 +38,7 @@ class BLEWorker(QThread):
         self._notify_active = False
         self._expected_disconnect = False
 
+        self.enable_logs = False
         self.auto_record = False
         self.csv_file = None
         self.csv_writer = None
@@ -144,14 +148,29 @@ class BLEWorker(QThread):
     def _notification_handler(self, sender, data: bytearray):
         try:
             text = data.decode("utf-8", errors="replace").strip()
-            self.data_received_signal.emit(text)
 
-            # Parse key-value telemetry pairs:
-            parsed_data = self._parse_telemetry(text)
-            if parsed_data:
-                self.telemetry_signal.emit(parsed_data)
+            if self.enable_logs:
+                self.data_received_signal.emit(text)
+
+            # 1. Parse telemetry key-value pairs
+            parsed_telemetry = self._parse_telemetry(text)
+            if parsed_telemetry:
+                self.telemetry_signal.emit(parsed_telemetry)
                 if self.auto_record:
-                    self._record_telemetry(parsed_data)
+                    self._record_telemetry(parsed_telemetry)
+                if "bat_mv" in parsed_telemetry:
+                    self.battery_signal.emit(parsed_telemetry["bat_mv"])
+
+            # 2. Parse explicit battery text ("bat lvl mv 7953")
+            bat_mv = self._parse_battery(text)
+            if bat_mv is not None:
+                self.battery_signal.emit(bat_mv)
+
+            # 3. Parse PID parameters string
+            pid_data = self._parse_pid_parameters(text)
+            if pid_data:
+                self.pid_params_signal.emit(pid_data)
+
         except Exception as e:
             logger.error(f"Error handling notification: {e}")
 
@@ -162,13 +181,41 @@ class BLEWorker(QThread):
             return {key: float(val) for key, val in matches}
         return {}
 
-    def _record_telemetry(self, data: dict):
+    def _parse_battery(self, text: str) -> float | None:
+        """Parses explicit battery level formatted as 'bat lvl mv 7953'."""
+        match = re.search(r'bat\s+lvl\s+mv\s*:?\s*(\d+)', text, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        return None
 
+    def _parse_pid_parameters(self, text: str) -> dict | None:
+        """Parses PID values string and returns a mapped dictionary per controller."""
+        pid_pattern = (
+            r"Kp([0-9.-]+)_Ki([0-9.-]+)_Kd([0-9.-]+)_"
+            r"Kp([0-9.-]+)_Ki([0-9.-]+)_Kd([0-9.-]+)_"
+            r"Kp([0-9.-]+)_Ki([0-9.-]+)_Kd([0-9.-]+)_"
+            r"Kp([0-9.-]+)_Ki([0-9.-]+)_Kd([0-9.-]+)_"
+            r"Kp([0-9.-]+)_Ki([0-9.-]+)_Kd([0-9.-]+)"
+        )
+        match = re.search(pid_pattern, text)
+        if match:
+            vals = [float(x) for x in match.groups()]
+            controllers = ["distance", "linear_speed", "balance", "rotate", "wheel_speed"]
+            return {
+                ctrl_key: {
+                    "kp": vals[i * 3],
+                    "ki": vals[i * 3 + 1],
+                    "kd": vals[i * 3 + 2],
+                }
+                for i, ctrl_key in enumerate(controllers)
+            }
+        return None
+
+    def _record_telemetry(self, data: dict):
         if not os.path.exists(DEFAULT_LOG_DIR):
             os.makedirs(DEFAULT_LOG_DIR)
-    
-        if not self.csv_file:
 
+        if not self.csv_file:
             filename = time.strftime(f"{DEFAULT_LOG_DIR}/data_%Y%m%d_%H%M%S.csv")
             self.csv_file = open(filename, "w", newline="")
             self.csv_writer = csv.writer(self.csv_file)

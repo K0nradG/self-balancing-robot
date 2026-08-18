@@ -18,7 +18,7 @@ def run_smpmgr_stream(
     log_callback=None,
     progress_callback=None,
     check: bool = True,
-) -> str:
+) -> int:
     """Runs smpmgr and streams stdout line-by-line to GUI callbacks."""
     executable = str(SMPMGR_PATH) if sys.platform == "win32" else SMPMGR_PATH
     command = [
@@ -65,7 +65,7 @@ def run_smpmgr_stream(
     if check and return_code != 0:
         raise subprocess.CalledProcessError(return_code, command, output=full_output)
 
-    return full_output
+    return return_code
 
 
 def run_smpmgr_with_retry_stream(
@@ -76,7 +76,7 @@ def run_smpmgr_with_retry_stream(
     retry_delay: float = DEFAULT_RETRY_DELAY,
     progress_callback=None,
     check: bool = True,
-) -> str:
+) -> int:
     """Retry wrapper for streaming smpmgr output."""
     last_error = None
     for attempt in range(1, retries + 1):

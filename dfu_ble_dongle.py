@@ -8,6 +8,8 @@ from dfu_utils.config import (
     DEFAULT_BLE_TARGET,
     DEFAULT_IMAGE,
     DEFAULT_POST_UPLOAD_DELAY,
+    DEFAULT_RECONNECT_ATTEMPTS,
+    DEFAULT_RECONNECT_DELAY,
     DEFAULT_REQUEST_TIMEOUT,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
@@ -36,11 +38,6 @@ def __parse_args():
         help=f"BLE device name or address (default: {DEFAULT_BLE_TARGET})",
     )
     parser.add_argument(
-        "--no-confirm",
-        action="store_true",
-        help="leave the updated image in MCUboot test state",
-    )
-    parser.add_argument(
         "--request-timeout",
         type=int,
         default=DEFAULT_REQUEST_TIMEOUT,
@@ -48,6 +45,18 @@ def __parse_args():
     )
     parser.add_argument(
         "--upload-timeout", type=int, default=DEFAULT_UPLOAD_TIMEOUT, metavar="SECONDS"
+    )
+    parser.add_argument(
+        "--reconnect-attempts",
+        type=int,
+        default=DEFAULT_RECONNECT_ATTEMPTS,
+        metavar="COUNT",
+    )
+    parser.add_argument(
+        "--reconnect-delay",
+        type=float,
+        default=DEFAULT_RECONNECT_DELAY,
+        metavar="SECONDS",
     )
     parser.add_argument("--retries", type=int, default=DEFAULT_RETRIES, metavar="COUNT")
     parser.add_argument(
@@ -105,19 +114,14 @@ def main():
         image_path=image,
         request_timeout=args.request_timeout,
         upload_timeout=args.upload_timeout,
+        reconnect_attempts=args.reconnect_attempts,
+        reconnect_delay=args.reconnect_delay,
         retries=args.retries,
         retry_delay=args.retry_delay,
-        post_upload_delay=args.post_upload_delay,
-        no_confirm=args.no_confirm,
     )
 
     return_code, message = dfu.perform_update()
     print(f"\n{message}")
-
-    if args.no_confirm and return_code == 0:
-        print(
-            f'smpmgr --timeout {args.request_timeout} --ble "{args.ble}" image state-write --confirm'
-        )
 
     return return_code
 

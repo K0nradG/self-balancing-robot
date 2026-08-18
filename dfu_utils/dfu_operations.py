@@ -4,6 +4,8 @@ import time
 
 from .config import (
     DEFAULT_POST_UPLOAD_DELAY,
+    DEFAULT_RECONNECT_ATTEMPTS,
+    DEFAULT_RECONNECT_DELAY,
     DEFAULT_REQUEST_TIMEOUT,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
@@ -21,20 +23,22 @@ class DFUOperations:
         image_path,
         request_timeout=DEFAULT_REQUEST_TIMEOUT,
         upload_timeout=DEFAULT_UPLOAD_TIMEOUT,
+        reconnect_attempts=DEFAULT_RECONNECT_ATTEMPTS,
+        reconnect_delay=DEFAULT_RECONNECT_DELAY,
         retries=DEFAULT_RETRIES,
         retry_delay=DEFAULT_RETRY_DELAY,
         post_upload_delay=DEFAULT_POST_UPLOAD_DELAY,
-        no_confirm=False,
     ) -> None:
 
         self.ble_target = ble_target
         self.image_path = image_path
         self.request_timeout = request_timeout
         self.upload_timeout = upload_timeout
+        self.reconnect_attempts = reconnect_attempts
+        self.reconnect_delay = reconnect_delay
         self.retries = retries
         self.retry_delay = retry_delay
         self.post_upload_delay = post_upload_delay
-        self.no_confirm = no_confirm
 
     def perform_update(self) -> tuple[int, str]:
 
@@ -106,26 +110,33 @@ class DFUOperations:
             )
             self.progress.update(85, "Waiting for device...")
 
+            reconnect_success = False
             command_arguments = ["image", "state-read"]
-            run_smpmgr_with_retry(
-                self.ble_target,
-                self.request_timeout,
-                command_arguments,
-                retries=self.retries,
-                retry_delay=self.retry_delay,
-                check=False,
-                capture_output=True,
-            )
-            self.progress.update(95, "Confirming image...")
+            for attempt in range(1, self.reconnect_attempts + 1):
+                result = run_smpmgr_with_retry(
+                    self.ble_target,
+                    self.request_timeout,
+                    command_arguments,
+                    retries=1,
+                    check=False,
+                    capture_output=True,
+                )
+                if result.returncode == 0:
+                    reconnect_success = True
+                    break
 
-            if self.no_confirm:
-                self.progress.update(100, "Complete!")
+                if attempt < self.reconnect_attempts:
+                    time.sleep(self.reconnect_delay)
+
+            if not reconnect_success:
                 self.progress.finish()
                 elapsed = time.monotonic() - dfu_started
                 return (
-                    0,
-                    f"Update completed in {format_duration(elapsed)}. Left in MCUboot test mode.",
+                    1,
+                    f"Device unreachable after {format_duration(elapsed)}. MCUboot rollback remains available.",
                 )
+
+            self.progress.update(95, "Confirming image...")
 
             command_arguments = ["image", "state-write", "--confirm"]
             run_smpmgr_with_retry(

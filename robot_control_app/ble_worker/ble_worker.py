@@ -1,7 +1,5 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-# This is the BLE worker implementation that runs in a separate thread and handles BLE operations over NUS.
-
 import asyncio
 import logging
 import time
@@ -10,11 +8,10 @@ from bleak import BleakClient, BleakScanner
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from robot_control_app import ble_protocol
-
 from .data_processor import DataProcessor, ParsedData
 
-NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"  # Host -> Robot
-NUS_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # Robot -> Host
+NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+NUS_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 PLOT_UPDATE_PERIOD_S = 0.02
 
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +27,6 @@ class BLEWorker(QThread):
     lqr_params_signal = pyqtSignal(dict)
     log_signal = pyqtSignal(str)
     app_version_signal = pyqtSignal(dict)
-    trajectory_complete_signal = pyqtSignal()
     command_result_signal = pyqtSignal(dict)
 
     def __init__(self):
@@ -255,8 +251,6 @@ class BLEWorker(QThread):
                 self.pid_params_signal.emit(parsed.pid_params)
             if parsed.lqr_params is not None:
                 self.lqr_params_signal.emit(parsed.lqr_params)
-            if parsed.trajectory_complete:
-                self.trajectory_complete_signal.emit()
             if parsed.command_result is not None:
                 result = parsed.command_result
                 self.command_result_signal.emit(
@@ -266,8 +260,6 @@ class BLEWorker(QThread):
                         "status": result.status,
                     }
                 )
-            if parsed.identification_complete:
-                self.log_signal.emit("Identification complete.")
 
         except ValueError as error:
             logger.warning("Rejected BLE notification: %s", error)

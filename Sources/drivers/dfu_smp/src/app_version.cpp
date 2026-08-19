@@ -13,6 +13,7 @@ static Logger<true> app_version_logger("APP_VERSION");
 static void
 get_app_version_work_handler(k_work* work)
 {
+    ARG_UNUSED(work);
     mcuboot_img_header hdr;
     int rc = boot_read_bank_header(FLASH_AREA_ID(image_0), &hdr, sizeof(hdr));
 
@@ -23,11 +24,13 @@ get_app_version_work_handler(k_work* work)
     }
 
     uint8_t payload[8] {};
-    payload[0] = hdr.h.v1.sem_ver.major;
-    payload[1] = hdr.h.v1.sem_ver.minor;
-    payload[2] = static_cast<uint8_t>(hdr.h.v1.sem_ver.revision);
-    BLE_Protocol::put_u32(payload + 4u, hdr.h.v1.sem_ver.build_num);
-    ble_send_packet(BLE_Protocol::Message_Type::APP_VERSION, payload, sizeof(payload));
+    BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
+    writer.put_u8(hdr.h.v1.sem_ver.major);
+    writer.put_u8(hdr.h.v1.sem_ver.minor);
+    writer.put_u8(static_cast<uint8_t>(hdr.h.v1.sem_ver.revision));
+    writer.put_u8(0u);
+    writer.put_u32(hdr.h.v1.sem_ver.build_num);
+    ble_send_packet(BLE_Protocol::Message_Type::APP_VERSION, writer);
 }
 
 K_WORK_DELAYABLE_DEFINE(get_app_version_work, get_app_version_work_handler);

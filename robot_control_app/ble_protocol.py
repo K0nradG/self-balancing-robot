@@ -67,6 +67,78 @@ class Packet:
     payload: bytes
 
 
+class PayloadWriter:
+    def __init__(self):
+        self._data = bytearray()
+
+    def _append(self, data: bytes):
+        if len(self._data) + len(data) > MAX_PAYLOAD_SIZE:
+            raise ValueError(f"Payload exceeds {MAX_PAYLOAD_SIZE} bytes")
+        self._data.extend(data)
+
+    def put_u8(self, value: int):
+        self._append(struct.pack("<B", value))
+        return self
+
+    def put_u16(self, value: int):
+        self._append(struct.pack("<H", value))
+        return self
+
+    def put_u32(self, value: int):
+        self._append(struct.pack("<I", value))
+        return self
+
+    def put_float(self, value: float):
+        self._append(struct.pack("<f", value))
+        return self
+
+    def put_bytes(self, data: bytes):
+        self._append(bytes(data))
+        return self
+
+    def to_bytes(self) -> bytes:
+        return bytes(self._data)
+
+
+class PayloadReader:
+    def __init__(self, payload: bytes):
+        if len(payload) > MAX_PAYLOAD_SIZE:
+            raise ValueError(f"Payload exceeds {MAX_PAYLOAD_SIZE} bytes")
+        self._data = memoryview(payload)
+        self._offset = 0
+
+    def _read(self, size: int) -> memoryview:
+        end = self._offset + size
+        if end > len(self._data):
+            raise ValueError("Payload is truncated")
+        value = self._data[self._offset:end]
+        self._offset = end
+        return value
+
+    def get_u8(self) -> int:
+        return struct.unpack("<B", self._read(1))[0]
+
+    def get_u16(self) -> int:
+        return struct.unpack("<H", self._read(2))[0]
+
+    def get_u32(self) -> int:
+        return struct.unpack("<I", self._read(4))[0]
+
+    def get_float(self) -> float:
+        return struct.unpack("<f", self._read(4))[0]
+
+    def get_bytes(self, size: int) -> bytes:
+        return bytes(self._read(size))
+
+    @property
+    def remaining(self) -> int:
+        return len(self._data) - self._offset
+
+    def finish(self):
+        if self.remaining:
+            raise ValueError(f"Payload has {self.remaining} trailing bytes")
+
+
 def pack_packet(
     message_type: MessageType,
     payload: bytes = b"",
@@ -114,13 +186,17 @@ def unpack_packet(data: bytes) -> Packet:
 
 def state_command(action: StateAction, sequence: int = 0) -> bytes:
     return pack_packet(
-        MessageType.STATE_COMMAND, struct.pack("<B", action), sequence=sequence
+        MessageType.STATE_COMMAND,
+        PayloadWriter().put_u8(action).to_bytes(),
+        sequence=sequence,
     )
 
 
 def dfu_command(action: DfuAction, sequence: int = 0) -> bytes:
     return pack_packet(
-        MessageType.DFU_COMMAND, struct.pack("<B", action), sequence=sequence
+        MessageType.DFU_COMMAND,
+        PayloadWriter().put_u8(action).to_bytes(),
+        sequence=sequence,
     )
 
 
@@ -137,7 +213,12 @@ def set_pid_command(
 ) -> bytes:
     return pack_packet(
         MessageType.SET_PID,
-        struct.pack("<Bfff", controller, kp, ki, kd),
+        PayloadWriter()
+        .put_u8(controller)
+        .put_float(kp)
+        .put_float(ki)
+        .put_float(kd)
+        .to_bytes(),
         sequence=sequence,
     )
 
@@ -147,7 +228,7 @@ def set_setpoint_command(
 ) -> bytes:
     return pack_packet(
         MessageType.SET_SETPOINT,
-        struct.pack("<Bf", controller, value),
+        PayloadWriter().put_u8(controller).put_float(value).to_bytes(),
         sequence=sequence,
     )
 
@@ -157,7 +238,10 @@ def trajectory_command(
 ) -> bytes:
     return pack_packet(
         MessageType.TRAJECTORY_COMMAND,
-        struct.pack("<ff", rotation_degrees, distance_m),
+        PayloadWriter()
+        .put_float(rotation_degrees)
+        .put_float(distance_m)
+        .to_bytes(),
         sequence=sequence,
     )
 
@@ -175,7 +259,7 @@ def identification_command(
         raise ValueError("Identification durations must be positive")
     return pack_packet(
         MessageType.IDENTIFICATION_CONFIG,
-        struct.pack("<20f", *(pwm_values + durations_s)),
+        _float_payload(pwm_values + durations_s),
         sequence=sequence,
     )
 
@@ -183,6 +267,13 @@ def identification_command(
 def set_lqr_command(kx: float, ky: float, sequence: int = 0) -> bytes:
     return pack_packet(
         MessageType.SET_LQR,
-        struct.pack("<ff", kx, ky),
+        PayloadWriter().put_float(kx).put_float(ky).to_bytes(),
         sequence=sequence,
     )
+
+
+def _float_payload(values: list[float]) -> bytes:
+    writer = PayloadWriter()
+    for value in values:
+        writer.put_float(value)
+    return writer.to_bytes()

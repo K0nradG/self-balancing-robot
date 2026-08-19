@@ -74,9 +74,7 @@ control_loop_work_handler(k_work* work)
             bool const disable_motors_command = Robot_Controller::instance().normal_motors_control();
             Main_State_Machine::instance().set_disable_motors_command(disable_motors_command);
 #else
-            Model_Identification::Identification_Data const identification_data =
-                Robot_Controller::instance().model_identification();
-            Model_Identification::instance().new_regulator_data_for_identification(identification_data);
+            Robot_Controller::instance().model_identification();
 
             if(!Model_Identification::instance().identification_active())
             {

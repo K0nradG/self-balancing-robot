@@ -8,10 +8,71 @@
 namespace BLE_Protocol
 {
 
-constexpr uint32_t magic          = 0x31544252u;  // "RBT1" on little-endian systems.
-constexpr size_t header_size      = 12u;
-constexpr size_t max_packet_size  = 244u;
-constexpr size_t max_payload_size = max_packet_size - header_size;
+constexpr uint32_t magic            = 0x31544252u;  // "RBT1" on little-endian systems.
+constexpr size_t header_size        = 12u;
+constexpr size_t max_packet_size    = 244u;
+constexpr size_t max_payload_size   = max_packet_size - header_size;
+constexpr size_t encoded_float_size = 4u;
+
+class Payload_Writer
+{
+public:
+    Payload_Writer(uint8_t* buffer, size_t capacity);
+
+    bool
+    put_u8(uint8_t value);
+    bool
+    put_u16(uint16_t value);
+    bool
+    put_u32(uint32_t value);
+    bool
+    put_float(float value);
+    bool
+    put_bytes(uint8_t const* data, size_t length);
+
+    uint8_t const*
+    data() const;
+    uint16_t
+    size() const;
+    bool
+    valid() const;
+
+private:
+    uint8_t* m_buffer;
+    size_t m_capacity;
+    size_t m_size;
+    bool m_valid;
+};
+
+class Payload_Reader
+{
+public:
+    Payload_Reader(uint8_t const* data, size_t length);
+
+    bool
+    get_u8(uint8_t& value);
+    bool
+    get_u16(uint16_t& value);
+    bool
+    get_u32(uint32_t& value);
+    bool
+    get_float(float& value);
+    bool
+    get_bytes(uint8_t* destination, size_t length);
+
+    size_t
+    remaining() const;
+    bool
+    done() const;
+    bool
+    valid() const;
+
+private:
+    uint8_t const* m_data;
+    size_t m_length;
+    size_t m_offset;
+    bool m_valid;
+};
 
 // Wire format (all integers and IEEE-754 floats are little-endian):
 //   envelope: magic u32, type u8, flags u8, payload_length u16, sequence u32

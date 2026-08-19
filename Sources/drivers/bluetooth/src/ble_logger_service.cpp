@@ -4,13 +4,10 @@
 #include <errno.h>
 #include <string.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/sys/atomic.h>
 #include "ble_connection.h"
 #include "ble_protocol.h"
 #include "ble_service.h"
-
-LOG_MODULE_REGISTER(ble_nus, CONFIG_LOGGER_LOG_LEVEL);
 
 namespace
 {
@@ -109,11 +106,6 @@ tx_thread(void*, void*, void*)
                 k_sleep(K_MSEC(1));
             }
         } while(err == -ENOMEM);
-
-        if((err != 0) && (err != -ENOTCONN))
-        {
-            LOG_ERR("NUS failed to send packet: %d", err);
-        }
     }
 }
 
@@ -142,15 +134,15 @@ nus_data_received(bt_conn* conn, const uint8_t* data, uint16_t len)
     BLE_Protocol::Decode_Result const result = BLE_Protocol::decode_packet(data, len, packet);
     if(result != BLE_Protocol::Decode_Result::OK)
     {
-        LOG_ERR("Invalid BLE packet: %u", static_cast<uint8_t>(result));
         if((len >= BLE_Protocol::header_size) && (BLE_Protocol::get_u32(data) == BLE_Protocol::magic) &&
            (data[4] >= 0x20u))
         {
             uint8_t response[6] {};
-            BLE_Protocol::put_u32(response, BLE_Protocol::get_u32(data + 8u));
-            response[4] = data[4];
-            response[5] = static_cast<uint8_t>(BLE_Protocol::Command_Status::INVALID_LENGTH);
-            ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, response, sizeof(response));
+            BLE_Protocol::Payload_Writer writer(response, sizeof(response));
+            writer.put_u32(BLE_Protocol::get_u32(data + 8u));
+            writer.put_u8(data[4]);
+            writer.put_u8(static_cast<uint8_t>(BLE_Protocol::Command_Status::INVALID_LENGTH));
+            ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, writer);
         }
         return;
     }
@@ -176,12 +168,10 @@ nus_notif_enabled(enum bt_nus_send_status status)
     if(status == BT_NUS_SEND_STATUS_ENABLED)
     {
         set_notif_status(true);
-        LOG_INF("notification enabled");
     }
     else if(status == BT_NUS_SEND_STATUS_DISABLED)
     {
         set_notif_status(false);
-        LOG_INF("notification disabled");
     }
 }
 
@@ -193,12 +183,7 @@ static bt_nus_cb nus_callbacks = {
 int
 ble_service_init()
 {
-    int const err = bt_nus_init(&nus_callbacks);
-    if(err != 0)
-    {
-        LOG_ERR("NUS initialization error: %d", err);
-    }
-    return err;
+    return bt_nus_init(&nus_callbacks);
 }
 
 int
@@ -208,9 +193,21 @@ ble_send_packet(BLE_Protocol::Message_Type type, uint8_t const* payload, uint16_
 }
 
 int
+ble_send_packet(BLE_Protocol::Message_Type type, BLE_Protocol::Payload_Writer const& payload)
+{
+    return payload.valid() ? ble_send_packet(type, payload.data(), payload.size()) : -EMSGSIZE;
+}
+
+int
 ble_send_telemetry_packet(uint8_t const* payload, uint16_t payload_length)
 {
     return enqueue_packet(&telemetry_tx_queue, BLE_Protocol::Message_Type::TELEMETRY, payload, payload_length);
+}
+
+int
+ble_send_telemetry_packet(BLE_Protocol::Payload_Writer const& payload)
+{
+    return payload.valid() ? ble_send_telemetry_packet(payload.data(), payload.size()) : -EMSGSIZE;
 }
 
 int
@@ -228,15 +225,16 @@ ble_send_log(uint8_t level, char const* module, char const* message)
     size_t const message_length = MIN(strlen(message), BLE_Protocol::max_payload_size - header_length - module_length);
 
     uint8_t payload[BLE_Protocol::max_payload_size] {};
-    payload[0] = level;
-    payload[1] = static_cast<uint8_t>(module_length);
-    BLE_Protocol::put_u16(payload + 2u, static_cast<uint16_t>(message_length));
-    memcpy(payload + header_length, module, module_length);
-    memcpy(payload + header_length + module_length, message, message_length);
+    BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
+    writer.put_u8(level);
+    writer.put_u8(static_cast<uint8_t>(module_length));
+    writer.put_u16(static_cast<uint16_t>(message_length));
+    writer.put_bytes(reinterpret_cast<uint8_t const*>(module), module_length);
+    writer.put_bytes(reinterpret_cast<uint8_t const*>(message), message_length);
 
-    return enqueue_packet(
-        &log_tx_queue, BLE_Protocol::Message_Type::LOG, payload,
-        static_cast<uint16_t>(header_length + module_length + message_length));
+    return writer.valid() ?
+               enqueue_packet(&log_tx_queue, BLE_Protocol::Message_Type::LOG, writer.data(), writer.size()) :
+               -EMSGSIZE;
 }
 
 void

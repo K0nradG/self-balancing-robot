@@ -24,19 +24,19 @@ K_MSGQ_DEFINE(telemetry_queue, sizeof(Telemetry_Sample), telemetry_queue_length,
 atomic_t dropped_samples;
 
 void
-encode_sample(uint8_t* destination, Telemetry_Sample const& sample)
+encode_sample(BLE_Protocol::Payload_Writer& writer, Telemetry_Sample const& sample)
 {
-    BLE_Protocol::put_u32(destination, sample.timestamp_us);
-    BLE_Protocol::put_float(destination + 4u, sample.balance_setpoint);
-    BLE_Protocol::put_float(destination + 8u, sample.balance_angle);
-    BLE_Protocol::put_float(destination + 12u, sample.rotation_setpoint);
-    BLE_Protocol::put_float(destination + 16u, sample.rotation_angle);
-    BLE_Protocol::put_float(destination + 20u, sample.target_speed_0);
-    BLE_Protocol::put_float(destination + 24u, sample.target_speed_1);
-    BLE_Protocol::put_float(destination + 28u, sample.measured_speed_0);
-    BLE_Protocol::put_float(destination + 32u, sample.measured_speed_1);
-    BLE_Protocol::put_float(destination + 36u, sample.pwm_0);
-    BLE_Protocol::put_float(destination + 40u, sample.pwm_1);
+    writer.put_u32(sample.timestamp_us);
+    writer.put_float(sample.balance_setpoint);
+    writer.put_float(sample.balance_angle);
+    writer.put_float(sample.rotation_setpoint);
+    writer.put_float(sample.rotation_angle);
+    writer.put_float(sample.target_speed_0);
+    writer.put_float(sample.target_speed_1);
+    writer.put_float(sample.measured_speed_0);
+    writer.put_float(sample.measured_speed_1);
+    writer.put_float(sample.pwm_0);
+    writer.put_float(sample.pwm_1);
 }
 
 void
@@ -52,20 +52,21 @@ telemetry_thread(void*, void*, void*)
             k_msgq_get(&telemetry_queue, &samples[i], K_FOREVER);
         }
 
-        BLE_Protocol::put_u32(payload, static_cast<uint32_t>(atomic_get(&dropped_samples)));
-        payload[4] = samples_per_frame;
-        payload[5] = 0u;
-        payload[6] = 0u;
-        payload[7] = 0u;
+        BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
+        writer.put_u32(static_cast<uint32_t>(atomic_get(&dropped_samples)));
+        writer.put_u8(static_cast<uint8_t>(samples_per_frame));
+        writer.put_u8(0u);
+        writer.put_u8(0u);
+        writer.put_u8(0u);
         for(size_t i = 0u; i < samples_per_frame; ++i)
         {
-            encode_sample(payload + telemetry_metadata_size + (i * telemetry_sample_size), samples[i]);
+            encode_sample(writer, samples[i]);
         }
 
         int err;
         do
         {
-            err = ble_send_telemetry_packet(payload, sizeof(payload));
+            err = ble_send_telemetry_packet(writer);
             if(err == -ENOMEM)
             {
                 k_sleep(K_MSEC(1));

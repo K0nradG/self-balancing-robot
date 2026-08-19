@@ -7,6 +7,164 @@
 namespace BLE_Protocol
 {
 
+Payload_Writer::Payload_Writer(uint8_t* buffer, size_t capacity)
+    : m_buffer(buffer),
+      m_capacity(capacity < max_payload_size ? capacity : max_payload_size),
+      m_size(0u),
+      m_valid(buffer != nullptr)
+{
+}
+
+bool
+Payload_Writer::put_u8(uint8_t value)
+{
+    return put_bytes(&value, sizeof(value));
+}
+
+bool
+Payload_Writer::put_u16(uint16_t value)
+{
+    uint8_t encoded[sizeof(value)];
+    BLE_Protocol::put_u16(encoded, value);
+    return put_bytes(encoded, sizeof(encoded));
+}
+
+bool
+Payload_Writer::put_u32(uint32_t value)
+{
+    uint8_t encoded[sizeof(value)];
+    BLE_Protocol::put_u32(encoded, value);
+    return put_bytes(encoded, sizeof(encoded));
+}
+
+bool
+Payload_Writer::put_float(float value)
+{
+    uint8_t encoded[encoded_float_size];
+    BLE_Protocol::put_float(encoded, value);
+    return put_bytes(encoded, sizeof(encoded));
+}
+
+bool
+Payload_Writer::put_bytes(uint8_t const* data, size_t length)
+{
+    if(!m_valid || ((data == nullptr) && (length != 0u)) || (length > (m_capacity - m_size)))
+    {
+        m_valid = false;
+        return false;
+    }
+
+    if(length != 0u)
+    {
+        memcpy(m_buffer + m_size, data, length);
+        m_size += length;
+    }
+    return true;
+}
+
+uint8_t const*
+Payload_Writer::data() const
+{
+    return m_buffer;
+}
+
+uint16_t
+Payload_Writer::size() const
+{
+    return static_cast<uint16_t>(m_size);
+}
+
+bool
+Payload_Writer::valid() const
+{
+    return m_valid;
+}
+
+Payload_Reader::Payload_Reader(uint8_t const* data, size_t length)
+    : m_data(data),
+      m_length(length),
+      m_offset(0u),
+      m_valid(((data != nullptr) || (length == 0u)) && (length <= max_payload_size))
+{
+}
+
+bool
+Payload_Reader::get_u8(uint8_t& value)
+{
+    return get_bytes(&value, sizeof(value));
+}
+
+bool
+Payload_Reader::get_u16(uint16_t& value)
+{
+    uint8_t encoded[sizeof(value)];
+    if(!get_bytes(encoded, sizeof(encoded)))
+    {
+        return false;
+    }
+    value = BLE_Protocol::get_u16(encoded);
+    return true;
+}
+
+bool
+Payload_Reader::get_u32(uint32_t& value)
+{
+    uint8_t encoded[sizeof(value)];
+    if(!get_bytes(encoded, sizeof(encoded)))
+    {
+        return false;
+    }
+    value = BLE_Protocol::get_u32(encoded);
+    return true;
+}
+
+bool
+Payload_Reader::get_float(float& value)
+{
+    uint8_t encoded[encoded_float_size];
+    if(!get_bytes(encoded, sizeof(encoded)))
+    {
+        return false;
+    }
+    value = BLE_Protocol::get_float(encoded);
+    return true;
+}
+
+bool
+Payload_Reader::get_bytes(uint8_t* destination, size_t length)
+{
+    if(!m_valid || ((destination == nullptr) && (length != 0u)) || (length > remaining()))
+    {
+        m_valid = false;
+        return false;
+    }
+
+    if(length != 0u)
+    {
+        memcpy(destination, m_data + m_offset, length);
+        m_offset += length;
+    }
+    return true;
+}
+
+size_t
+Payload_Reader::remaining() const
+{
+    return m_valid ? (m_length - m_offset) : 0u;
+}
+
+bool
+Payload_Reader::done() const
+{
+    return m_valid && (m_offset == m_length);
+}
+
+bool
+Payload_Reader::valid() const
+{
+    return m_valid;
+}
+
 Decode_Result
 decode_packet(uint8_t const* data, size_t length, Packet_View& packet)
 {

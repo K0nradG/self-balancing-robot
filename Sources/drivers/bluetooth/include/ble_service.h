@@ -21,7 +21,13 @@ int
 ble_send_packet(BLE_Protocol::Message_Type type, uint8_t const* payload, uint16_t payload_length);
 
 int
+ble_send_packet(BLE_Protocol::Message_Type type, BLE_Protocol::Payload_Writer const& payload);
+
+int
 ble_send_telemetry_packet(uint8_t const* payload, uint16_t payload_length);
+
+int
+ble_send_telemetry_packet(BLE_Protocol::Payload_Writer const& payload);
 
 int
 ble_send_log(uint8_t level, char const* module, char const* message);

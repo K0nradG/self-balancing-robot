@@ -113,20 +113,19 @@ class DataProcessor:
         return handler(packet)
 
     def _parse_telemetry(self, packet: ble_protocol.Packet) -> ParsedData:
-        data = packet.payload
-        if len(data) < TELEMETRY_HEADER.size:
-            raise ValueError(f"Telemetry payload is too short: {len(data)} bytes")
-
-        dropped_samples, sample_count, reserved = TELEMETRY_HEADER.unpack_from(data)
+        reader = ble_protocol.PayloadReader(packet.payload)
+        dropped_samples = reader.get_u32()
+        sample_count = reader.get_u8()
+        reserved = reader.get_bytes(3)
         if reserved != b"\0\0\0":
             raise ValueError("Telemetry reserved bytes are not zero")
         if not 1 <= sample_count <= TELEMETRY_SAMPLES_PER_FRAME:
             raise ValueError(f"Invalid telemetry sample count: {sample_count}")
 
-        expected_size = TELEMETRY_HEADER.size + sample_count * TELEMETRY_SAMPLE.size
-        if len(data) != expected_size:
+        expected_size = sample_count * TELEMETRY_SAMPLE.size
+        if reader.remaining != expected_size:
             raise ValueError(
-                f"Invalid telemetry payload size: got {len(data)}, expected {expected_size}"
+                f"Invalid telemetry sample data size: got {reader.remaining}, expected {expected_size}"
             )
 
         if (
@@ -141,14 +140,14 @@ class DataProcessor:
         self.expected_frame_sequence = (packet.sequence + 1) & 0xFFFFFFFF
 
         samples = []
-        offset = TELEMETRY_HEADER.size
         for _ in range(sample_count):
-            values = TELEMETRY_SAMPLE.unpack_from(data, offset)
+            values = [reader.get_u32()]
+            values.extend(reader.get_float() for _ in range(10))
             sample = dict(zip(TELEMETRY_KEYS, values))
             sample["frame_sequence"] = packet.sequence
             sample["dropped_samples"] = dropped_samples
             samples.append(sample)
-            offset += TELEMETRY_SAMPLE.size
+        reader.finish()
 
         if self._recording_enabled:
             self.__record_telemetry_batch(samples)
@@ -156,26 +155,28 @@ class DataProcessor:
         return ParsedData(telemetry=samples[-1], telemetry_samples=samples)
 
     def _parse_log(self, packet: ble_protocol.Packet) -> ParsedData:
-        payload = packet.payload
-        if len(payload) < LOG_HEADER.size:
-            raise ValueError("Log payload is too short")
-        level, module_len, text_len = LOG_HEADER.unpack_from(payload)
-        expected_size = LOG_HEADER.size + module_len + text_len
-        if len(payload) != expected_size:
+        reader = ble_protocol.PayloadReader(packet.payload)
+        level = reader.get_u8()
+        module_len = reader.get_u8()
+        text_len = reader.get_u16()
+        if reader.remaining != module_len + text_len:
             raise ValueError(
-                f"Invalid log payload size: got {len(payload)}, expected {expected_size}"
+                f"Invalid log text size: got {reader.remaining}, expected {module_len + text_len}"
             )
-        module_end = LOG_HEADER.size + module_len
         try:
-            module = payload[LOG_HEADER.size:module_end].decode("utf-8")
-            text = payload[module_end:].decode("utf-8")
+            module = reader.get_bytes(module_len).decode("utf-8")
+            text = reader.get_bytes(text_len).decode("utf-8")
         except UnicodeDecodeError as error:
             raise ValueError("Log payload contains invalid UTF-8") from error
+        reader.finish()
         return ParsedData(log=LogMessage(level, module, text))
 
     def _parse_battery(self, packet: ble_protocol.Packet) -> ParsedData:
-        self._require_size(packet.payload, BATTERY_STATUS, "battery")
-        millivolts, percent, reserved = BATTERY_STATUS.unpack(packet.payload)
+        reader = ble_protocol.PayloadReader(packet.payload)
+        millivolts = reader.get_u16()
+        percent = reader.get_u8()
+        reserved = reader.get_u8()
+        reader.finish()
         if reserved != 0:
             raise ValueError("Battery reserved byte is not zero")
         if percent > 100:
@@ -183,15 +184,21 @@ class DataProcessor:
         return ParsedData(battery=BatteryStatus(millivolts, percent))
 
     def _parse_app_version(self, packet: ble_protocol.Packet) -> ParsedData:
-        self._require_size(packet.payload, APP_VERSION, "app version")
-        major, minor, revision, reserved, build = APP_VERSION.unpack(packet.payload)
+        reader = ble_protocol.PayloadReader(packet.payload)
+        major = reader.get_u8()
+        minor = reader.get_u8()
+        revision = reader.get_u8()
+        reserved = reader.get_u8()
+        build = reader.get_u32()
+        reader.finish()
         if reserved != 0:
             raise ValueError("App version reserved byte is not zero")
         return ParsedData(app_version=AppVersion(major, minor, revision, build))
 
     def _parse_pid_state(self, packet: ble_protocol.Packet) -> ParsedData:
-        self._require_size(packet.payload, PID_STATE, "PID state")
-        values = PID_STATE.unpack(packet.payload)
+        reader = ble_protocol.PayloadReader(packet.payload)
+        values = [reader.get_float() for _ in range(15)]
+        reader.finish()
         controllers = (
             "distance",
             "linear_speed",
@@ -210,8 +217,10 @@ class DataProcessor:
         return ParsedData(pid_params=params)
 
     def _parse_lqr_state(self, packet: ble_protocol.Packet) -> ParsedData:
-        self._require_size(packet.payload, LQR_STATE, "LQR state")
-        kx, ky = LQR_STATE.unpack(packet.payload)
+        reader = ble_protocol.PayloadReader(packet.payload)
+        kx = reader.get_float()
+        ky = reader.get_float()
+        reader.finish()
         return ParsedData(lqr_params={"kx": kx, "ky": ky})
 
     def _parse_trajectory_complete(self, packet: ble_protocol.Packet) -> ParsedData:
@@ -219,8 +228,11 @@ class DataProcessor:
         return ParsedData(trajectory_complete=True)
 
     def _parse_command_result(self, packet: ble_protocol.Packet) -> ParsedData:
-        self._require_size(packet.payload, COMMAND_RESULT, "command result")
-        request_sequence, request_type, status = COMMAND_RESULT.unpack(packet.payload)
+        reader = ble_protocol.PayloadReader(packet.payload)
+        request_sequence = reader.get_u32()
+        request_type = reader.get_u8()
+        status = reader.get_u8()
+        reader.finish()
         try:
             typed_request = ble_protocol.MessageType(request_type)
         except ValueError as error:
@@ -242,13 +254,6 @@ class DataProcessor:
     ) -> ParsedData:
         self._require_empty(packet.payload, "identification complete")
         return ParsedData(identification_complete=True)
-
-    @staticmethod
-    def _require_size(payload: bytes, layout: struct.Struct, name: str):
-        if len(payload) != layout.size:
-            raise ValueError(
-                f"Invalid {name} payload size: got {len(payload)}, expected {layout.size}"
-            )
 
     @staticmethod
     def _require_empty(payload: bytes, name: str):

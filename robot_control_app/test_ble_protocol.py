@@ -7,6 +7,37 @@ from robot_control_app import ble_protocol
 
 
 class BleProtocolTest(unittest.TestCase):
+    def test_payload_writer_reader_roundtrip(self):
+        payload = (
+            ble_protocol.PayloadWriter()
+            .put_u8(7)
+            .put_u16(0x1234)
+            .put_u32(0x89ABCDEF)
+            .put_float(1.25)
+            .put_bytes(b"ok")
+            .to_bytes()
+        )
+        reader = ble_protocol.PayloadReader(payload)
+        self.assertEqual(reader.get_u8(), 7)
+        self.assertEqual(reader.get_u16(), 0x1234)
+        self.assertEqual(reader.get_u32(), 0x89ABCDEF)
+        self.assertAlmostEqual(reader.get_float(), 1.25)
+        self.assertEqual(reader.get_bytes(2), b"ok")
+        reader.finish()
+
+    def test_payload_layer_enforces_bounds(self):
+        writer = ble_protocol.PayloadWriter().put_bytes(
+            bytes(ble_protocol.MAX_PAYLOAD_SIZE)
+        )
+        self.assertEqual(len(writer.to_bytes()), ble_protocol.MAX_PAYLOAD_SIZE)
+        with self.assertRaisesRegex(ValueError, "Payload exceeds"):
+            writer.put_u8(1)
+
+        with self.assertRaisesRegex(ValueError, "truncated"):
+            ble_protocol.PayloadReader(b"\x01").get_u32()
+        with self.assertRaisesRegex(ValueError, "trailing"):
+            ble_protocol.PayloadReader(b"\x01").finish()
+
     def test_packet_roundtrip(self):
         encoded = ble_protocol.pack_packet(
             ble_protocol.MessageType.SET_SETPOINT,

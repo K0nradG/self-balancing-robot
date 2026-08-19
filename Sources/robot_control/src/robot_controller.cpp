@@ -28,10 +28,11 @@ static void
 send_command_result(BLE_Protocol::Packet_View const& packet, BLE_Protocol::Command_Status status)
 {
     uint8_t payload[6] {};
-    BLE_Protocol::put_u32(payload, packet.sequence);
-    payload[4] = static_cast<uint8_t>(packet.type);
-    payload[5] = static_cast<uint8_t>(status);
-    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, payload, sizeof(payload));
+    BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
+    writer.put_u32(packet.sequence);
+    writer.put_u8(static_cast<uint8_t>(packet.type));
+    writer.put_u8(static_cast<uint8_t>(status));
+    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, writer);
 }
 
 static void
@@ -236,19 +237,22 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
     {
         case Message_Type::STATE_COMMAND:
         {
-            if(packet.payload_length != 1u)
+            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            uint8_t action;
+            if(!reader.get_u8(action) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
                 break;
             }
-            bool const applied = Main_State_Machine::instance().apply_command(
-                static_cast<BLE_Protocol::State_Action>(packet.payload[0]));
+            bool const applied =
+                Main_State_Machine::instance().apply_command(static_cast<BLE_Protocol::State_Action>(action));
             status = applied ? Command_Status::OK : Command_Status::INVALID_STATE;
             break;
         }
         case Message_Type::GET_PID_STATE:
         {
-            if(packet.payload_length != 0u)
+            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            if(!reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
                 break;
@@ -262,17 +266,16 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
         case Message_Type::SET_PID:
         {
-            if(packet.payload_length != 13u)
+            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            uint8_t controller_value;
+            PID::Parameters parameters;
+            if(!reader.get_u8(controller_value) || !reader.get_float(parameters.Kp) ||
+               !reader.get_float(parameters.Ki) || !reader.get_float(parameters.Kd) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
                 break;
             }
-            Controller_Id const controller   = static_cast<Controller_Id>(packet.payload[0]);
-            PID::Parameters const parameters = {
-                .Kp = BLE_Protocol::get_float(packet.payload + 1u),
-                .Ki = BLE_Protocol::get_float(packet.payload + 5u),
-                .Kd = BLE_Protocol::get_float(packet.payload + 9u),
-            };
+            Controller_Id const controller = static_cast<Controller_Id>(controller_value);
             if(!isfinite(parameters.Kp) || !isfinite(parameters.Ki) || !isfinite(parameters.Kd))
             {
                 status = Command_Status::INVALID_VALUE;
@@ -308,13 +311,15 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
         case Message_Type::SET_SETPOINT:
         {
-            if(packet.payload_length != 5u)
+            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            uint8_t controller_value;
+            float value;
+            if(!reader.get_u8(controller_value) || !reader.get_float(value) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
                 break;
             }
-            Controller_Id const controller = static_cast<Controller_Id>(packet.payload[0]);
-            float const value              = BLE_Protocol::get_float(packet.payload + 1u);
+            Controller_Id const controller = static_cast<Controller_Id>(controller_value);
             if(!isfinite(value))
             {
                 status = Command_Status::INVALID_VALUE;
@@ -353,28 +358,28 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
         case Message_Type::TRAJECTORY_COMMAND:
         {
-            if(packet.payload_length != 8u)
+            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            float rotation_degrees;
+            float distance_m;
+            if(!reader.get_float(rotation_degrees) || !reader.get_float(distance_m) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
                 break;
             }
-            bool const accepted = m_trajectory_manager.set_trajectory_point(
-                BLE_Protocol::get_float(packet.payload), BLE_Protocol::get_float(packet.payload + 4u));
-            status = accepted ? Command_Status::OK : Command_Status::INVALID_STATE;
+            bool const accepted = m_trajectory_manager.set_trajectory_point(rotation_degrees, distance_m);
+            status              = accepted ? Command_Status::OK : Command_Status::INVALID_STATE;
             break;
         }
         case Message_Type::SET_LQR:
         {
 #ifndef CONFIG_PID_ENABLED
-            if(packet.payload_length != 8u)
+            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            LQR::Parameters parameters;
+            if(!reader.get_float(parameters.Kx) || !reader.get_float(parameters.Ky) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
                 break;
             }
-            LQR::Parameters const parameters = {
-                .Kx = BLE_Protocol::get_float(packet.payload),
-                .Ky = BLE_Protocol::get_float(packet.payload + 4u),
-            };
             if(!isfinite(parameters.Kx) || !isfinite(parameters.Ky))
             {
                 status = Command_Status::INVALID_VALUE;
@@ -428,22 +433,22 @@ Robot_Controller::send_PID_controllers_parameters()
         distance_pid_parameters, linear_speed_pid_parameters, balance_pid_parameters,
         rotate_pid_parameters,   wheel_speed_pid_parameters,
     };
-    uint8_t payload[sizeof(parameters)] {};
-    size_t offset = 0u;
+    uint8_t payload[ARRAY_SIZE(parameters) * 3u * BLE_Protocol::encoded_float_size] {};
+    BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
     for(PID::Parameters const& parameter: parameters)
     {
-        BLE_Protocol::put_float(payload + offset, parameter.Kp);
-        BLE_Protocol::put_float(payload + offset + 4u, parameter.Ki);
-        BLE_Protocol::put_float(payload + offset + 8u, parameter.Kd);
-        offset += 12u;
+        writer.put_float(parameter.Kp);
+        writer.put_float(parameter.Ki);
+        writer.put_float(parameter.Kd);
     }
-    ble_send_packet(BLE_Protocol::Message_Type::PID_STATE, payload, sizeof(payload));
+    ble_send_packet(BLE_Protocol::Message_Type::PID_STATE, writer);
 #ifndef CONFIG_PID_ENABLED
     LQR::Parameters const lqr_parameters = m_balance_lqr.get_parameters();
-    uint8_t lqr_payload[8] {};
-    BLE_Protocol::put_float(lqr_payload, lqr_parameters.Kx);
-    BLE_Protocol::put_float(lqr_payload + 4u, lqr_parameters.Ky);
-    ble_send_packet(BLE_Protocol::Message_Type::LQR_STATE, lqr_payload, sizeof(lqr_payload));
+    uint8_t lqr_payload[2u * BLE_Protocol::encoded_float_size] {};
+    BLE_Protocol::Payload_Writer lqr_writer(lqr_payload, sizeof(lqr_payload));
+    lqr_writer.put_float(lqr_parameters.Kx);
+    lqr_writer.put_float(lqr_parameters.Ky);
+    ble_send_packet(BLE_Protocol::Message_Type::LQR_STATE, lqr_writer);
 #endif
     m_regulator_message_sending_in_progress = false;
 }

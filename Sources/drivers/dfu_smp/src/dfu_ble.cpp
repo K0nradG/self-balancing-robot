@@ -1,11 +1,9 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-#include <inttypes.h>
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/dfu/mcuboot.h>
 #include <zephyr/kernel.h>
-#include <zephyr/logging/log.h>
 #include <zephyr/mgmt/mcumgr/grp/img_mgmt/img_mgmt.h>
 #include <zephyr/mgmt/mcumgr/mgmt/callbacks.h>
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
@@ -15,7 +13,6 @@
 #include "control_loop.h"
 
 /*TODO: now dfu is mandatory so BLE needs to be default y*/
-#include "ble_service.h"
 #include "ble_setup.h"
 #include "dfu_ble.h"
 
@@ -30,8 +27,6 @@
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #include "battery_level.h"
 #endif  // CONFIG_BATTERY_LEVEL_DRV
-
-LOG_MODULE_REGISTER(dfu_ble, CONFIG_DFU_BLE_LOG_LEVEL);
 
 #define DFU_BLINKING_INTERVAL 100
 
@@ -64,13 +59,8 @@ K_SEM_DEFINE(dfu_sem, 0, 1);
 static void
 start_smp_adv_handler(k_work* work)
 {
-    int ret = bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-    if(ret != 0)
-    {
-        LOG_ERR("Advertising failed to start: %d", ret);
-        return;
-    }
-    LOG_INF("SMP advertising started - ready for DFU");
+    ARG_UNUSED(work);
+    bt_le_adv_start(adv_param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
 }
 
 K_WORK_DELAYABLE_DEFINE(dfu_smp_start_adv_work, start_smp_adv_handler);
@@ -84,10 +74,8 @@ start_dfu_smp_adv()
 static enum mgmt_cb_return
 upload_confirm_handler(uint32_t, enum mgmt_cb_return, int32_t* rc, uint16_t*, bool*, void* data, size_t)
 {
-    const img_mgmt_upload_check* imgData = (const img_mgmt_upload_check*)data;
-    LOG_INF(
-        "DFU over SMP progress: %" PRIu64 " / %" PRIu64 " B (image: %u)", (uint64_t)imgData->req->off,
-        (uint64_t)imgData->action->size, imgData->req->image);
+    ARG_UNUSED(rc);
+    ARG_UNUSED(data);
     return MGMT_CB_OK;
 }
 
@@ -100,31 +88,32 @@ static void
 send_dfu_command_result(uint32_t request_sequence, BLE_Protocol::Command_Status status)
 {
     uint8_t result[6] {};
-    BLE_Protocol::put_u32(result, request_sequence);
-    result[4] = static_cast<uint8_t>(BLE_Protocol::Message_Type::DFU_COMMAND);
-    result[5] = static_cast<uint8_t>(status);
-    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, result, sizeof(result));
+    BLE_Protocol::Payload_Writer writer(result, sizeof(result));
+    writer.put_u32(request_sequence);
+    writer.put_u8(static_cast<uint8_t>(BLE_Protocol::Message_Type::DFU_COMMAND));
+    writer.put_u8(static_cast<uint8_t>(status));
+    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, writer);
 }
 
 void
 dfu_packet_received(BLE_Protocol::Packet_View const& packet)
 {
     BLE_Protocol::Command_Status status = BLE_Protocol::Command_Status::OK;
-    if(packet.payload_length != 1u)
+    BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+    uint8_t action;
+    if(!reader.get_u8(action) || !reader.done())
     {
         status = BLE_Protocol::Command_Status::INVALID_LENGTH;
     }
     else
     {
-        switch(static_cast<BLE_Protocol::Dfu_Action>(packet.payload[0]))
+        switch(static_cast<BLE_Protocol::Dfu_Action>(action))
         {
             case BLE_Protocol::Dfu_Action::START:
-                LOG_INF("DFU START command received");
                 g_dfu_state = DFU_STATE_START;
                 break;
 
             case BLE_Protocol::Dfu_Action::SKIP:
-                LOG_INF("DFU SKIP command received");
                 g_dfu_state            = DFU_STATE_SKIP;
                 g_dfu_request_sequence = packet.sequence;
                 break;
@@ -159,13 +148,10 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    LOG_INF("Waiting for DFU command...");
-
     k_sem_take(&dfu_sem, K_FOREVER);
 
     if(g_dfu_state == DFU_STATE_SKIP)
     {
-        LOG_INF("DFU skipped, starting main application...");
         Robot_Control::control_loop_init();
         send_dfu_command_result(g_dfu_request_sequence, BLE_Protocol::Command_Status::OK);
         if(dfu_action_cb)
@@ -177,7 +163,6 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
 
     if(g_dfu_state == DFU_STATE_START)
     {
-        LOG_INF("Entering DFU mode...");
         get_app_version();
 
         // Keep thread alive but not blocking system
@@ -195,14 +180,7 @@ confirm_new_image()
     if(err != BOOT_SWAP_TYPE_REVERT)
         return;
 
-    if(boot_write_img_confirmed())
-    {
-        LOG_ERR("Failed to confirm firmware image - will revert on next boot");
-    }
-    else
-    {
-        LOG_INF("New firmware image confirmed");
-    }
+    boot_write_img_confirmed();
 }
 
 #if defined(CONFIG_BATTERY_LEVEL_DRV) && !defined(CONFIG_MODEL_IDENTIFICATION_DRV)
@@ -213,33 +191,41 @@ static void
 new_battery_level_callback(battery_level_data data)
 {
     uint8_t payload[4] {};
-    BLE_Protocol::put_u16(payload, data.battery_level_mv);
-    payload[2] = data.battery_level_percent;
-    ble_send_packet(BLE_Protocol::Message_Type::BATTERY_STATUS, payload, sizeof(payload));
+    BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
+    writer.put_u16(data.battery_level_mv);
+    writer.put_u8(data.battery_level_percent);
+    writer.put_u8(0u);
+    ble_send_packet(BLE_Protocol::Message_Type::BATTERY_STATUS, writer);
 }
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 static int
 dfu_smp_init()
 {
-    int ret;
-
 #if defined(CONFIG_BATTERY_LEVEL_DRV) && !defined(CONFIG_MODEL_IDENTIFICATION_DRV)
     new_battery_level_cb_register(new_battery_level_callback);
     battery_start_periodic_measurement(MEASUREMENT_INTERVAL);
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
-    ret = battery_level_init();
+    battery_level_init();
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
 #ifdef CONFIG_INTERFACE_DRV
-    ret = interface_init();
+    interface_init();
     led_start_periodic_blinking(DFU_BLINKING_INTERVAL);
 #endif
 
-    ret = ble_init();
+    int ret = ble_init();
+    if(ret != 0)
+    {
+        return ret;
+    }
     ret = ble_service_init();
+    if(ret != 0)
+    {
+        return ret;
+    }
 
     confirm_new_image();
 
@@ -251,7 +237,6 @@ dfu_smp_init()
         &dfu_wait_thread_data, dfu_wait_stack, K_THREAD_STACK_SIZEOF(dfu_wait_stack), dfu_wait_thread, nullptr, nullptr,
         nullptr, 7, 0, K_NO_WAIT);
 
-    LOG_INF("DFU SMP initialization done");
     return 0;
 }
 

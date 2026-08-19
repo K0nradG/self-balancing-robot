@@ -3,7 +3,7 @@
 # Right panel widget handling robot control, control loop parameters and telemetry data plotting.
 
 
-from robot_control_app.ble_commands import *
+from robot_control_app import ble_protocol
 
 from PyQt6.QtWidgets import (
     QWidget,
@@ -24,22 +24,23 @@ from PyQt6.QtGui import QDoubleValidator
 MAX_PLOT_POINTS = 200
 
 PID_SET_COMMAND_MAP = {
-    "distance": DISTANCE_PID,
-    "linear_speed": LINEAR_SPEED_PID,
-    "balance": BALANCE_PID,
-    "rotate": ROTATE_PID,
-    "wheel_speed": WHEEL_PID,
+    "distance": ble_protocol.ControllerId.DISTANCE,
+    "linear_speed": ble_protocol.ControllerId.LINEAR_SPEED,
+    "balance": ble_protocol.ControllerId.BALANCE,
+    "rotate": ble_protocol.ControllerId.ROTATE,
+    "wheel_speed": ble_protocol.ControllerId.WHEEL_SPEED,
 }
 
 
 class RightPanelWidget(QWidget):
     """Handles Robot Control Actions, PID Parameter Tuning, and Real-time Telemetry Plots."""
 
-    send_command_requested = pyqtSignal(str)
+    send_command_requested = pyqtSignal(bytes)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pid_inputs = {}
+        self.balance_uses_lqr = False
 
         # Telemetry plot buffers
         self.plot_time = deque(maxlen=MAX_PLOT_POINTS)
@@ -65,11 +66,15 @@ class RightPanelWidget(QWidget):
         btn_layout = QHBoxLayout()
         self.start_control_btn = QPushButton("Start Control")
         self.start_control_btn.clicked.connect(
-            lambda: self.send_command_requested.emit(START_CONTROL)
+            lambda: self.send_command_requested.emit(
+                ble_protocol.state_command(ble_protocol.StateAction.START)
+            )
         )
         self.stop_control_btn = QPushButton("Stop Control")
         self.stop_control_btn.clicked.connect(
-            lambda: self.send_command_requested.emit(STOP_CONTROL)
+            lambda: self.send_command_requested.emit(
+                ble_protocol.state_command(ble_protocol.StateAction.STOP)
+            )
         )
         btn_layout.addWidget(self.start_control_btn)
         btn_layout.addWidget(self.stop_control_btn)
@@ -102,6 +107,21 @@ class RightPanelWidget(QWidget):
         rot_layout.addWidget(self.send_rot_btn)
 
         ctrl_actions_layout.addLayout(rot_layout)
+
+        trajectory_layout = QHBoxLayout()
+        trajectory_layout.addWidget(QLabel("Trajectory rotation [deg]:"))
+        self.trajectory_rotation_input = QLineEdit("0.0")
+        self.trajectory_rotation_input.setValidator(num_validator)
+        trajectory_layout.addWidget(self.trajectory_rotation_input)
+        trajectory_layout.addWidget(QLabel("distance [m]:"))
+        self.trajectory_distance_input = QLineEdit("0.0")
+        self.trajectory_distance_input.setValidator(num_validator)
+        trajectory_layout.addWidget(self.trajectory_distance_input)
+        self.send_trajectory_btn = QPushButton("Start trajectory")
+        self.send_trajectory_btn.clicked.connect(self._send_trajectory)
+        trajectory_layout.addWidget(self.send_trajectory_btn)
+        ctrl_actions_layout.addLayout(trajectory_layout)
+
         panel_layout.addWidget(ctrl_actions_group)
 
         pid_group = self.__create_pid_tuning_group()
@@ -190,7 +210,11 @@ class RightPanelWidget(QWidget):
         dist_str = self.dist_ref_input.text().strip().replace(",", ".")
         try:
             dist_val = float(dist_str)
-            self.send_command_requested.emit(f"{DISTANCE_PID}{SETPOINT}{dist_val:.2f}")
+            self.send_command_requested.emit(
+                ble_protocol.set_setpoint_command(
+                    ble_protocol.ControllerId.DISTANCE, dist_val
+                )
+            )
         except ValueError:
             QMessageBox.warning(
                 self,
@@ -203,7 +227,11 @@ class RightPanelWidget(QWidget):
         rot_str = self.rot_ref_input.text().strip().replace(",", ".")
         try:
             rot_val = float(rot_str)
-            self.send_command_requested.emit(f"{ROTATE_PID}{SETPOINT}{rot_val:.2f}")
+            self.send_command_requested.emit(
+                ble_protocol.set_setpoint_command(
+                    ble_protocol.ControllerId.ROTATE, rot_val
+                )
+            )
         except ValueError:
             QMessageBox.warning(
                 self,
@@ -213,7 +241,28 @@ class RightPanelWidget(QWidget):
             )
 
     def _get_pid_parameters(self):
-        self.send_command_requested.emit(GET_CONTROL_LOOP_PARAMS)
+        self.send_command_requested.emit(ble_protocol.get_pid_state_command())
+
+    def _send_trajectory(self):
+        try:
+            rotation = float(
+                self.trajectory_rotation_input.text().strip().replace(",", ".")
+            )
+            distance = float(
+                self.trajectory_distance_input.text().strip().replace(",", ".")
+            )
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Invalid Input",
+                "Trajectory rotation and distance must be valid numbers.",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+
+        self.send_command_requested.emit(
+            ble_protocol.trajectory_command(rotation, distance)
+        )
 
     def _send_pid_parameters(self, controller_key: str):
         inputs = self.pid_inputs.get(controller_key)
@@ -233,8 +282,13 @@ class RightPanelWidget(QWidget):
             )
             return
 
-        cmd = f"{PID_SET_COMMAND_MAP[controller_key]}k{kp:.4f}i{ki:.4f}d{kd:.4f}"
-        self.send_command_requested.emit(cmd)
+        self.send_command_requested.emit(
+            ble_protocol.set_lqr_command(kp, ki)
+            if controller_key == "balance" and self.balance_uses_lqr
+            else ble_protocol.set_pid_command(
+                PID_SET_COMMAND_MAP[controller_key], kp, ki, kd
+            )
+        )
 
     def update_pid_parameters(self, pid_data: dict):
 
@@ -246,6 +300,14 @@ class RightPanelWidget(QWidget):
                 self.pid_inputs[ctrl_key]["kp"].setText(f"{params['kp']:.4f}")
                 self.pid_inputs[ctrl_key]["ki"].setText(f"{params['ki']:.4f}")
                 self.pid_inputs[ctrl_key]["kd"].setText(f"{params['kd']:.4f}")
+
+    def update_lqr_parameters(self, lqr_data: dict):
+        self.balance_uses_lqr = True
+        inputs = self.pid_inputs["balance"]
+        inputs["kp"].setText(f"{lqr_data['kx']:.4f}")
+        inputs["ki"].setText(f"{lqr_data['ky']:.4f}")
+        inputs["kd"].setText("0.0000")
+        inputs["kd"].setEnabled(False)
 
     def update_telemetry_plots(self, data: dict):
 

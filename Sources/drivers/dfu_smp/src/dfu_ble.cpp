@@ -10,10 +10,9 @@
 #include <zephyr/mgmt/mcumgr/mgmt/callbacks.h>
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
-#include "ble_commands.h"
+#include "ble_protocol.h"
 #include "ble_service.h"
 #include "control_loop.h"
-#include "logger.h"
 
 /*TODO: now dfu is mandatory so BLE needs to be default y*/
 #include "ble_service.h"
@@ -56,6 +55,7 @@ typedef enum
 } dfu_state_t;
 
 static dfu_state_t g_dfu_state = DFU_STATE_WAITING;
+static uint32_t g_dfu_request_sequence;
 
 static dfu_action_cb_t dfu_action_cb;
 
@@ -96,43 +96,56 @@ static mgmt_callback sUploadCallback = {
     .event_id = MGMT_EVT_OP_IMG_MGMT_DFU_CHUNK,
 };
 
-void
-dfu_process_parser_cb(const char* payload)
+static void
+send_dfu_command_result(uint32_t request_sequence, BLE_Protocol::Command_Status status)
 {
-    if(!payload || *payload == '\0')
+    uint8_t result[6] {};
+    BLE_Protocol::put_u32(result, request_sequence);
+    result[4] = static_cast<uint8_t>(BLE_Protocol::Message_Type::DFU_COMMAND);
+    result[5] = static_cast<uint8_t>(status);
+    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, result, sizeof(result));
+}
+
+void
+dfu_packet_received(BLE_Protocol::Packet_View const& packet)
+{
+    BLE_Protocol::Command_Status status = BLE_Protocol::Command_Status::OK;
+    if(packet.payload_length != 1u)
     {
-        LOG_ERR("DFU parser: empty payload");
-        return;
+        status = BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+    else
+    {
+        switch(static_cast<BLE_Protocol::Dfu_Action>(packet.payload[0]))
+        {
+            case BLE_Protocol::Dfu_Action::START:
+                LOG_INF("DFU START command received");
+                g_dfu_state = DFU_STATE_START;
+                break;
+
+            case BLE_Protocol::Dfu_Action::SKIP:
+                LOG_INF("DFU SKIP command received");
+                g_dfu_state            = DFU_STATE_SKIP;
+                g_dfu_request_sequence = packet.sequence;
+                break;
+
+            default:
+                status = BLE_Protocol::Command_Status::INVALID_VALUE;
+                break;
+        }
     }
 
-    // skip DFU_PREFIX
-    payload++;
-
-    if(*payload == '\0')
+    if(status == BLE_Protocol::Command_Status::OK)
     {
-        LOG_ERR("DFU parser: missing command after prefix");
-        return;
+        if(g_dfu_state == DFU_STATE_START)
+        {
+            send_dfu_command_result(packet.sequence, status);
+        }
+        k_sem_give(&dfu_sem);
     }
-
-    char key = payload[0];
-
-    switch(key)
+    else
     {
-        case BLE_Commands::DFU::DFU_START:
-            LOG_INF("DFU START command received");
-            g_dfu_state = DFU_STATE_START;
-            k_sem_give(&dfu_sem);
-            break;
-
-        case BLE_Commands::DFU::DFU_SKIP:
-            LOG_INF("DFU SKIP command received");
-            g_dfu_state = DFU_STATE_SKIP;
-            k_sem_give(&dfu_sem);
-            break;
-
-        default:
-            LOG_WRN("DFU unknown command: %c", key);
-            break;
+        send_dfu_command_result(packet.sequence, status);
     }
 }
 
@@ -154,6 +167,7 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
     {
         LOG_INF("DFU skipped, starting main application...");
         Robot_Control::control_loop_init();
+        send_dfu_command_result(g_dfu_request_sequence, BLE_Protocol::Command_Status::OK);
         if(dfu_action_cb)
         {
             dfu_action_cb();
@@ -195,13 +209,13 @@ confirm_new_image()
 
 #define MEASUREMENT_INTERVAL 9000
 
-static Logger<IS_ENABLED(1)> boot_state_logger("BOOT");
-
 static void
 new_battery_level_callback(battery_level_data data)
 {
-    boot_state_logger.platform_log(LOG_LEVEL::INF, "bat lvl %u", data.battery_level_percent);
-    boot_state_logger.platform_log(LOG_LEVEL::INF, "bat lvl mv %u", data.battery_level_mv);
+    uint8_t payload[4] {};
+    BLE_Protocol::put_u16(payload, data.battery_level_mv);
+    payload[2] = data.battery_level_percent;
+    ble_send_packet(BLE_Protocol::Message_Type::BATTERY_STATUS, payload, sizeof(payload));
 }
 #endif  // CONFIG_BATTERY_LEVEL_DRV
 
@@ -229,7 +243,7 @@ dfu_smp_init()
 
     confirm_new_image();
 
-    dfu_process_parser_cb_register(dfu_process_parser_cb);
+    ble_dfu_packet_received_cb_register(dfu_packet_received);
     mgmt_callback_register(&sUploadCallback);
 
     start_dfu_smp_adv();

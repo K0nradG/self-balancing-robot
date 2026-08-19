@@ -2,8 +2,8 @@
 
 #include "trajectory_manager.h"
 #include <math.h>
-#include <stdlib.h>
-#include "ble_commands.h"
+#include "ble_protocol.h"
+#include "ble_service.h"
 #include "logger.h"
 #include "trajectory_state_machine.h"
 
@@ -24,59 +24,25 @@ Trajectory_Manager::Trajectory_Manager(float& distance_setpoint, Ramp& rotation_
 {
 }
 
-void
-Trajectory_Manager::parse_trajectory_point(char const* data)
+bool
+Trajectory_Manager::set_trajectory_point(float rotation_degrees, float distance_m)
 {
-    if(data == nullptr)
+    if(!isfinite(rotation_degrees) || !isfinite(distance_m) || trajectory_started())
     {
-        return;
+        return false;
     }
 
-    static constexpr float abs_diff   = 1e-3f;
-    float new_rotation_angle_setpoint = 0.0f;
-    float new_distance_setpoint       = 0.0f;
-
-    while(*data)
-    {
-        if((*data == BLE_Commands::Trajectory_Manager::ROTATION) ||
-           (*data == BLE_Commands::Trajectory_Manager::DISTANCE))
-        {
-            char key = *data;
-            data++;
-            char* next_data = nullptr;
-            float value     = strtof(data, &next_data);
-
-            if(data == next_data)
-            {
-                break;
-            }
-            data = next_data;
-
-            switch(key)
-            {
-                case BLE_Commands::Trajectory_Manager::ROTATION:
-                    new_rotation_angle_setpoint = value * deg_to_rad;
-                    break;
-                case BLE_Commands::Trajectory_Manager::DISTANCE:
-                    new_distance_setpoint = value;
-                    break;
-                default:
-                    break;
-            }
-        }
-        else
-        {
-            data++;
-        }
-    }
+    static constexpr float abs_diff         = 1e-3f;
+    float const new_rotation_angle_setpoint = rotation_degrees * deg_to_rad;
 
     if((fabsf(m_new_rotation_angle_setpoint - new_rotation_angle_setpoint) > abs_diff) ||
-       (fabsf(m_new_distance_setpoint - new_distance_setpoint) > abs_diff))
+       (fabsf(m_new_distance_setpoint - distance_m) > abs_diff))
     {
         m_new_rotation_angle_setpoint = new_rotation_angle_setpoint;
-        m_new_distance_setpoint       = new_distance_setpoint;
+        m_new_distance_setpoint       = distance_m;
         m_state_machine.set_start();
     }
+    return true;
 }
 
 bool
@@ -120,9 +86,10 @@ Trajectory_Manager::update(float current_rotation_angle, float current_distance)
 void
 Trajectory_Manager::acknowledge_trajectory_completed()
 {
-    trajectory_manager_logger.platform_log(
-        LOG_LEVEL::INF, "%c%c", BLE_Commands::Prefix::TRAJECTORY_MANAGER,
-        BLE_Commands::Trajectory_Manager::TRAJECTORY_COMPLETED);
+#ifdef CONFIG_BLUETOOTH_DRV
+    ble_send_packet(BLE_Protocol::Message_Type::TRAJECTORY_COMPLETE, nullptr, 0u);
+#endif
+    trajectory_manager_logger.platform_log(LOG_LEVEL::INF, "Trajectory completed");
     reset();
     m_state_machine.set_trajectory_acknowledged();
 }

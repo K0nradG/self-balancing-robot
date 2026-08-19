@@ -1,12 +1,19 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 #include "robot_controller.h"
-#include "ble_commands.h"
+#include <math.h>
+#include "ble_protocol.h"
+#include "ble_service.h"
 #include "data_manager.h"
 #include "logger.h"
+#include "main_state_machine.h"
 #include "motor_controller.h"
 #include "saturation.h"
 #include "zephyr/kernel.h"
+
+#if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
+#include "telemetry.h"
+#endif
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
@@ -16,6 +23,16 @@ namespace Robot_Control
 {
 
 static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
+
+static void
+send_command_result(BLE_Protocol::Packet_View const& packet, BLE_Protocol::Command_Status status)
+{
+    uint8_t payload[6] {};
+    BLE_Protocol::put_u32(payload, packet.sequence);
+    payload[4] = static_cast<uint8_t>(packet.type);
+    payload[5] = static_cast<uint8_t>(status);
+    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, payload, sizeof(payload));
+}
 
 static void
 PID_controllers_data_sending_work_handler(k_work* work)
@@ -88,6 +105,7 @@ Robot_Controller::normal_motors_control()
         float const target_speed_balance = m_balance_pid.calculate_output(
             m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, imu_data.time_dt);
 #else
+        ARG_UNUSED(balance_angle_deviation);
         float const target_speed_balance =
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
@@ -107,6 +125,22 @@ Robot_Controller::normal_motors_control()
 
         if(!m_trajectory_manager.stop_logs())
         {
+#if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
+            Telemetry_Sample const telemetry_sample = {
+                .timestamp_us      = k_uptime_get_32() * 1000u,
+                .balance_setpoint  = m_balance_setpoint * radian_degrees / pi,
+                .balance_angle     = imu_data.angle_balance * radian_degrees / pi,
+                .rotation_setpoint = m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi,
+                .rotation_angle    = rotation_angle * radian_degrees / pi,
+                .target_speed_0    = target_speed0,
+                .target_speed_1    = target_speed1,
+                .measured_speed_0  = encoders_data.encoder_0.angular_velocity_rad_s,
+                .measured_speed_1  = encoders_data.encoder_1.angular_velocity_rad_s,
+                .pwm_0             = m_pwm0,
+                .pwm_1             = m_pwm1,
+            };
+            telemetry_submit(telemetry_sample);
+#else
             static float log_timer_ms = 0.0f;
             log_timer_ms += imu_data.time_dt * 1000;
 
@@ -124,6 +158,7 @@ Robot_Controller::normal_motors_control()
                     (double)encoders_data.encoder_0.angular_velocity_rad_s,
                     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
             }
+#endif
         }
     }
 
@@ -182,112 +217,198 @@ Robot_Controller::reset()
     m_wheel0_speed_pid.reset();
     m_wheel1_speed_pid.reset();
     m_rotate_pid.reset();
+#ifdef CONFIG_PID_ENABLED
     m_balance_pid.reset();
+#endif
     m_trajectory_manager.reset();
 }
 
 #ifdef CONFIG_BLUETOOTH_DRV
 void
-Robot_Controller::parse_nus_data(char const* data)
+Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
 {
-    if(data == nullptr || *data == '\0')
-    {
-        return;
-    }
+    using BLE_Protocol::Command_Status;
+    using BLE_Protocol::Controller_Id;
+    using BLE_Protocol::Message_Type;
 
-    while(*data)
+    Command_Status status = Command_Status::OK;
+    switch(packet.type)
     {
-        char const key      = data[0];
-        char const* payload = data + 1;
-        if(payload == nullptr)
+        case Message_Type::STATE_COMMAND:
         {
-            return;
-        }
-
-        data++;  // payload
-        switch(key)
-        {
-            case BLE_Commands::General::GET_REGULATOR_PARAMS:
+            if(packet.payload_length != 1u)
             {
-                data++;
-                if(!m_regulator_message_sending_in_progress)
-                {
-                    m_regulator_message_sending_in_progress = true;
-                    k_work_submit(&s_PID_controllers_data_sending_work.work);
-                }
+                status = Command_Status::INVALID_LENGTH;
                 break;
             }
-            case BLE_Commands::Prefix::DISTANCE_PID:
-                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
-                {
-                    data++;
-
-                    char buffer[16];
-                    snprintf(buffer, sizeof(buffer), "%s", data);
-
-                    char* endptr        = nullptr;
-                    float val           = strtof(buffer, &endptr);
-                    m_distance_setpoint = val;
-                }
-                else
-                {
-                    m_distance_pid.parse_nus_parameters(data);
-                }
-                break;
-            case BLE_Commands::Prefix::LINEAR_SPEED_PID:
-                m_linear_speed_pid.parse_nus_parameters(data);
-                break;
-            case BLE_Commands::Prefix::BALANCE_PID:
-                if(*data == BLE_Commands::Regulator::SETPOINT)
-                {
-                    data++;
-
-                    char buffer[16];
-                    snprintf(buffer, sizeof(buffer), "%s", data);
-
-                    char* endptr       = nullptr;
-                    float val          = strtof(buffer, &endptr);
-                    m_balance_setpoint = val * (pi / radian_degrees);
-                }
-                else
-                {
-#ifdef CONFIG_PID_ENABLED
-                    m_balance_pid.parse_nus_parameters(data);
-#else
-                    m_balance_lqr.parse_nus_parameters(data);
-#endif  // CONFIG_PID_ENABLED
-                }
-                break;
-            case BLE_Commands::Prefix::ROTATE_PID:
-                if((*data == BLE_Commands::Regulator::SETPOINT) && !m_trajectory_manager.trajectory_started())
-                {
-                    data++;
-
-                    char buffer[16];
-                    snprintf(buffer, sizeof(buffer), "%s", data);
-
-                    char* endptr = nullptr;
-                    float val    = strtof(buffer, &endptr);
-                    m_rotate_setpoint_ramp.set_target(val * (pi / radian_degrees));
-                }
-                else
-                {
-                    m_rotate_pid.parse_nus_parameters(data);
-                }
-                break;
-            case BLE_Commands::Prefix::WHEEL_PID:
-                m_wheel0_speed_pid.parse_nus_parameters(data);
-                m_wheel1_speed_pid.set_parameters(m_wheel0_speed_pid.get_parameters());
-                break;
-            case BLE_Commands::Prefix::TRAJECTORY_MANAGER:
-                if(!m_trajectory_manager.trajectory_started())
-                {
-                    m_trajectory_manager.parse_trajectory_point(data);
-                }
-            default:
-                break;
+            bool const applied = Main_State_Machine::instance().apply_command(
+                static_cast<BLE_Protocol::State_Action>(packet.payload[0]));
+            status = applied ? Command_Status::OK : Command_Status::INVALID_STATE;
+            break;
         }
+        case Message_Type::GET_PID_STATE:
+        {
+            if(packet.payload_length != 0u)
+            {
+                status = Command_Status::INVALID_LENGTH;
+                break;
+            }
+            if(!m_regulator_message_sending_in_progress)
+            {
+                m_regulator_message_sending_in_progress = true;
+                k_work_submit(&s_PID_controllers_data_sending_work.work);
+            }
+            break;
+        }
+        case Message_Type::SET_PID:
+        {
+            if(packet.payload_length != 13u)
+            {
+                status = Command_Status::INVALID_LENGTH;
+                break;
+            }
+            Controller_Id const controller   = static_cast<Controller_Id>(packet.payload[0]);
+            PID::Parameters const parameters = {
+                .Kp = BLE_Protocol::get_float(packet.payload + 1u),
+                .Ki = BLE_Protocol::get_float(packet.payload + 5u),
+                .Kd = BLE_Protocol::get_float(packet.payload + 9u),
+            };
+            if(!isfinite(parameters.Kp) || !isfinite(parameters.Ki) || !isfinite(parameters.Kd))
+            {
+                status = Command_Status::INVALID_VALUE;
+                break;
+            }
+            switch(controller)
+            {
+                case Controller_Id::DISTANCE:
+                    m_distance_pid.set_parameters(parameters);
+                    break;
+                case Controller_Id::LINEAR_SPEED:
+                    m_linear_speed_pid.set_parameters(parameters);
+                    break;
+                case Controller_Id::BALANCE:
+#ifdef CONFIG_PID_ENABLED
+                    m_balance_pid.set_parameters(parameters);
+#else
+                    status = Command_Status::UNSUPPORTED_MESSAGE;
+#endif  // CONFIG_PID_ENABLED
+                    break;
+                case Controller_Id::ROTATE:
+                    m_rotate_pid.set_parameters(parameters);
+                    break;
+                case Controller_Id::WHEEL_SPEED:
+                    m_wheel0_speed_pid.set_parameters(parameters);
+                    m_wheel1_speed_pid.set_parameters(parameters);
+                    break;
+                default:
+                    status = Command_Status::INVALID_VALUE;
+                    break;
+            }
+            break;
+        }
+        case Message_Type::SET_SETPOINT:
+        {
+            if(packet.payload_length != 5u)
+            {
+                status = Command_Status::INVALID_LENGTH;
+                break;
+            }
+            Controller_Id const controller = static_cast<Controller_Id>(packet.payload[0]);
+            float const value              = BLE_Protocol::get_float(packet.payload + 1u);
+            if(!isfinite(value))
+            {
+                status = Command_Status::INVALID_VALUE;
+                break;
+            }
+            switch(controller)
+            {
+                case Controller_Id::DISTANCE:
+                    if(m_trajectory_manager.trajectory_started())
+                    {
+                        status = Command_Status::INVALID_STATE;
+                    }
+                    else
+                    {
+                        m_distance_setpoint = value;
+                    }
+                    break;
+                case Controller_Id::BALANCE:
+                    m_balance_setpoint = value * (pi / radian_degrees);
+                    break;
+                case Controller_Id::ROTATE:
+                    if(m_trajectory_manager.trajectory_started())
+                    {
+                        status = Command_Status::INVALID_STATE;
+                    }
+                    else
+                    {
+                        m_rotate_setpoint_ramp.set_target(value * (pi / radian_degrees));
+                    }
+                    break;
+                default:
+                    status = Command_Status::INVALID_VALUE;
+                    break;
+            }
+            break;
+        }
+        case Message_Type::TRAJECTORY_COMMAND:
+        {
+            if(packet.payload_length != 8u)
+            {
+                status = Command_Status::INVALID_LENGTH;
+                break;
+            }
+            bool const accepted = m_trajectory_manager.set_trajectory_point(
+                BLE_Protocol::get_float(packet.payload), BLE_Protocol::get_float(packet.payload + 4u));
+            status = accepted ? Command_Status::OK : Command_Status::INVALID_STATE;
+            break;
+        }
+        case Message_Type::SET_LQR:
+        {
+#ifndef CONFIG_PID_ENABLED
+            if(packet.payload_length != 8u)
+            {
+                status = Command_Status::INVALID_LENGTH;
+                break;
+            }
+            LQR::Parameters const parameters = {
+                .Kx = BLE_Protocol::get_float(packet.payload),
+                .Ky = BLE_Protocol::get_float(packet.payload + 4u),
+            };
+            if(!isfinite(parameters.Kx) || !isfinite(parameters.Ky))
+            {
+                status = Command_Status::INVALID_VALUE;
+            }
+            else
+            {
+                m_balance_lqr.set_parameters(parameters);
+            }
+#else
+            status = Command_Status::UNSUPPORTED_MESSAGE;
+#endif
+            break;
+        }
+#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
+        case Message_Type::IDENTIFICATION_CONFIG:
+            if(packet.payload_length != (10u * 2u * sizeof(float)))
+            {
+                status = Command_Status::INVALID_LENGTH;
+            }
+            else
+            {
+                status =
+                    Model_Identification::instance().set_identification_profile(packet.payload, packet.payload_length) ?
+                        Command_Status::OK :
+                        Command_Status::INVALID_VALUE;
+            }
+            break;
+#endif
+        default:
+            status = Command_Status::UNSUPPORTED_MESSAGE;
+            break;
     }
+
+    send_command_result(packet, status);
 }
 
 void
@@ -295,21 +416,35 @@ Robot_Controller::send_PID_controllers_parameters()
 {
     PID::Parameters const distance_pid_parameters     = m_distance_pid.get_parameters();
     PID::Parameters const linear_speed_pid_parameters = m_linear_speed_pid.get_parameters();
-    PID::Parameters const balance_pid_parameters      = m_balance_pid.get_parameters();
-    PID::Parameters const rotate_pid_parameters       = m_rotate_pid.get_parameters();
-    PID::Parameters const wheel_speed_pid_parameters  = m_wheel0_speed_pid.get_parameters();
+#ifdef CONFIG_PID_ENABLED
+    PID::Parameters const balance_pid_parameters = m_balance_pid.get_parameters();
+#else
+    PID::Parameters const balance_pid_parameters {};
+#endif
+    PID::Parameters const rotate_pid_parameters      = m_rotate_pid.get_parameters();
+    PID::Parameters const wheel_speed_pid_parameters = m_wheel0_speed_pid.get_parameters();
 
-    snprintf(
-        m_regulators_data, sizeof(m_regulators_data),
-        "Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f_Kp%f_Ki%f_Kd%f\n",
-        (double)distance_pid_parameters.Kp, (double)distance_pid_parameters.Ki, (double)distance_pid_parameters.Kd,
-        (double)linear_speed_pid_parameters.Kp, (double)linear_speed_pid_parameters.Ki,
-        (double)linear_speed_pid_parameters.Kd, (double)balance_pid_parameters.Kp, (double)balance_pid_parameters.Ki,
-        (double)balance_pid_parameters.Kd, (double)rotate_pid_parameters.Kp, (double)rotate_pid_parameters.Ki,
-        (double)rotate_pid_parameters.Kd, (double)wheel_speed_pid_parameters.Kp, (double)wheel_speed_pid_parameters.Ki,
-        (double)wheel_speed_pid_parameters.Kd);
-
-    robot_control_logger.platform_log(LOG_LEVEL::INF, "%s", m_regulators_data);
+    PID::Parameters const parameters[] = {
+        distance_pid_parameters, linear_speed_pid_parameters, balance_pid_parameters,
+        rotate_pid_parameters,   wheel_speed_pid_parameters,
+    };
+    uint8_t payload[sizeof(parameters)] {};
+    size_t offset = 0u;
+    for(PID::Parameters const& parameter: parameters)
+    {
+        BLE_Protocol::put_float(payload + offset, parameter.Kp);
+        BLE_Protocol::put_float(payload + offset + 4u, parameter.Ki);
+        BLE_Protocol::put_float(payload + offset + 8u, parameter.Kd);
+        offset += 12u;
+    }
+    ble_send_packet(BLE_Protocol::Message_Type::PID_STATE, payload, sizeof(payload));
+#ifndef CONFIG_PID_ENABLED
+    LQR::Parameters const lqr_parameters = m_balance_lqr.get_parameters();
+    uint8_t lqr_payload[8] {};
+    BLE_Protocol::put_float(lqr_payload, lqr_parameters.Kx);
+    BLE_Protocol::put_float(lqr_payload + 4u, lqr_parameters.Ky);
+    ble_send_packet(BLE_Protocol::Message_Type::LQR_STATE, lqr_payload, sizeof(lqr_payload));
+#endif
     m_regulator_message_sending_in_progress = false;
 }
 

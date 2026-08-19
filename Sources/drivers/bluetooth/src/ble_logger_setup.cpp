@@ -20,7 +20,9 @@ on_disconnected(bt_conn* conn, uint8_t reason)
 {
     LOG_INF("Disconnected: %d", reason);
     set_con_status(false);
+    set_att_payload_size(20u);
     bt_conn_unref(my_conn);
+    my_conn = nullptr;
 }
 
 void
@@ -47,6 +49,7 @@ exchange_func(bt_conn* conn, uint8_t att_err, bt_gatt_exchange_params* params)
     if(att_err == 0u)
     {
         uint16_t const payload_mtu = bt_gatt_get_mtu(conn) - 3u;  // 3 bytes used for Attribute headers.
+        set_att_payload_size(payload_mtu);
         LOG_INF("New MTU: %d bytes", payload_mtu);
     }
 }
@@ -103,6 +106,7 @@ on_connected(bt_conn* conn, uint8_t err)
     }
 
     my_conn = bt_conn_ref(conn);
+    set_att_payload_size(20u);
     bt_conn_info info {};
 
     err = bt_conn_get_info(conn, &info);

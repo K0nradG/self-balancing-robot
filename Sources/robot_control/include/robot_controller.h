@@ -14,6 +14,10 @@
 #include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+#ifdef CONFIG_BLUETOOTH_DRV
+#include "ble_protocol.h"
+#endif
+
 namespace Robot_Control
 {
 
@@ -34,11 +38,11 @@ class Robot_Controller
     static constexpr float linear_speed_pid_filter_alpha         = 0.1f;
     static constexpr float angle_backward_max_deviation          = -3.0f * (pi / radian_degrees);
     static constexpr float angle_forward_max_deviation           = 3.0f * (pi / radian_degrees);
+    static constexpr float max_speed_rad_s                       = 90.0f;
 
 #ifdef CONFIG_PID_ENABLED
     static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};
     static constexpr float balance_pid_filter_alpha         = 0.9f;
-    static constexpr float max_speed_rad_s                  = 90.0f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED
@@ -74,7 +78,7 @@ public:
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
-    parse_nus_data(char const* data);
+    handle_ble_packet(BLE_Protocol::Packet_View const& packet);
 
     void
     send_PID_controllers_parameters();
@@ -109,7 +113,6 @@ private:
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
 
-    char m_regulators_data[250];
     bool m_regulator_message_sending_in_progress;
 
     float m_pwm0 {};

@@ -1,0 +1,188 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
+import struct
+import math
+from dataclasses import dataclass
+from enum import IntEnum
+
+MAGIC = 0x31544252  # "RBT1"
+HEADER = struct.Struct("<IBBHI")
+MAX_PACKET_SIZE = 244
+MAX_PAYLOAD_SIZE = MAX_PACKET_SIZE - HEADER.size
+
+
+class MessageType(IntEnum):
+    TELEMETRY = 0x01
+    LOG = 0x02
+    BATTERY_STATUS = 0x03
+    APP_VERSION = 0x04
+    PID_STATE = 0x05
+    TRAJECTORY_COMPLETE = 0x06
+    COMMAND_RESULT = 0x07
+    IDENTIFICATION_COMPLETE = 0x08
+    LQR_STATE = 0x09
+
+    STATE_COMMAND = 0x20
+    DFU_COMMAND = 0x21
+    GET_PID_STATE = 0x22
+    SET_PID = 0x23
+    SET_SETPOINT = 0x24
+    TRAJECTORY_COMMAND = 0x25
+    IDENTIFICATION_CONFIG = 0x26
+    SET_LQR = 0x27
+
+
+class ControllerId(IntEnum):
+    DISTANCE = 0
+    LINEAR_SPEED = 1
+    BALANCE = 2
+    ROTATE = 3
+    WHEEL_SPEED = 4
+
+
+class StateAction(IntEnum):
+    START = 0
+    STOP = 1
+
+
+class DfuAction(IntEnum):
+    START = 0
+    SKIP = 1
+
+
+class CommandStatus(IntEnum):
+    OK = 0
+    INVALID_MESSAGE = 1
+    INVALID_LENGTH = 2
+    INVALID_VALUE = 3
+    INVALID_STATE = 4
+    UNSUPPORTED_MESSAGE = 5
+
+
+@dataclass(frozen=True)
+class Packet:
+    message_type: MessageType
+    flags: int
+    sequence: int
+    payload: bytes
+
+
+def pack_packet(
+    message_type: MessageType,
+    payload: bytes = b"",
+    *,
+    sequence: int = 0,
+    flags: int = 0,
+) -> bytes:
+    if len(payload) > MAX_PAYLOAD_SIZE:
+        raise ValueError(f"Payload exceeds {MAX_PAYLOAD_SIZE} bytes")
+    return HEADER.pack(
+        MAGIC,
+        int(message_type),
+        flags,
+        len(payload),
+        sequence & 0xFFFFFFFF,
+    ) + payload
+
+
+def unpack_packet(data: bytes) -> Packet:
+    if len(data) < HEADER.size:
+        raise ValueError(f"Packet is too short: {len(data)} bytes")
+
+    magic, message_type, flags, payload_length, sequence = HEADER.unpack_from(data)
+    if magic != MAGIC:
+        raise ValueError(f"Unexpected packet magic: 0x{magic:08X}")
+    if payload_length > MAX_PAYLOAD_SIZE:
+        raise ValueError(f"Payload is too large: {payload_length} bytes")
+    if len(data) != HEADER.size + payload_length:
+        raise ValueError(
+            f"Invalid packet size: got {len(data)}, expected {HEADER.size + payload_length}"
+        )
+
+    try:
+        typed_message = MessageType(message_type)
+    except ValueError as error:
+        raise ValueError(f"Unsupported message type: 0x{message_type:02X}") from error
+
+    return Packet(
+        message_type=typed_message,
+        flags=flags,
+        sequence=sequence,
+        payload=data[HEADER.size :],
+    )
+
+
+def state_command(action: StateAction, sequence: int = 0) -> bytes:
+    return pack_packet(
+        MessageType.STATE_COMMAND, struct.pack("<B", action), sequence=sequence
+    )
+
+
+def dfu_command(action: DfuAction, sequence: int = 0) -> bytes:
+    return pack_packet(
+        MessageType.DFU_COMMAND, struct.pack("<B", action), sequence=sequence
+    )
+
+
+def get_pid_state_command(sequence: int = 0) -> bytes:
+    return pack_packet(MessageType.GET_PID_STATE, sequence=sequence)
+
+
+def set_pid_command(
+    controller: ControllerId,
+    kp: float,
+    ki: float,
+    kd: float,
+    sequence: int = 0,
+) -> bytes:
+    return pack_packet(
+        MessageType.SET_PID,
+        struct.pack("<Bfff", controller, kp, ki, kd),
+        sequence=sequence,
+    )
+
+
+def set_setpoint_command(
+    controller: ControllerId, value: float, sequence: int = 0
+) -> bytes:
+    return pack_packet(
+        MessageType.SET_SETPOINT,
+        struct.pack("<Bf", controller, value),
+        sequence=sequence,
+    )
+
+
+def trajectory_command(
+    rotation_degrees: float, distance_m: float, sequence: int = 0
+) -> bytes:
+    return pack_packet(
+        MessageType.TRAJECTORY_COMMAND,
+        struct.pack("<ff", rotation_degrees, distance_m),
+        sequence=sequence,
+    )
+
+
+def identification_command(
+    pwm_values: list[float],
+    durations_s: list[float],
+    sequence: int = 0,
+) -> bytes:
+    if len(pwm_values) != 10 or len(durations_s) != 10:
+        raise ValueError("Identification requires 10 PWM values and 10 durations")
+    if not all(math.isfinite(value) for value in pwm_values + durations_s):
+        raise ValueError("Identification values must be finite")
+    if not all(duration > 0.0 for duration in durations_s):
+        raise ValueError("Identification durations must be positive")
+    return pack_packet(
+        MessageType.IDENTIFICATION_CONFIG,
+        struct.pack("<20f", *(pwm_values + durations_s)),
+        sequence=sequence,
+    )
+
+
+def set_lqr_command(kx: float, ky: float, sequence: int = 0) -> bytes:
+    return pack_packet(
+        MessageType.SET_LQR,
+        struct.pack("<ff", kx, ky),
+        sequence=sequence,
+    )

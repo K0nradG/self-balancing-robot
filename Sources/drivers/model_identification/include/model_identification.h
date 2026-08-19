@@ -44,8 +44,8 @@ public:
     float
     get_pwm_sample();
 
-    void
-    identification_data_nus_parser_callback(char const* data);
+    bool
+    set_identification_profile(uint8_t const* payload, uint16_t payload_length);
 
     void
     set_current_dt(float dt);

@@ -27,25 +27,10 @@ namespace Robot_Control
 {
 
 #ifdef CONFIG_BLUETOOTH_DRV
-
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 void
-parse_nus_identification_process_callback(char const* data)
+ble_packet_callback(BLE_Protocol::Packet_View const& packet)
 {
-    Model_Identification::instance().identification_data_nus_parser_callback(data);
-}
-#endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
-void
-nus_data_parse_callback(char const* data)
-{
-    Robot_Controller::instance().parse_nus_data(data);
-}
-
-void
-parse_nus_commands_callback(char const* data)
-{
-    Main_State_Machine::instance().parse_nus_commands(data);
+    Robot_Controller::instance().handle_ble_packet(packet);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 
@@ -53,15 +38,13 @@ int
 control_loop_init()
 {
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-    identification_process_parser_cb_register(&parse_nus_identification_process_callback);
     robot_control_logger.platform_log(LOG_LEVEL::INF, "Model identification driver is enabled.");
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
     Drivers_Initializer::init();
 
 #ifdef CONFIG_BLUETOOTH_DRV
-    new_regulator_parameters_parser_cb_register(&nus_data_parse_callback);
-    state_machine_commands_parser_cb_register(&parse_nus_commands_callback);
+    ble_packet_received_cb_register(&ble_packet_callback);
 #endif  // CONFIG_BLUETOOTH_DRV
 
     set_enable_controller(true);

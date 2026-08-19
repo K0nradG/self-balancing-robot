@@ -4,31 +4,27 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "ble_protocol.h"
 
-typedef void (*regulator_parameters_parser_cb_t)(char const* data);
-typedef void (*dfu_process_parser_cb_t)(char const* data);
-typedef void (*state_machine_commands_parser_cb_t)(char const* data);
-typedef void (*identification_process_cb_t)(char const* data);
+typedef void (*ble_packet_received_cb_t)(BLE_Protocol::Packet_View const& packet);
 
 int
 ble_service_init();
 
 void
-new_regulator_parameters_parser_cb_register(regulator_parameters_parser_cb_t _regulator_parameters_parser_cb);
+ble_packet_received_cb_register(ble_packet_received_cb_t callback);
 
 void
-dfu_process_parser_cb_register(dfu_process_parser_cb_t _dfu_process_parser_cb);
+ble_dfu_packet_received_cb_register(ble_packet_received_cb_t callback);
 
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-void
-identification_process_parser_cb_register(identification_process_cb_t _identification_process_parser_cb);
-#endif
+int
+ble_send_packet(BLE_Protocol::Message_Type type, uint8_t const* payload, uint16_t payload_length);
 
-void
-state_machine_commands_parser_cb_register(state_machine_commands_parser_cb_t _state_machine_commands_parser_cb);
+int
+ble_send_telemetry_packet(uint8_t const* payload, uint16_t payload_length);
 
-void
-ble_send(char const* data);
+int
+ble_send_log(uint8_t level, char const* module, char const* message);
 
 bool
 get_notif_status();

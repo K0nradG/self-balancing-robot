@@ -3,6 +3,8 @@
 #include <zephyr/dfu/mcuboot.h>
 #include <zephyr/kernel.h>
 #include <zephyr/storage/flash_map.h>
+#include "ble_protocol.h"
+#include "ble_service.h"
 #include "dfu_ble.h"
 #include "logger.h"
 
@@ -20,9 +22,12 @@ get_app_version_work_handler(k_work* work)
         return;
     }
 
-    app_version_logger.platform_log(
-        LOG_LEVEL::INF, "App version: %u.%u.%u+%u", hdr.h.v1.sem_ver.major, hdr.h.v1.sem_ver.minor,
-        hdr.h.v1.sem_ver.revision, hdr.h.v1.sem_ver.build_num);
+    uint8_t payload[8] {};
+    payload[0] = hdr.h.v1.sem_ver.major;
+    payload[1] = hdr.h.v1.sem_ver.minor;
+    payload[2] = static_cast<uint8_t>(hdr.h.v1.sem_ver.revision);
+    BLE_Protocol::put_u32(payload + 4u, hdr.h.v1.sem_ver.build_num);
+    ble_send_packet(BLE_Protocol::Message_Type::APP_VERSION, payload, sizeof(payload));
 }
 
 K_WORK_DELAYABLE_DEFINE(get_app_version_work, get_app_version_work_handler);

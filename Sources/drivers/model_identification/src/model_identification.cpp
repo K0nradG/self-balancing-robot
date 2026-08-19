@@ -1,11 +1,12 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 #include "model_identification.h"
+#include <math.h>
 #include <zephyr/drivers/uart.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/ring_buffer.h>
-#include <cstdlib>
-#include <cstring>
+#include "ble_protocol.h"
+#include "ble_service.h"
 #include "logger.h"
 
 static Logger<IS_ENABLED(CONFIG_MODEL_IDENTIFICATION_LOG)> logger("MODEL");
@@ -62,6 +63,7 @@ Model_Identification::acknowledge_identification_stop()
 {
     if(!m_identification_active)
     {
+        ble_send_packet(BLE_Protocol::Message_Type::IDENTIFICATION_COMPLETE, nullptr, 0u);
         logger.platform_log(LOG_LEVEL::INF, "Identification stop");
     }
 }
@@ -88,65 +90,30 @@ Model_Identification::get_pwm_sample()
     return pwm_sample;
 }
 
-void
-Model_Identification::identification_data_nus_parser_callback(char const* data)
+bool
+Model_Identification::set_identification_profile(uint8_t const* payload, uint16_t payload_length)
 {
-    if(!data || (*data == '\0'))
+    constexpr uint16_t expected_length = MAX_INPUT_DATA_SAMPLES * 2u * sizeof(float);
+    if((payload == nullptr) || (payload_length != expected_length))
     {
-        return;
+        return false;
     }
 
-    // Skip IDENTIFICATION_PREFIX 'I'
-    data++;
-
-    char const* p_start = std::strchr(data, 'p');
-    char const* t_start = std::strchr(data, 't');
-
-    if(!p_start || !t_start || (t_start < p_start))
+    Input_Data input_data {};
+    for(size_t i = 0u; i < MAX_INPUT_DATA_SAMPLES; ++i)
     {
-        return;
-    }
-
-    p_start++;
-    t_start++;
-
-    char buffer[32];
-
-    // PWM values parsing
-    char const* ptr = p_start;
-    for(size_t i = 0; i < MAX_INPUT_DATA_SAMPLES; ++i)
-    {
-        char const* underscore = std::strchr(ptr, '_');
-        size_t len             = underscore ? (size_t)(underscore - ptr) : std::strlen(ptr);
-        if(len >= sizeof(buffer))
+        input_data.pwm_values[i] = BLE_Protocol::get_float(payload + (i * sizeof(float)));
+        input_data.pwm_durations_s[i] =
+            BLE_Protocol::get_float(payload + ((MAX_INPUT_DATA_SAMPLES + i) * sizeof(float)));
+        if(!isfinite(input_data.pwm_values[i]) || !isfinite(input_data.pwm_durations_s[i]) ||
+           (input_data.pwm_durations_s[i] <= 0.0f))
         {
-            len = sizeof(buffer) - 1;
+            return false;
         }
-
-        std::memcpy(buffer, ptr, len);
-        buffer[len]                = '\0';
-        m_input_data.pwm_values[i] = std::strtof(buffer, nullptr);
-
-        ptr = underscore ? underscore + 1 : ptr + len;
     }
 
-    // PWM durations parsing
-    ptr = t_start;
-    for(size_t i = 0; i < MAX_INPUT_DATA_SAMPLES; ++i)
-    {
-        const char* underscore = std::strchr(ptr, '_');
-        size_t len             = underscore ? (size_t)(underscore - ptr) : std::strlen(ptr);
-        if(len >= sizeof(buffer))
-        {
-            len = sizeof(buffer) - 1;
-        }
-
-        std::memcpy(buffer, ptr, len);
-        buffer[len]                     = '\0';
-        m_input_data.pwm_durations_s[i] = std::strtof(buffer, nullptr);
-
-        ptr = underscore ? underscore + 1 : ptr + len;
-    }
+    m_input_data = input_data;
+    return true;
 }
 
 static void

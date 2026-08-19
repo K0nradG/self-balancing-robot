@@ -18,7 +18,7 @@ from .widgets.left_panel_widget import LeftPanelWidget
 from .widgets.right_panel_widget import RightPanelWidget
 from .ble_worker.ble_worker import BLEWorker
 from .dfu_worker.dfu_worker import DFUWorker
-from .ble_commands import SKIP_DFU, GET_CONTROL_LOOP_PARAMS
+from . import ble_protocol
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("NUS_App")
@@ -35,6 +35,8 @@ class RobotControlApp(QMainWindow):
         self.is_connected = False
         self.dfu_skipped = False
         self.dfu_thread = None
+        self._pending_dfu_action = None
+        self._pending_dfu_target = None
 
         # Start BLE Background Thread
         self.ble_worker = BLEWorker()
@@ -67,9 +69,8 @@ class RobotControlApp(QMainWindow):
         self.left_panel.disconnect_requested.connect(self.start_disconnect)
         self.left_panel.skip_dfu_requested.connect(self.handle_skip_dfu)
         self.left_panel.start_dfu_requested.connect(self.start_dfu_process)
-        self.left_panel.send_command_requested.connect(self.send_command)
         self.left_panel.auto_record_toggled.connect(
-            lambda checked: setattr(self.ble_worker, "auto_record", checked)
+            self.ble_worker.set_auto_record
         )
         self.left_panel.enable_logs_toggled.connect(self.toggle_enable_logs)
 
@@ -89,6 +90,20 @@ class RobotControlApp(QMainWindow):
         self.ble_worker.pid_params_signal.connect(
             self.right_panel.update_pid_parameters
         )
+        self.ble_worker.lqr_params_signal.connect(
+            self.right_panel.update_lqr_parameters
+        )
+        self.ble_worker.command_result_signal.connect(self.handle_command_result)
+        self.ble_worker.trajectory_complete_signal.connect(
+            lambda: self.left_panel.log_message("Trajectory completed.")
+        )
+        self.ble_worker.app_version_signal.connect(
+            lambda version: self.left_panel.log_message(
+                "App version: "
+                f"{version['major']}.{version['minor']}."
+                f"{version['revision']}+{version['build']}"
+            )
+        )
 
     def start_connect(self, target_name: str):
         self.left_panel.set_connecting_state()
@@ -98,9 +113,9 @@ class RobotControlApp(QMainWindow):
         self.left_panel.set_connecting_state()
         self.ble_worker.disconnect_device()
 
-    def send_command(self, text: str):
-        if isinstance(text, str) and text.strip():
-            self.ble_worker.send_command(text)
+    def send_command(self, command: bytes):
+        if isinstance(command, bytes):
+            self.ble_worker.send_command(command)
 
     def update_connection_status(self, connected: bool, address: str):
         self.is_connected = connected
@@ -113,21 +128,33 @@ class RobotControlApp(QMainWindow):
             self.right_panel.setEnabled(False)
 
     def handle_skip_dfu(self):
-        self.send_command(SKIP_DFU)
-        self.dfu_skipped = True
+        self._pending_dfu_action = ble_protocol.DfuAction.SKIP
         self.left_panel.set_dfu_skipped_state()
-        self.right_panel.setEnabled(True)
-        self.left_panel.log_message(">> DFU Skipped. Robot control panel unlocked.")
-        self.send_command(GET_CONTROL_LOOP_PARAMS)
+        self.left_panel.log_message(">> Waiting for robot control initialization...")
+        self.send_command(
+            ble_protocol.dfu_command(ble_protocol.DfuAction.SKIP)
+        )
 
     def start_dfu_process(self, target_name: str):
+        if self.is_connected:
+            self._pending_dfu_action = ble_protocol.DfuAction.START
+            self._pending_dfu_target = target_name
+            self.left_panel.set_dfu_running_state()
+            self.left_panel.log_message(">> Requesting DFU mode...")
+            self.send_command(
+                ble_protocol.dfu_command(ble_protocol.DfuAction.START)
+            )
+            return
+
+        self._launch_dfu(target_name)
+
+    def _launch_dfu(self, target_name: str):
         if self.is_connected:
             self.left_panel.log_message(
                 ">> Disconnecting active BLE session for DFU process..."
             )
             self.ble_worker.disconnect_device()
             QThread.msleep(500)
-
         self.left_panel.set_dfu_running_state()
         self.left_panel.log_message(">> Starting DFU worker thread...")
 
@@ -136,6 +163,39 @@ class RobotControlApp(QMainWindow):
         self.dfu_thread.log_signal.connect(self.left_panel.log_message)
         self.dfu_thread.finished_signal.connect(self._on_dfu_finished)
         self.dfu_thread.start()
+
+    def handle_command_result(self, result: dict):
+        request_type = result["request_type"]
+        status = result["status"]
+        self.left_panel.log_message(
+            f"<< {request_type.name}: {status.name} "
+            f"(request packet {result['request_packet_number']})"
+        )
+
+        if request_type != ble_protocol.MessageType.DFU_COMMAND:
+            return
+
+        pending_action = self._pending_dfu_action
+        self._pending_dfu_action = None
+        if status != ble_protocol.CommandStatus.OK:
+            self.left_panel.update_connection_status(
+                self.is_connected, self.ble_worker.target_address or "", False
+            )
+            return
+
+        if pending_action == ble_protocol.DfuAction.SKIP:
+            self.dfu_skipped = True
+            self.left_panel.set_dfu_skipped_state()
+            self.right_panel.setEnabled(True)
+            self.left_panel.log_message(
+                ">> DFU skipped. Robot control panel unlocked."
+            )
+            self.send_command(ble_protocol.get_pid_state_command())
+        elif pending_action == ble_protocol.DfuAction.START:
+            target = self._pending_dfu_target
+            self._pending_dfu_target = None
+            if target:
+                self._launch_dfu(target)
 
     def _on_dfu_finished(self, return_code: int, message: str):
         if return_code == 0:

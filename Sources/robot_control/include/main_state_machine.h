@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "ble_protocol.h"
+
 namespace Robot_Control
 {
 
@@ -56,8 +58,8 @@ public:
     void
     set_stop_command();
 
-    void
-    parse_nus_commands(char const* data);
+    bool
+    apply_command(BLE_Protocol::State_Action action);
 
 private:
     Main_State_Machine()                          = default;

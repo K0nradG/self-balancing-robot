@@ -23,8 +23,8 @@ class Trajectory_Manager
 public:
     Trajectory_Manager(float& distance_setpoint, Ramp& rotation_setpoint_ramp);
 
-    void
-    parse_trajectory_point(char const* data);
+    bool
+    set_trajectory_point(float rotation_degrees, float distance_m);
 
     bool
     trajectory_started() const;

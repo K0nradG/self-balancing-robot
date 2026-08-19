@@ -1,5 +1,9 @@
 # Self-Balancing Robot
 
+<p align="center">
+  <img src="images/project_thumbnail.jpg" alt="Self-Balancing Robot and Control Application">
+</p>
+
 The purpose of this project was to implement the complete **control system** for a **self-balancing robot** using **Zephyr RTOS**. 
 
 ## Supported features
@@ -13,7 +17,7 @@ The purpose of this project was to implement the complete **control system** for
 
 ## Further plans
 - robot mathematical model **parameters identification** - for **simulation**, control loop **tuning** and **model based controllers** (e.g. LQR),
-- **inteligent controllers** usage, e.g. a neural controller,
+- **intelligent controllers** usage, e.g. a neural controller,
 - **"swing-up"** like procedure,
 - camera image usage for **robot's self-driving**.
 
@@ -23,3 +27,4 @@ The purpose of this project was to implement the complete **control system** for
 - Hardware designs (schematics, PCB, CAD): **CERN-OHL-P-2.0**
 
 Commercial use is allowed.
+

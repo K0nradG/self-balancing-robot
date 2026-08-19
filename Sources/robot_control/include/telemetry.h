@@ -22,6 +22,7 @@ struct Telemetry_Sample
     float pwm_1;
 };
 
+// One 4-byte timestamp and ten 4-byte floats use 44 bytes in total.
 static_assert(sizeof(Telemetry_Sample) == 44u);
 
 void

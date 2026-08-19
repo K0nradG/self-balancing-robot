@@ -78,7 +78,7 @@ public:
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
-    handle_ble_packet(BLE_Protocol::Packet_View const& packet);
+    handle_ble_packet(BLE_Protocol::received_packet const& received_packet);
 
     void
     send_PID_controllers_parameters();

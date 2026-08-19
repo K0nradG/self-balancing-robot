@@ -28,9 +28,9 @@ namespace Robot_Control
 
 #ifdef CONFIG_BLUETOOTH_DRV
 void
-ble_packet_callback(BLE_Protocol::Packet_View const& packet)
+ble_packet_callback(BLE_Protocol::received_packet const& received_packet)
 {
-    Robot_Controller::instance().handle_ble_packet(packet);
+    Robot_Controller::instance().handle_ble_packet(received_packet);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 

@@ -12,25 +12,59 @@
 namespace
 {
 
-struct Tx_Packet
+struct tx_packet
 {
     uint16_t length;
     uint8_t data[BLE_Protocol::max_packet_size];
 };
 
-K_MSGQ_DEFINE(protocol_tx_queue, sizeof(Tx_Packet), 8, 4);
-K_MSGQ_DEFINE(telemetry_tx_queue, sizeof(Tx_Packet), 8, 4);
-K_MSGQ_DEFINE(log_tx_queue, sizeof(Tx_Packet), 8, 4);
-K_SEM_DEFINE(tx_available, 0, 24);
+constexpr size_t tx_queue_count                = 3u;
+constexpr size_t tx_queue_capacity             = 8u;
+constexpr size_t max_pending_tx_packets        = tx_queue_count * tx_queue_capacity;
+constexpr size_t ble_tx_thread_stack_size      = 2048u;
+constexpr int ble_tx_thread_priority           = 5;
+constexpr uint32_t ble_tx_thread_options       = 0u;
+constexpr int32_t ble_tx_thread_start_delay_ms = 0;
+constexpr int tx_buffer_retry_delay_ms         = 1;
+constexpr unsigned int initial_pending_packets = 0u;
+constexpr size_t command_result_payload_size   = sizeof(uint32_t) + (2u * sizeof(uint8_t));
+constexpr size_t log_payload_header_size       = (2u * sizeof(uint8_t)) + sizeof(uint16_t);
+// Values from STATE_COMMAND upwards represent packets sent from the app to the robot.
+constexpr uint8_t minimum_command_type_value = static_cast<uint8_t>(BLE_Protocol::Message_Type::STATE_COMMAND);
 
-bool nus_notification_enabled;
-ble_packet_received_cb_t packet_received_cb;
-ble_packet_received_cb_t dfu_packet_received_cb;
-atomic_t tx_sequence;
-atomic_t telemetry_sequence;
+// Separate queues prevent telemetry and log bursts from delaying protocol responses.
+K_MSGQ_DEFINE(protocol_tx_queue, sizeof(tx_packet), tx_queue_capacity, alignof(tx_packet));
+K_MSGQ_DEFINE(telemetry_tx_queue, sizeof(tx_packet), tx_queue_capacity, alignof(tx_packet));
+K_MSGQ_DEFINE(log_tx_queue, sizeof(tx_packet), tx_queue_capacity, alignof(tx_packet));
+// One semaphore count represents one packet waiting across all three queues.
+K_SEM_DEFINE(tx_available, initial_pending_packets, max_pending_tx_packets);
+
+bool nus_notification_enabled                   = false;
+ble_packet_received_cb_t packet_received_cb     = nullptr;
+ble_packet_received_cb_t dfu_packet_received_cb = nullptr;
+// Telemetry has an independent packet-number stream for gap detection.
+atomic_t tx_packet_number;
+atomic_t telemetry_packet_number;
+
+uint32_t
+increment_packet_number(atomic_t& counter)
+{
+    return static_cast<uint32_t>(atomic_inc(&counter));
+}
+
+uint32_t
+get_next_packet_number(k_msgq const* queue)
+{
+    if(queue == &telemetry_tx_queue)
+    {
+        return increment_packet_number(telemetry_packet_number);
+    }
+
+    return increment_packet_number(tx_packet_number);
+}
 
 int
-enqueue_packet(k_msgq* queue, BLE_Protocol::Message_Type type, uint8_t const* payload, uint16_t payload_length)
+check_packet_before_queue(uint8_t const* payload, uint16_t payload_length)
 {
     if(!get_con_status() || !get_notif_status())
     {
@@ -42,26 +76,49 @@ enqueue_packet(k_msgq* queue, BLE_Protocol::Message_Type type, uint8_t const* pa
         return -EINVAL;
     }
 
-    Tx_Packet packet {};
-    atomic_t* const sequence_counter = (queue == &telemetry_tx_queue) ? &telemetry_sequence : &tx_sequence;
-    uint32_t const sequence          = static_cast<uint32_t>(atomic_inc(sequence_counter));
-    packet.length                    = static_cast<uint16_t>(
-        BLE_Protocol::encode_header(packet.data, sizeof(packet.data), type, payload_length, sequence));
-    if(packet.length == 0u)
+    return 0;
+}
+
+int
+build_tx_packet(
+    tx_packet& packet_to_queue, k_msgq const* queue, BLE_Protocol::Message_Type type, uint8_t const* payload,
+    uint16_t payload_length)
+{
+    uint32_t const packet_number = get_next_packet_number(queue);
+    size_t const packet_length   = BLE_Protocol::encode_header(
+        packet_to_queue.data, sizeof(packet_to_queue.data), type, payload_length, packet_number);
+
+    if((packet_length == 0u) || (packet_length > get_att_payload_size()))
     {
         return -EMSGSIZE;
     }
-    if(packet.length > get_att_payload_size())
-    {
-        return -EMSGSIZE;
-    }
+    packet_to_queue.length = static_cast<uint16_t>(packet_length);
 
     if(payload_length != 0u)
     {
-        memcpy(packet.data + BLE_Protocol::header_size, payload, payload_length);
+        memcpy(packet_to_queue.data + BLE_Protocol::header_size, payload, payload_length);
     }
 
-    if(k_msgq_put(queue, &packet, K_NO_WAIT) != 0)
+    return 0;
+}
+
+int
+put_packet_in_queue(k_msgq* queue, BLE_Protocol::Message_Type type, uint8_t const* payload, uint16_t payload_length)
+{
+    int const check_result = check_packet_before_queue(payload, payload_length);
+    if(check_result != 0)
+    {
+        return check_result;
+    }
+
+    tx_packet packet_to_queue {};
+    int const build_result = build_tx_packet(packet_to_queue, queue, type, payload, payload_length);
+    if(build_result != 0)
+    {
+        return build_result;
+    }
+
+    if(k_msgq_put(queue, &packet_to_queue, K_NO_WAIT) != 0)
     {
         return -ENOMEM;
     }
@@ -71,45 +128,55 @@ enqueue_packet(k_msgq* queue, BLE_Protocol::Message_Type type, uint8_t const* pa
 }
 
 bool
-get_next_packet(Tx_Packet& packet)
+get_next_packet(tx_packet& packet_to_send)
 {
-    if(k_msgq_get(&protocol_tx_queue, &packet, K_NO_WAIT) == 0)
+    // Always send protocol responses before telemetry, and telemetry before logs.
+    if(k_msgq_get(&protocol_tx_queue, &packet_to_send, K_NO_WAIT) == 0)
     {
         return true;
     }
-    if(k_msgq_get(&telemetry_tx_queue, &packet, K_NO_WAIT) == 0)
+    if(k_msgq_get(&telemetry_tx_queue, &packet_to_send, K_NO_WAIT) == 0)
     {
         return true;
     }
-    return k_msgq_get(&log_tx_queue, &packet, K_NO_WAIT) == 0;
+    return k_msgq_get(&log_tx_queue, &packet_to_send, K_NO_WAIT) == 0;
+}
+
+void
+send_packet_to_nus(tx_packet const& packet_to_send)
+{
+    int send_result;
+    do
+    {
+        send_result = bt_nus_send(nullptr, packet_to_send.data, packet_to_send.length);
+        if(send_result == -ENOMEM)
+        {
+            // Wait briefly until the Bluetooth stack releases a TX buffer.
+            k_sleep(K_MSEC(tx_buffer_retry_delay_ms));
+        }
+    } while(send_result == -ENOMEM);
 }
 
 void
 tx_thread(void*, void*, void*)
 {
-    Tx_Packet packet {};
+    tx_packet packet_to_send {};
 
     while(true)
     {
         k_sem_take(&tx_available, K_FOREVER);
-        if(!get_next_packet(packet))
+        if(!get_next_packet(packet_to_send))
         {
             continue;
         }
 
-        int err;
-        do
-        {
-            err = bt_nus_send(nullptr, packet.data, packet.length);
-            if(err == -ENOMEM)
-            {
-                k_sleep(K_MSEC(1));
-            }
-        } while(err == -ENOMEM);
+        send_packet_to_nus(packet_to_send);
     }
 }
 
-K_THREAD_DEFINE(ble_tx_thread_id, 2048, tx_thread, nullptr, nullptr, nullptr, 5, 0, 0);
+K_THREAD_DEFINE(
+    ble_tx_thread_id, ble_tx_thread_stack_size, tx_thread, nullptr, nullptr, nullptr, ble_tx_thread_priority,
+    ble_tx_thread_options, ble_tx_thread_start_delay_ms);
 
 }  // namespace
 
@@ -120,9 +187,49 @@ get_notif_status()
 }
 
 void
-set_notif_status(bool nus_notification_enabled)
+set_notif_status(bool enabled)
 {
-    ::nus_notification_enabled = nus_notification_enabled;
+    nus_notification_enabled = enabled;
+}
+
+static bool
+has_command_header(uint8_t const* data, uint16_t length)
+{
+    return (data != nullptr) && (length >= BLE_Protocol::header_size) &&
+           (BLE_Protocol::get_u32(data) == BLE_Protocol::magic) &&
+           (data[BLE_Protocol::type_offset] >= minimum_command_type_value);
+}
+
+static void
+send_invalid_command_length_result(uint8_t const* command_data)
+{
+    uint8_t response_payload[command_result_payload_size] {};
+    BLE_Protocol::Payload_Writer response_payload_writer(response_payload, sizeof(response_payload));
+
+    uint32_t const request_packet_number = BLE_Protocol::get_u32(command_data + BLE_Protocol::packet_number_offset);
+    response_payload_writer.put_u32(request_packet_number);
+    response_payload_writer.put_u8(command_data[BLE_Protocol::type_offset]);
+    response_payload_writer.put_u8(static_cast<uint8_t>(BLE_Protocol::Command_Status::INVALID_LENGTH));
+
+    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, response_payload_writer);
+}
+
+static void
+pass_received_packet_to_callback(BLE_Protocol::received_packet const& received_packet)
+{
+    if(received_packet.type == BLE_Protocol::Message_Type::DFU_COMMAND)
+    {
+        if(dfu_packet_received_cb != nullptr)
+        {
+            dfu_packet_received_cb(received_packet);
+        }
+        return;
+    }
+
+    if(packet_received_cb != nullptr)
+    {
+        packet_received_cb(received_packet);
+    }
 }
 
 static void
@@ -130,36 +237,19 @@ nus_data_received(bt_conn* conn, const uint8_t* data, uint16_t len)
 {
     ARG_UNUSED(conn);
 
-    BLE_Protocol::Packet_View packet {};
-    BLE_Protocol::Decode_Result const result = BLE_Protocol::decode_packet(data, len, packet);
+    // Holds the decoded fields and payload view of the frame received from NUS.
+    BLE_Protocol::received_packet received_packet {};
+    BLE_Protocol::Decode_Result const result = BLE_Protocol::decode_packet(data, len, received_packet);
     if(result != BLE_Protocol::Decode_Result::OK)
     {
-        if((len >= BLE_Protocol::header_size) && (BLE_Protocol::get_u32(data) == BLE_Protocol::magic) &&
-           (data[4] >= 0x20u))
+        if(has_command_header(data, len))
         {
-            uint8_t response[6] {};
-            BLE_Protocol::Payload_Writer writer(response, sizeof(response));
-            writer.put_u32(BLE_Protocol::get_u32(data + 8u));
-            writer.put_u8(data[4]);
-            writer.put_u8(static_cast<uint8_t>(BLE_Protocol::Command_Status::INVALID_LENGTH));
-            ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, writer);
+            send_invalid_command_length_result(data);
         }
         return;
     }
 
-    if(packet.type == BLE_Protocol::Message_Type::DFU_COMMAND)
-    {
-        if(dfu_packet_received_cb)
-        {
-            dfu_packet_received_cb(packet);
-        }
-        return;
-    }
-
-    if(packet_received_cb)
-    {
-        packet_received_cb(packet);
-    }
+    pass_received_packet_to_callback(received_packet);
 }
 
 void
@@ -189,25 +279,61 @@ ble_service_init()
 int
 ble_send_packet(BLE_Protocol::Message_Type type, uint8_t const* payload, uint16_t payload_length)
 {
-    return enqueue_packet(&protocol_tx_queue, type, payload, payload_length);
+    return put_packet_in_queue(&protocol_tx_queue, type, payload, payload_length);
 }
 
 int
 ble_send_packet(BLE_Protocol::Message_Type type, BLE_Protocol::Payload_Writer const& payload)
 {
-    return payload.valid() ? ble_send_packet(type, payload.data(), payload.size()) : -EMSGSIZE;
+    if(!payload.valid())
+    {
+        return -EMSGSIZE;
+    }
+
+    return ble_send_packet(type, payload.data(), payload.size());
 }
 
 int
 ble_send_telemetry_packet(uint8_t const* payload, uint16_t payload_length)
 {
-    return enqueue_packet(&telemetry_tx_queue, BLE_Protocol::Message_Type::TELEMETRY, payload, payload_length);
+    return put_packet_in_queue(&telemetry_tx_queue, BLE_Protocol::Message_Type::TELEMETRY, payload, payload_length);
 }
 
 int
 ble_send_telemetry_packet(BLE_Protocol::Payload_Writer const& payload)
 {
-    return payload.valid() ? ble_send_telemetry_packet(payload.data(), payload.size()) : -EMSGSIZE;
+    if(!payload.valid())
+    {
+        return -EMSGSIZE;
+    }
+
+    return ble_send_telemetry_packet(payload.data(), payload.size());
+}
+
+static size_t
+get_log_module_length(char const* module)
+{
+    size_t const available_length = BLE_Protocol::max_payload_size - log_payload_header_size;
+    return MIN(strlen(module), MIN(static_cast<size_t>(UINT8_MAX), available_length));
+}
+
+static size_t
+get_log_message_length(char const* message, size_t module_length)
+{
+    size_t const available_length = BLE_Protocol::max_payload_size - log_payload_header_size - module_length;
+    return MIN(strlen(message), available_length);
+}
+
+static void
+write_log_payload(
+    BLE_Protocol::Payload_Writer& log_payload_writer, uint8_t level, char const* module, size_t module_length,
+    char const* message, size_t message_length)
+{
+    log_payload_writer.put_u8(level);
+    log_payload_writer.put_u8(static_cast<uint8_t>(module_length));
+    log_payload_writer.put_u16(static_cast<uint16_t>(message_length));
+    log_payload_writer.put_bytes(reinterpret_cast<uint8_t const*>(module), module_length);
+    log_payload_writer.put_bytes(reinterpret_cast<uint8_t const*>(message), message_length);
 }
 
 int
@@ -218,23 +344,20 @@ ble_send_log(uint8_t level, char const* module, char const* message)
         return -EINVAL;
     }
 
-    size_t const header_length = 4u;
-    size_t const max_module_length =
-        MIN(static_cast<size_t>(UINT8_MAX), BLE_Protocol::max_payload_size - header_length);
-    size_t const module_length  = MIN(strlen(module), max_module_length);
-    size_t const message_length = MIN(strlen(message), BLE_Protocol::max_payload_size - header_length - module_length);
+    size_t const module_length  = get_log_module_length(module);
+    size_t const message_length = get_log_message_length(message, module_length);
 
-    uint8_t payload[BLE_Protocol::max_payload_size] {};
-    BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
-    writer.put_u8(level);
-    writer.put_u8(static_cast<uint8_t>(module_length));
-    writer.put_u16(static_cast<uint16_t>(message_length));
-    writer.put_bytes(reinterpret_cast<uint8_t const*>(module), module_length);
-    writer.put_bytes(reinterpret_cast<uint8_t const*>(message), message_length);
+    uint8_t log_payload[BLE_Protocol::max_payload_size] {};
+    BLE_Protocol::Payload_Writer log_payload_writer(log_payload, sizeof(log_payload));
+    write_log_payload(log_payload_writer, level, module, module_length, message, message_length);
 
-    return writer.valid() ?
-               enqueue_packet(&log_tx_queue, BLE_Protocol::Message_Type::LOG, writer.data(), writer.size()) :
-               -EMSGSIZE;
+    if(!log_payload_writer.valid())
+    {
+        return -EMSGSIZE;
+    }
+
+    return put_packet_in_queue(
+        &log_tx_queue, BLE_Protocol::Message_Type::LOG, log_payload_writer.data(), log_payload_writer.size());
 }
 
 void

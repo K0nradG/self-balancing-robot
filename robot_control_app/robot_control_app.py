@@ -169,7 +169,7 @@ class RobotControlApp(QMainWindow):
         status = result["status"]
         self.left_panel.log_message(
             f"<< {request_type.name}: {status.name} "
-            f"(sequence {result['request_sequence']})"
+            f"(request packet {result['request_packet_number']})"
         )
 
         if request_type != ble_protocol.MessageType.DFU_COMMAND:

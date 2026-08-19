@@ -50,7 +50,7 @@ typedef enum
 } dfu_state_t;
 
 static dfu_state_t g_dfu_state = DFU_STATE_WAITING;
-static uint32_t g_dfu_request_sequence;
+static uint32_t g_dfu_request_packet_number;
 
 static dfu_action_cb_t dfu_action_cb;
 
@@ -85,21 +85,21 @@ static mgmt_callback sUploadCallback = {
 };
 
 static void
-send_dfu_command_result(uint32_t request_sequence, BLE_Protocol::Command_Status status)
+send_dfu_command_result(uint32_t request_packet_number, BLE_Protocol::Command_Status status)
 {
     uint8_t result[6] {};
     BLE_Protocol::Payload_Writer writer(result, sizeof(result));
-    writer.put_u32(request_sequence);
+    writer.put_u32(request_packet_number);
     writer.put_u8(static_cast<uint8_t>(BLE_Protocol::Message_Type::DFU_COMMAND));
     writer.put_u8(static_cast<uint8_t>(status));
     ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, writer);
 }
 
 void
-dfu_packet_received(BLE_Protocol::Packet_View const& packet)
+dfu_packet_received(BLE_Protocol::received_packet const& received_packet)
 {
     BLE_Protocol::Command_Status status = BLE_Protocol::Command_Status::OK;
-    BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+    BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
     uint8_t action;
     if(!reader.get_u8(action) || !reader.done())
     {
@@ -114,8 +114,8 @@ dfu_packet_received(BLE_Protocol::Packet_View const& packet)
                 break;
 
             case BLE_Protocol::Dfu_Action::SKIP:
-                g_dfu_state            = DFU_STATE_SKIP;
-                g_dfu_request_sequence = packet.sequence;
+                g_dfu_state                 = DFU_STATE_SKIP;
+                g_dfu_request_packet_number = received_packet.packet_number;
                 break;
 
             default:
@@ -128,13 +128,13 @@ dfu_packet_received(BLE_Protocol::Packet_View const& packet)
     {
         if(g_dfu_state == DFU_STATE_START)
         {
-            send_dfu_command_result(packet.sequence, status);
+            send_dfu_command_result(received_packet.packet_number, status);
         }
         k_sem_give(&dfu_sem);
     }
     else
     {
-        send_dfu_command_result(packet.sequence, status);
+        send_dfu_command_result(received_packet.packet_number, status);
     }
 }
 
@@ -153,7 +153,7 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
     if(g_dfu_state == DFU_STATE_SKIP)
     {
         Robot_Control::control_loop_init();
-        send_dfu_command_result(g_dfu_request_sequence, BLE_Protocol::Command_Status::OK);
+        send_dfu_command_result(g_dfu_request_packet_number, BLE_Protocol::Command_Status::OK);
         if(dfu_action_cb)
         {
             dfu_action_cb();

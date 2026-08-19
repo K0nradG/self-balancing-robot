@@ -8,11 +8,26 @@
 namespace BLE_Protocol
 {
 
-constexpr uint32_t magic            = 0x31544252u;  // "RBT1" on little-endian systems.
-constexpr size_t header_size        = 12u;
-constexpr size_t max_packet_size    = 244u;
-constexpr size_t max_payload_size   = max_packet_size - header_size;
-constexpr size_t encoded_float_size = 4u;
+// Identifies an RBT1 packet at the beginning of the header.
+constexpr uint32_t magic = 0x31544252u;
+// Header field offsets are derived from the sizes of all preceding fields.
+constexpr size_t type_offset           = sizeof(magic);
+constexpr size_t reserved_offset       = type_offset + sizeof(uint8_t);
+constexpr size_t payload_length_offset = reserved_offset + sizeof(uint8_t);
+constexpr size_t packet_number_offset  = payload_length_offset + sizeof(uint16_t);
+// Total header size: magic, type, reserved byte, payload length, and packet number.
+constexpr size_t header_size = packet_number_offset + sizeof(uint32_t);
+// The requested ATT MTU and the part occupied by the ATT notification header.
+constexpr size_t target_att_mtu              = 247u;
+constexpr size_t att_notification_header_size = 3u;
+// Largest complete RBT1 packet that fits in one unfragmented notification.
+constexpr size_t max_packet_size = target_att_mtu - att_notification_header_size;
+// Payload capacity after subtracting the RBT1 header.
+constexpr size_t max_payload_size = max_packet_size - header_size;
+// Every IEEE-754 float is encoded as one 32-bit little-endian value.
+constexpr size_t encoded_float_size = sizeof(uint32_t);
+
+static_assert(packet_number_offset + sizeof(uint32_t) == header_size);
 
 class Payload_Writer
 {
@@ -38,6 +53,9 @@ public:
     valid() const;
 
 private:
+    bool
+    can_write_bytes(uint8_t const* data, size_t length) const;
+
     uint8_t* m_buffer;
     size_t m_capacity;
     size_t m_size;
@@ -68,20 +86,31 @@ public:
     valid() const;
 
 private:
+    bool
+    can_read_bytes(uint8_t* destination, size_t length) const;
+
     uint8_t const* m_data;
     size_t m_length;
     size_t m_offset;
     bool m_valid;
 };
 
-// Wire format (all integers and IEEE-754 floats are little-endian):
-//   envelope: magic u32, type u8, flags u8, payload_length u16, sequence u32
+// RBT1 frame header (all integers and IEEE-754 floats are little-endian):
+//   magic          u32  Identifies the packet as RBT1; packets with another value are rejected.
+//   type           u8   Selects the message and determines how its payload is decoded.
+//   reserved       u8   Reserved for future protocol options; currently always zero.
+//   payload_length u16  Number of bytes after the header, used to validate the complete packet.
+//   packet_number  u32  Sender-assigned counter used to detect missing or out-of-order packets.
+//   payload        ...  Message-specific data containing exactly payload_length bytes.
+// The complete frame size is header_size + payload_length.
+//
+// Message payload formats:
 //   telemetry: dropped u32, count u8, reserved[3], count * (timestamp u32 + 10 floats)
 //   log: level u8, module_length u8, text_length u16, module UTF-8, text UTF-8
 //   battery: millivolts u16, percent u8, reserved u8
 //   app version: major u8, minor u8, revision u8, reserved u8, build u32
 //   PID state: five controllers * (Kp float, Ki float, Kd float)
-//   command result: request_sequence u32, request_type u8, Command_Status u8
+//   command result: request_packet_number u32, request_type u8, Command_Status u8
 //   state/DFU command: action u8
 //   set PID: Controller_Id u8, Kp float, Ki float, Kd float
 //   set setpoint: Controller_Id u8, value float
@@ -141,12 +170,17 @@ enum class Command_Status : uint8_t
     UNSUPPORTED_MESSAGE = 5u,
 };
 
-struct Packet_View
+// Non-owning, decoded view of one validated RBT1 frame. decode_packet() fills
+// these fields from the raw header after validating its magic and length.
+// payload points into the caller's raw input buffer and is not copied, so this
+// view is valid only while that buffer remains valid. This is not a wire-format
+// structure and must not be sent directly over BLE.
+struct received_packet
 {
     Message_Type type;
-    uint8_t flags;
+    uint8_t reserved;
     uint16_t payload_length;
-    uint32_t sequence;
+    uint32_t packet_number;
     uint8_t const* payload;
 };
 
@@ -159,12 +193,12 @@ enum class Decode_Result : uint8_t
 };
 
 Decode_Result
-decode_packet(uint8_t const* data, size_t length, Packet_View& packet);
+decode_packet(uint8_t const* data, size_t length, received_packet& decoded_packet);
 
 size_t
 encode_header(
-    uint8_t* buffer, size_t capacity, Message_Type type, uint16_t payload_length, uint32_t sequence,
-    uint8_t flags = 0u);
+    uint8_t* buffer, size_t capacity, Message_Type type, uint16_t payload_length, uint32_t packet_number,
+    uint8_t reserved = 0u);
 
 void
 put_u16(uint8_t* destination, uint16_t value);

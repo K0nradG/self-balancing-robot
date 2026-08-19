@@ -58,7 +58,7 @@ class AppVersion:
 
 @dataclass(frozen=True)
 class CommandResult:
-    request_sequence: int
+    request_packet_number: int
     request_type: ble_protocol.MessageType
     status: ble_protocol.CommandStatus
 
@@ -83,7 +83,7 @@ class DataProcessor:
         self.csv_file = None
         self.csv_writer = None
         self.last_csv_flush = 0.0
-        self.expected_frame_sequence = None
+        self.expected_telemetry_packet_number = None
         self._recording_enabled = False
 
     def set_recording(self, enabled: bool):
@@ -129,22 +129,24 @@ class DataProcessor:
             )
 
         if (
-            self.expected_frame_sequence is not None
-            and packet.sequence != self.expected_frame_sequence
+            self.expected_telemetry_packet_number is not None
+            and packet.packet_number != self.expected_telemetry_packet_number
         ):
             logger.warning(
                 "Telemetry frame gap: expected %u, received %u",
-                self.expected_frame_sequence,
-                packet.sequence,
+                self.expected_telemetry_packet_number,
+                packet.packet_number,
             )
-        self.expected_frame_sequence = (packet.sequence + 1) & 0xFFFFFFFF
+        self.expected_telemetry_packet_number = (
+            packet.packet_number + 1
+        ) & 0xFFFFFFFF
 
         samples = []
         for _ in range(sample_count):
             values = [reader.get_u32()]
             values.extend(reader.get_float() for _ in range(10))
             sample = dict(zip(TELEMETRY_KEYS, values))
-            sample["frame_sequence"] = packet.sequence
+            sample["packet_number"] = packet.packet_number
             sample["dropped_samples"] = dropped_samples
             samples.append(sample)
         reader.finish()
@@ -229,7 +231,7 @@ class DataProcessor:
 
     def _parse_command_result(self, packet: ble_protocol.Packet) -> ParsedData:
         reader = ble_protocol.PayloadReader(packet.payload)
-        request_sequence = reader.get_u32()
+        request_packet_number = reader.get_u32()
         request_type = reader.get_u8()
         status = reader.get_u8()
         reader.finish()
@@ -245,7 +247,7 @@ class DataProcessor:
             raise ValueError(f"Invalid command result status: {status}") from error
         return ParsedData(
             command_result=CommandResult(
-                request_sequence, typed_request, typed_status
+                request_packet_number, typed_request, typed_status
             )
         )
 
@@ -268,7 +270,7 @@ class DataProcessor:
             self.csv_writer = None
 
     def reset_stream(self):
-        self.expected_frame_sequence = None
+        self.expected_telemetry_packet_number = None
 
     def __record_telemetry_batch(self, samples: list[dict]):
         if not samples:

@@ -44,7 +44,7 @@ class BLEWorker(QThread):
         self._last_telemetry_emit = 0.0
         self._write_queue = None
         self._write_task = None
-        self._next_sequence = 1
+        self._next_packet_number = 1
 
         self.enable_logs = False
         self.data_processor = DataProcessor()
@@ -173,13 +173,13 @@ class BLEWorker(QThread):
             )
             return
 
-        sequence = self._next_sequence
-        self._next_sequence = (sequence + 1) & 0xFFFFFFFF
+        packet_number = self._next_packet_number
+        self._next_packet_number = (packet_number + 1) & 0xFFFFFFFF
         queued_packet = ble_protocol.pack_packet(
             packet.message_type,
             packet.payload,
-            sequence=sequence,
-            flags=packet.flags,
+            packet_number=packet_number,
+            reserved=packet.reserved,
         )
         if self.loop and self.loop.is_running() and self._write_queue is not None:
             self.loop.call_soon_threadsafe(self._write_queue.put_nowait, queued_packet)
@@ -198,7 +198,7 @@ class BLEWorker(QThread):
                 )
                 packet = ble_protocol.unpack_packet(command)
                 self.log_signal.emit(
-                    f">> Sent {packet.message_type.name} (sequence {packet.sequence})"
+                    f">> Sent {packet.message_type.name} (packet {packet.packet_number})"
                 )
             except Exception as error:
                 self.log_signal.emit(f"Send error: {error}")
@@ -224,7 +224,7 @@ class BLEWorker(QThread):
             if parsed.telemetry_samples:
                 if self.enable_logs:
                     self.data_received_signal.emit(
-                        f"TELEMETRY sequence {packet.sequence}: "
+                        f"TELEMETRY packet {packet.packet_number}: "
                         f"{len(parsed.telemetry_samples)} samples"
                     )
                 now = time.monotonic()
@@ -263,7 +263,7 @@ class BLEWorker(QThread):
                 result = parsed.command_result
                 self.command_result_signal.emit(
                     {
-                        "request_sequence": result.request_sequence,
+                        "request_packet_number": result.request_packet_number,
                         "request_type": result.request_type,
                         "status": result.status,
                     }

@@ -25,12 +25,12 @@ namespace Robot_Control
 static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
 static void
-send_command_result(BLE_Protocol::Packet_View const& packet, BLE_Protocol::Command_Status status)
+send_command_result(BLE_Protocol::received_packet const& received_packet, BLE_Protocol::Command_Status status)
 {
     uint8_t payload[6] {};
     BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
-    writer.put_u32(packet.sequence);
-    writer.put_u8(static_cast<uint8_t>(packet.type));
+    writer.put_u32(received_packet.packet_number);
+    writer.put_u8(static_cast<uint8_t>(received_packet.type));
     writer.put_u8(static_cast<uint8_t>(status));
     ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, writer);
 }
@@ -124,9 +124,9 @@ Robot_Controller::normal_motors_control()
         m_pwm1 = m_wheel1_speed_pid.calculate_output(
             target_speed1, encoders_data.encoder_1.angular_velocity_rad_s, imu_data.time_dt);
 
+#if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
         if(!m_trajectory_manager.stop_logs())
         {
-#if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
             Telemetry_Sample const telemetry_sample = {
                 .timestamp_us      = k_uptime_get_32() * 1000u,
                 .balance_setpoint  = m_balance_setpoint * radian_degrees / pi,
@@ -141,26 +141,8 @@ Robot_Controller::normal_motors_control()
                 .pwm_1             = m_pwm1,
             };
             telemetry_submit(telemetry_sample);
-#else
-            static float log_timer_ms = 0.0f;
-            log_timer_ms += imu_data.time_dt * 1000;
-
-            if(log_timer_ms >= CONFIG_ROBOT_CONTROL_LOG_NUS_PERIOD_MS)
-            {
-                log_timer_ms = 0.0f;
-
-                robot_control_logger.platform_log(
-                    LOG_LEVEL::INF,
-                    "bs: %f, ab: %f, rs: %f, ar: %f, ts0: %f, ts1: %f, s0: %f, s1: %f, pwm0: %f, pwm1: %f",
-                    (double)(m_balance_setpoint * radian_degrees / pi),
-                    (double)(imu_data.angle_balance * radian_degrees / pi),
-                    (double)(m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi),
-                    (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
-                    (double)encoders_data.encoder_0.angular_velocity_rad_s,
-                    (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
-            }
-#endif
         }
+#endif
     }
 
     send_motors_data(m_pwm0, m_pwm1);
@@ -226,18 +208,18 @@ Robot_Controller::reset()
 
 #ifdef CONFIG_BLUETOOTH_DRV
 void
-Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
+Robot_Controller::handle_ble_packet(BLE_Protocol::received_packet const& received_packet)
 {
     using BLE_Protocol::Command_Status;
     using BLE_Protocol::Controller_Id;
     using BLE_Protocol::Message_Type;
 
     Command_Status status = Command_Status::OK;
-    switch(packet.type)
+    switch(received_packet.type)
     {
         case Message_Type::STATE_COMMAND:
         {
-            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             uint8_t action;
             if(!reader.get_u8(action) || !reader.done())
             {
@@ -251,7 +233,7 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
         case Message_Type::GET_PID_STATE:
         {
-            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             if(!reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
@@ -266,7 +248,7 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
         case Message_Type::SET_PID:
         {
-            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             uint8_t controller_value;
             PID::Parameters parameters;
             if(!reader.get_u8(controller_value) || !reader.get_float(parameters.Kp) ||
@@ -311,7 +293,7 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
         case Message_Type::SET_SETPOINT:
         {
-            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             uint8_t controller_value;
             float value;
             if(!reader.get_u8(controller_value) || !reader.get_float(value) || !reader.done())
@@ -358,7 +340,7 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
         case Message_Type::TRAJECTORY_COMMAND:
         {
-            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             float rotation_degrees;
             float distance_m;
             if(!reader.get_float(rotation_degrees) || !reader.get_float(distance_m) || !reader.done())
@@ -373,7 +355,7 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         case Message_Type::SET_LQR:
         {
 #ifndef CONFIG_PID_ENABLED
-            BLE_Protocol::Payload_Reader reader(packet.payload, packet.payload_length);
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             LQR::Parameters parameters;
             if(!reader.get_float(parameters.Kx) || !reader.get_float(parameters.Ky) || !reader.done())
             {
@@ -395,16 +377,16 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
         }
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
         case Message_Type::IDENTIFICATION_CONFIG:
-            if(packet.payload_length != (10u * 2u * sizeof(float)))
+            if(received_packet.payload_length != (10u * 2u * sizeof(float)))
             {
                 status = Command_Status::INVALID_LENGTH;
             }
             else
             {
-                status =
-                    Model_Identification::instance().set_identification_profile(packet.payload, packet.payload_length) ?
-                        Command_Status::OK :
-                        Command_Status::INVALID_VALUE;
+                status = Model_Identification::instance().set_identification_profile(
+                             received_packet.payload, received_packet.payload_length) ?
+                             Command_Status::OK :
+                             Command_Status::INVALID_VALUE;
             }
             break;
 #endif
@@ -413,7 +395,7 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Packet_View const& packet)
             break;
     }
 
-    send_command_result(packet, status);
+    send_command_result(received_packet, status);
 }
 
 void

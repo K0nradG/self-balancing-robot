@@ -62,8 +62,8 @@ class CommandStatus(IntEnum):
 @dataclass(frozen=True)
 class Packet:
     message_type: MessageType
-    flags: int
-    sequence: int
+    reserved: int
+    packet_number: int
     payload: bytes
 
 
@@ -143,17 +143,17 @@ def pack_packet(
     message_type: MessageType,
     payload: bytes = b"",
     *,
-    sequence: int = 0,
-    flags: int = 0,
+    packet_number: int = 0,
+    reserved: int = 0,
 ) -> bytes:
     if len(payload) > MAX_PAYLOAD_SIZE:
         raise ValueError(f"Payload exceeds {MAX_PAYLOAD_SIZE} bytes")
     return HEADER.pack(
         MAGIC,
         int(message_type),
-        flags,
+        reserved,
         len(payload),
-        sequence & 0xFFFFFFFF,
+        packet_number & 0xFFFFFFFF,
     ) + payload
 
 
@@ -161,7 +161,7 @@ def unpack_packet(data: bytes) -> Packet:
     if len(data) < HEADER.size:
         raise ValueError(f"Packet is too short: {len(data)} bytes")
 
-    magic, message_type, flags, payload_length, sequence = HEADER.unpack_from(data)
+    magic, message_type, reserved, payload_length, packet_number = HEADER.unpack_from(data)
     if magic != MAGIC:
         raise ValueError(f"Unexpected packet magic: 0x{magic:08X}")
     if payload_length > MAX_PAYLOAD_SIZE:
@@ -178,30 +178,30 @@ def unpack_packet(data: bytes) -> Packet:
 
     return Packet(
         message_type=typed_message,
-        flags=flags,
-        sequence=sequence,
+        reserved=reserved,
+        packet_number=packet_number,
         payload=data[HEADER.size :],
     )
 
 
-def state_command(action: StateAction, sequence: int = 0) -> bytes:
+def state_command(action: StateAction, packet_number: int = 0) -> bytes:
     return pack_packet(
         MessageType.STATE_COMMAND,
         PayloadWriter().put_u8(action).to_bytes(),
-        sequence=sequence,
+        packet_number=packet_number,
     )
 
 
-def dfu_command(action: DfuAction, sequence: int = 0) -> bytes:
+def dfu_command(action: DfuAction, packet_number: int = 0) -> bytes:
     return pack_packet(
         MessageType.DFU_COMMAND,
         PayloadWriter().put_u8(action).to_bytes(),
-        sequence=sequence,
+        packet_number=packet_number,
     )
 
 
-def get_pid_state_command(sequence: int = 0) -> bytes:
-    return pack_packet(MessageType.GET_PID_STATE, sequence=sequence)
+def get_pid_state_command(packet_number: int = 0) -> bytes:
+    return pack_packet(MessageType.GET_PID_STATE, packet_number=packet_number)
 
 
 def set_pid_command(
@@ -209,7 +209,7 @@ def set_pid_command(
     kp: float,
     ki: float,
     kd: float,
-    sequence: int = 0,
+    packet_number: int = 0,
 ) -> bytes:
     return pack_packet(
         MessageType.SET_PID,
@@ -219,22 +219,22 @@ def set_pid_command(
         .put_float(ki)
         .put_float(kd)
         .to_bytes(),
-        sequence=sequence,
+        packet_number=packet_number,
     )
 
 
 def set_setpoint_command(
-    controller: ControllerId, value: float, sequence: int = 0
+    controller: ControllerId, value: float, packet_number: int = 0
 ) -> bytes:
     return pack_packet(
         MessageType.SET_SETPOINT,
         PayloadWriter().put_u8(controller).put_float(value).to_bytes(),
-        sequence=sequence,
+        packet_number=packet_number,
     )
 
 
 def trajectory_command(
-    rotation_degrees: float, distance_m: float, sequence: int = 0
+    rotation_degrees: float, distance_m: float, packet_number: int = 0
 ) -> bytes:
     return pack_packet(
         MessageType.TRAJECTORY_COMMAND,
@@ -242,14 +242,14 @@ def trajectory_command(
         .put_float(rotation_degrees)
         .put_float(distance_m)
         .to_bytes(),
-        sequence=sequence,
+        packet_number=packet_number,
     )
 
 
 def identification_command(
     pwm_values: list[float],
     durations_s: list[float],
-    sequence: int = 0,
+    packet_number: int = 0,
 ) -> bytes:
     if len(pwm_values) != 10 or len(durations_s) != 10:
         raise ValueError("Identification requires 10 PWM values and 10 durations")
@@ -260,15 +260,15 @@ def identification_command(
     return pack_packet(
         MessageType.IDENTIFICATION_CONFIG,
         _float_payload(pwm_values + durations_s),
-        sequence=sequence,
+        packet_number=packet_number,
     )
 
 
-def set_lqr_command(kx: float, ky: float, sequence: int = 0) -> bytes:
+def set_lqr_command(kx: float, ky: float, packet_number: int = 0) -> bytes:
     return pack_packet(
         MessageType.SET_LQR,
         PayloadWriter().put_float(kx).put_float(ky).to_bytes(),
-        sequence=sequence,
+        packet_number=packet_number,
     )
 
 

@@ -1,10 +1,14 @@
 # Self-Balancing Robot
 
 <p align="center">
-  <img src="images/project_thumbnail.jpg" alt="Self-Balancing Robot and Control Application">
+  <img src="media/project_thumbnail.jpg" alt="Self-Balancing Robot and Control Application">
 </p>
 
 The purpose of this project was to implement the complete **control system** for a **self-balancing robot** using **Zephyr RTOS**. 
+
+## Demonstration
+
+https://github.com/user-attachments/assets/bdc0d3e3-bf6b-4125-bade-0684ad42b085
 
 ## Supported features
 - various **drivers** allowing to interact with used **sensors and actuators**,

@@ -1,8 +1,5 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-# Left panel widget handling BLE connection, DFU updates, logs, and recording.
-
-
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -13,8 +10,10 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QCheckBox,
     QTextEdit,
+    QStackedWidget,
 )
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, Qt
+from PyQt6.QtGui import QImage, QPixmap
 
 DEFAULT_CONNECT_TARGET_NAME = "SELF_BALANCING_ROBOT"
 
@@ -27,6 +26,7 @@ class LeftPanelWidget(QWidget):
     start_dfu_requested = pyqtSignal(str)
     auto_record_toggled = pyqtSignal(bool)
     enable_logs_toggled = pyqtSignal(bool)
+    toggle_camera_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -85,9 +85,29 @@ class LeftPanelWidget(QWidget):
         dfu_layout.addWidget(self.start_dfu_btn)
         left_layout.addWidget(self.dfu_group)
 
+        camera_group = QGroupBox("Camera Stream")
+        camera_layout = QVBoxLayout(camera_group)
+        self.toggle_camera_btn = QPushButton("Show Camera View")
+        self.toggle_camera_btn.setCheckable(True)
+        self.toggle_camera_btn.clicked.connect(self.toggle_camera_requested.emit)
+        camera_layout.addWidget(self.toggle_camera_btn)
+        left_layout.addWidget(camera_group)
+
+        # Użycie QStackedWidget do przełączania między konsolą logów a widokiem kamery
+        self.stack = QStackedWidget()
+
+        # Strona 0: Konsola tekstowa
         self.console = QTextEdit()
         self.console.setReadOnly(True)
-        left_layout.addWidget(self.console, stretch=1)
+        self.stack.addWidget(self.console)
+
+        # Strona 1: Etykieta wideo z kamery
+        self.camera_label = QLabel("Camera Feed Disconnected")
+        self.camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.camera_label.setStyleSheet("background-color: black; color: white; font-size: 14px;")
+        self.stack.addWidget(self.camera_label)
+
+        left_layout.addWidget(self.stack, stretch=1)
 
         self.enable_logs_checkbox = QCheckBox("Enable BLE Logs")
         self.enable_logs_checkbox.setChecked(False)
@@ -118,6 +138,27 @@ class LeftPanelWidget(QWidget):
             self.start_dfu_requested.emit(target)
         else:
             self.log_message("Error: Device target name is required for DFU.")
+
+    def set_camera_mode(self, shown: bool):
+        """Przełącza widok w stosie: pokazaj kamerę (strona 1) lub konsolę (strona 0)."""
+        if shown:
+            self.toggle_camera_btn.setText("Hide Camera View")
+            self.toggle_camera_btn.setChecked(True)
+            self.stack.setCurrentIndex(1)
+        else:
+            self.toggle_camera_btn.setText("Show Camera View")
+            self.toggle_camera_btn.setChecked(False)
+            self.stack.setCurrentIndex(0)
+
+    def update_camera_frame(self, image: QImage):
+        """Skaluje i wyświetla klatkę wideo w miejscu konsoli."""
+        pixmap = QPixmap.fromImage(image)
+        scaled_pixmap = pixmap.scaled(
+            self.camera_label.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        self.camera_label.setPixmap(scaled_pixmap)
 
     # --- UI Update Slots & Public Methods ---
     def set_battery_led(self, color: str):
@@ -185,3 +226,4 @@ class LeftPanelWidget(QWidget):
 
     def log_message(self, msg: str):
         self.console.append(f"<i>{msg}</i>")
+

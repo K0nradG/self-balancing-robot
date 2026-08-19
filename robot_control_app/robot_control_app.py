@@ -1,12 +1,11 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-# Robot Control application utilizing BLE NUS for communication with the self-balancing robot.
-
 import logging
 import time
+import cv2
 
-from PyQt6.QtCore import QThread
-
+from PyQt6.QtCore import QThread, pyqtSignal, QUrl
+from PyQt6.QtGui import QImage
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QMainWindow,
@@ -23,6 +22,51 @@ from . import ble_protocol
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("NUS_App")
 
+RTSP_STREAM_URL = "rtsp://192.168.4.1:8554/camera"
+
+
+class CameraWorker(QThread):
+    """Wątek w tle pobierający strumień RTSP za pomocą OpenCV zminimalizowanym buforem."""
+    frame_signal = pyqtSignal(QImage)
+
+    def __init__(self, rtsp_url):
+        super().__init__()
+        self.rtsp_url = rtsp_url
+        self._is_running = False
+
+    def run(self):
+        self._is_running = True
+        cap = None
+        
+        while self._is_running:
+            if cap is None or not cap.isOpened():
+                cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+                # Wymuszenie minimalnego bufora, aby usunąć 1-2 sekundowe opóźnienie
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                if not cap.isOpened():
+                    time.sleep(1)
+                    continue
+
+            ret, frame = cap.read()
+            if ret:
+                # Konwersja BGR (OpenCV) na RGB (Qt)
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                h, w, ch = rgb_frame.shape
+                bytes_per_line = ch * w
+                qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format.Format_RGB888)
+                self.frame_signal.emit(qt_image.copy())
+            else:
+                cap.release()
+                cap = None
+                time.sleep(0.5)
+
+        if cap:
+            cap.release()
+
+    def stop(self):
+        self._is_running = False
+        self.wait()
+
 
 class RobotControlApp(QMainWindow):
     """Main Application Window acting as Coordinator/Mediator between Panels and Worker Threads."""
@@ -30,11 +74,12 @@ class RobotControlApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Robot Control Application")
-        self.resize(1300, 800)
+        self.resize(1400, 800)
 
         self.is_connected = False
         self.dfu_skipped = False
         self.dfu_thread = None
+        self.camera_worker = None
         self._pending_dfu_action = None
         self._pending_dfu_target = None
 
@@ -50,21 +95,23 @@ class RobotControlApp(QMainWindow):
         self.setCentralWidget(main_widget)
         main_layout = QHBoxLayout(main_widget)
 
-        splitter = QSplitter()
-        main_layout.addWidget(splitter)
+        self.splitter = QSplitter()
+        main_layout.addWidget(self.splitter)
 
         self.left_panel = LeftPanelWidget()
         self.right_panel = RightPanelWidget()
 
-        splitter.addWidget(self.left_panel)
-        splitter.addWidget(self.right_panel)
+        # Układ splitteru: tylko lewy panel sterowania i prawy panel wykresów
+        self.splitter.addWidget(self.left_panel)
+        self.splitter.addWidget(self.right_panel)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 2)
 
         # Lock control panel until DFU is completed/skipped
         self.right_panel.setEnabled(False)
 
     def __connect_signals(self):
-
-        #  Left Panel signals connections
+        # Left Panel signals connections
         self.left_panel.connect_requested.connect(self.start_connect)
         self.left_panel.disconnect_requested.connect(self.start_disconnect)
         self.left_panel.skip_dfu_requested.connect(self.handle_skip_dfu)
@@ -73,6 +120,7 @@ class RobotControlApp(QMainWindow):
             self.ble_worker.set_auto_record
         )
         self.left_panel.enable_logs_toggled.connect(self.toggle_enable_logs)
+        self.left_panel.toggle_camera_requested.connect(self.toggle_camera_view)
 
         # Right panel signals connections
         self.right_panel.send_command_requested.connect(self.send_command)
@@ -105,6 +153,23 @@ class RobotControlApp(QMainWindow):
             )
         )
 
+    def toggle_camera_view(self):
+        """Przełącza widok kamery zamiast konsoli logów w lewym panelu."""
+        if self.camera_worker:
+            # Wyłącz kamerę, wróć do konsoli
+            self.camera_worker.stop()
+            self.camera_worker = None
+            self.left_panel.set_camera_mode(False)
+            self.left_panel.log_message(">> Camera view hidden.")
+        else:
+            # Włącz kamerę, schowaj konsolę
+            self.left_panel.set_camera_mode(True)
+            self.left_panel.log_message(">> Starting camera stream worker...")
+
+            self.camera_worker = CameraWorker(RTSP_STREAM_URL)
+            self.camera_worker.frame_signal.connect(self.left_panel.update_camera_frame)
+            self.camera_worker.start()
+
     def start_connect(self, target_name: str):
         self.left_panel.set_connecting_state()
         self.ble_worker.scan_and_connect(target_name)
@@ -117,7 +182,7 @@ class RobotControlApp(QMainWindow):
         if isinstance(command, bytes):
             self.ble_worker.send_command(command)
 
-    def update_connection_status(self, connected: bool, address: str):
+    def update_connection_status(self, connected: bool, address: str, dfu_skipped: bool):
         self.is_connected = connected
         self.left_panel.update_connection_status(connected, address, self.dfu_skipped)
 
@@ -217,6 +282,9 @@ class RobotControlApp(QMainWindow):
         self.left_panel.log_message(f">> BLE Logs {status}")
 
     def closeEvent(self, event):
+        if self.camera_worker:
+            self.camera_worker.stop()
+
         if self.dfu_thread and self.dfu_thread.isRunning():
             self.dfu_thread.quit()
             self.dfu_thread.wait(1000)
@@ -231,3 +299,4 @@ class RobotControlApp(QMainWindow):
         self.ble_worker.quit()
         self.ble_worker.wait(1000)
         event.accept()
+

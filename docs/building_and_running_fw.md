@@ -150,13 +150,8 @@ Bluetooth LE without opening the robot.
    ```
 
 3. Connect to `SELF_BALANCING_ROBOT`.
-4. Open the DFU view and select:
 
-   ```text
-   Sources/applications/app/build/dfu_application.zip
-   ```
-
-5. Start the update and keep the robot powered until it reboots and
+4. Start the update and keep the robot powered until it reboots and
    reconnects.
 
 The desktop DFU workflow uses `smpmgr`. A Windows binary is included in

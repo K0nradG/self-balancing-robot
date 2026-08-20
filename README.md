@@ -69,6 +69,14 @@ The robot is based on:
 
 Hardware design files are available in [`Schematic/`](Schematic/).
 
+### Custom PCB
+
+<p align="center">
+  <img src="Schematic/3dvis/Screenshot from 2025-02-07 15-54-50.png" alt="Custom self-balancing robot PCB render">
+</p>
+
+<p align="center"><em>3D render of the custom robot controller PCB.</em></p>
+
 ## Getting started
 
 ### Prerequisites

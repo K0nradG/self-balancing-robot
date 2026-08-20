@@ -10,6 +10,16 @@ embedded control system, custom electronics and mechanical designs, a BLE
 desktop application, over-the-air firmware updates, and tools for modelling
 and controller development.
 
+## Documentation
+
+- [Project overview](README.md)
+- [Environment setup](docs/environment_setup.md)
+- [Building and flashing](docs/building_and_running_fw.md)
+- [BLE protocol](Sources/drivers/bluetooth/README.md)
+- [Control-loop structure](Sources/robot_control/docs/control_loop.md)
+- [Application state machine](Sources/robot_control/docs/application_state_machine.md)
+- [Mathematical model](mathematical_model/doc/model.md)
+
 ## Demonstration
 
 https://github.com/user-attachments/assets/bdc0d3e3-bf6b-4125-bade-0684ad42b085
@@ -23,7 +33,7 @@ https://github.com/user-attachments/assets/bdc0d3e3-bf6b-4125-bade-0684ad42b085
 - Optional LQR balance controller
 - Trajectory generation for linear motion and rotation
 - MPU6050 inertial measurement and quadrature encoder feedback
-- PWM motor control for dual TB6612FNG drivers
+- PWM motor control through a dual-channel TB6612FNG driver
 - Battery-voltage monitoring
 - Safety angle validation and controlled motor shutdown
 - Binary BLE protocol for commands, telemetry, and diagnostic logs
@@ -38,6 +48,9 @@ https://github.com/user-attachments/assets/bdc0d3e3-bf6b-4125-bade-0684ad42b085
 - KiCad schematics, PCB layout, Gerber files, and mechanical CAD
 
 > [!NOTE]
+> The default firmware configuration uses PID control. The LQR controller and
+> on-device model-identification mode are implemented but disabled by default.
+>
 > The Raspberry Pi web interface and the nRF7002 DK controller are legacy or
 > experimental components and may require adaptation to the current binary BLE
 > protocol.
@@ -51,10 +64,6 @@ controllers then generate the motor PWM outputs.
 
 ![Control loop architecture](Sources/robot_control/docs/control_loop.svg)
 
-The default configuration uses PID control. LQR can be selected at build time,
-and the on-device model-identification mode is available as an optional
-configuration.
-
 ## Hardware
 
 The robot is based on:
@@ -62,7 +71,7 @@ The robot is based on:
 - Nordic nRF52840 Dongle
 - MPU6050 IMU
 - Two DC gearmotors with quadrature encoders
-- Two TB6612FNG motor drivers
+- TB6612FNG dual motor driver
 - 2-cell, 7.4 V LiPo battery
 - Custom PCB and 3D-printed mechanical structure
 - Optional Raspberry Pi Zero 2 W and CSI camera
@@ -84,9 +93,9 @@ Hardware design files are available in [`Schematic/`](Schematic/).
 - [nRF Connect SDK 2.8.0](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.8.0/nrf/index.html)
 - nRF Connect toolchain 2.8.0
 - West and the Zephyr development environment
-- An SWD debugger for the initial firmware installation
+- An external SWD debugger for the initial firmware installation
 
-See the detailed [environment setup guide](docs/environment_setup.md) before
+Follow the [environment setup guide](docs/environment_setup.md) before
 building the project.
 
 ### Build the robot firmware
@@ -95,17 +104,19 @@ From the repository root:
 
 ```bash
 cd Sources/applications/app
-west build -b nrf52840dongle_nrf52840 -p
+west build -b nrf52840dongle_nrf52840 -p always
 ```
 
-The resulting DFU package is generated at:
+A successful build generates:
 
 ```text
+Sources/applications/app/build/merged.hex
 Sources/applications/app/build/dfu_application.zip
 ```
 
-For additional information, see
-[Building and flashing](docs/building_and_running_fw.md).
+The firmware can also be built through nRF Connect for VS Code. See
+[Building and flashing](docs/building_and_running_fw.md) for the complete GUI,
+terminal, SWD, and BLE DFU workflows.
 
 ### Flash the initial firmware
 
@@ -117,14 +128,14 @@ west flash --erase --skip-rebuild
 ```
 
 Subsequent firmware versions can be installed over BLE using the desktop
-application and the generated DFU package.
+application or the command-line DFU tool.
 
 ### Run the desktop application
 
-The application requires Python 3, PyQt6, and Bleak:
+The desktop application requires Python 3, PyQt6, Bleak, and PyQtGraph:
 
 ```bash
-python3 -m pip install PyQt6 bleak
+python3 -m pip install PyQt6 bleak pyqtgraph
 python3 run_controller_app.py
 ```
 
@@ -149,15 +160,6 @@ on `PATH`.
 ├── docs/                              # Setup and build documentation
 └── dts/bindings/                      # Custom Zephyr devicetree bindings
 ```
-
-## Documentation
-
-- [BLE protocol](Sources/drivers/bluetooth/README.md)
-- [Control-loop structure](Sources/robot_control/docs/control_loop.md)
-- [Application state machine](Sources/robot_control/docs/application_state_machine.md)
-- [Mathematical model](mathematical_model/doc/model.md)
-- [Environment setup](docs/environment_setup.md)
-- [Building and flashing](docs/building_and_running_fw.md)
 
 ## Roadmap
 

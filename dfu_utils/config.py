@@ -37,4 +37,3 @@ PROGRESS_STEPS = {
     "reconnect": 95,
     "confirm": 100,
 }
-

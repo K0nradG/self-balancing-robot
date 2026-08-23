@@ -5,26 +5,34 @@ import shutil
 import sys
 import time
 import zipfile
-from pathlib import Path
 
-from .config import DEFAULT_IMAGE, DEFAULT_RETRIES, DEFAULT_RETRY_DELAY, TARGET_FILENAME, ZIP_FILE_PATH
+from .config import (
+    DEFAULT_IMAGE,
+    DEFAULT_RETRIES,
+    DEFAULT_RETRY_DELAY,
+    TARGET_FILENAME,
+    ZIP_FILE_PATH,
+)
 from .smpmgr_wrapper import run_smpmgr
 
 
 def extract_firmware_from_zip():
+
     if not ZIP_FILE_PATH.exists():
         print(f"Warning: Archive {ZIP_FILE_PATH} not found.")
         return DEFAULT_IMAGE
 
     print(f"Extracting {TARGET_FILENAME} from {ZIP_FILE_PATH} ...")
-    
+
     try:
         with zipfile.ZipFile(ZIP_FILE_PATH, "r") as archive:
             if TARGET_FILENAME not in archive.namelist():
                 print(f"Error: {TARGET_FILENAME} not found in {ZIP_FILE_PATH}")
                 sys.exit(1)
 
-            with archive.open(TARGET_FILENAME, "r") as source, open(DEFAULT_IMAGE, "wb") as destination:
+            with archive.open(TARGET_FILENAME, "r") as source, open(
+                DEFAULT_IMAGE, "wb"
+            ) as destination:
                 shutil.copyfileobj(source, destination)
 
     except zipfile.BadZipFile:
@@ -40,11 +48,12 @@ def extract_firmware_from_zip():
 
     file_size = DEFAULT_IMAGE.stat().st_size
     print(f"Firmware extracted: {DEFAULT_IMAGE} ({file_size:,} bytes)\n")
-    
+
     return DEFAULT_IMAGE
 
 
-def extract_slot_hash(output, requested_slot=1):
+def extract_slot_hash(output, requested_slot=1) -> str:
+
     blocks = re.findall(
         r"ImageState\s*\((.*?)(?=\s*ImageState\s*\(|\s*splitStatus\s*:|\Z)",
         output,
@@ -67,24 +76,30 @@ def extract_slot_hash(output, requested_slot=1):
         )
         if hash_match:
             return hash_match.group(1).upper()
-            
-    return None
+
+    return ""
 
 
-def read_secondary_image_hash(ble_target, request_timeout, retries=DEFAULT_RETRIES, retry_delay=DEFAULT_RETRY_DELAY):
+def read_secondary_image_hash(
+    ble_target,
+    request_timeout,
+    retries=DEFAULT_RETRIES,
+    retry_delay=DEFAULT_RETRY_DELAY,
+):
+
+    command_arguments = ["image", "state-read"]
     for attempt in range(1, retries + 1):
         try:
             result = run_smpmgr(
                 ble_target,
                 request_timeout,
-                "image",
-                "state-read",
+                command_arguments,
                 check=True,
                 capture_output=True,
             )
             output = result.stdout or ""
             image_hash = extract_slot_hash(output, requested_slot=1)
-            if image_hash and len(image_hash) in (64, 96, 128):
+            if len(image_hash) in (64, 96, 128):
                 return image_hash
 
         except Exception:
@@ -97,8 +112,8 @@ def read_secondary_image_hash(ble_target, request_timeout, retries=DEFAULT_RETRI
 
 
 def format_duration(seconds):
+
     minutes, remaining_seconds = divmod(seconds, 60)
     if minutes:
         return f"{int(minutes)}m {remaining_seconds:.1f}s"
     return f"{remaining_seconds:.1f}s"
-

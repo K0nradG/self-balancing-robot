@@ -55,9 +55,10 @@ data_selector(const char* data)
         return;
     }
 
-    if((data[0] == BLE_Commands::Prefix::DISTANCE_PID) || (data[0] == BLE_Commands::Prefix::LINEAR_SPEED_PID) ||
-       (data[0] == BLE_Commands::Prefix::BALANCE_PID) || (data[0] == BLE_Commands::Prefix::ROTATE_PID) ||
-       (data[0] == BLE_Commands::Prefix::WHEEL_PID) || (data[0] == BLE_Commands::Prefix::TRAJECTORY_MANAGER))
+    if((data[0] == BLE_Commands::General::GET_REGULATOR_PARAMS) || (data[0] == BLE_Commands::Prefix::DISTANCE_PID) ||
+       (data[0] == BLE_Commands::Prefix::LINEAR_SPEED_PID) || (data[0] == BLE_Commands::Prefix::BALANCE_PID) ||
+       (data[0] == BLE_Commands::Prefix::ROTATE_PID) || (data[0] == BLE_Commands::Prefix::WHEEL_PID) ||
+       (data[0] == BLE_Commands::Prefix::TRAJECTORY_MANAGER))
     {
         if(s_regulator_parameters_parser_cb)
         {

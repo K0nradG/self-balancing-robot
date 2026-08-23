@@ -1,37 +1,103 @@
-# Environment Setup
+# Environment setup
 
-This project is based on **nRF SDK v2.8.0** and **toolchain v2.8.0**.
+[Project overview](../README.md) |
+**Environment setup** |
+[Building and flashing](building_and_running_fw.md)
 
-## 1. Install Required Extensions
+This project is a Zephyr module and a west manifest repository based on
+**nRF Connect SDK v2.8.0** and **nRF Connect toolchain v2.8.0**.
 
-To set up the development environment, install the **nRF Connect for VS Code** extension.
+The environment can be configured through the nRF Connect extension for
+Visual Studio Code or entirely from a terminal. Both workflows produce the
+same west workspace and use the same build commands.
 
-🔹 **Important:** Ensure the extension version is **2024.11.22**.
+## Prerequisites
 
-## 2. Install Toolchain and SDK
+Install:
 
-1. Open the **nRF Connect for VS Code** extension.
-2. Install the **toolchain** (v2.8.0).
-3. Install **nRF SDK** (v2.8.0).
+- [nRF Connect SDK v2.8.0](https://developer.nordicsemi.com/nRF_Connect_SDK/doc/2.8.0/nrf/installation/install_ncs.html)
+- nRF Connect toolchain v2.8.0
+- [nRF Connect for VS Code](https://marketplace.visualstudio.com/items?itemName=nordic-semiconductor.nrf-connect-extension-pack)
+- Git
 
+> [!NOTE]
+> **nRF Connect for Desktop** and its Toolchain Manager can be used to install
+> the SDK and open a terminal with the toolchain environment. The build
+> integration inside the editor is provided by **nRF Connect for VS Code**.
 
+## Option 1: Configure an existing NCS workspace in VS Code
 
-## 3. Clone the Repository
+Use this method if nRF Connect SDK v2.8.0 is already installed in a directory
+such as `~/ncs/v2.8.0`.
 
-Once the toolchain and SDK are installed, clone this repository into the following directory:
+1. Clone this repository into the SDK workspace:
 
-- `ncs/v2.8.0`
+   ```bash
+   cd ~/ncs/v2.8.0
+   git clone https://github.com/K0nradG/self-balancing-robot.git
+   ```
 
+2. Open `~/ncs/v2.8.0` in Visual Studio Code.
+3. Open the **nRF Connect** extension.
+4. Select **Manage West Workspace** and then
+   **Switch West Manifest Repository**.
+5. Select `self-balancing-robot/west.yml`.
+6. Run **West Update** when prompted.
+7. Select nRF Connect SDK and toolchain v2.8.0 for the workspace.
 
+The resulting layout should contain:
 
-## 4. Switch to the Appropriate West Manifest
+```text
+~/ncs/v2.8.0/
+├── .west/
+├── nrf/
+├── zephyr/
+└── self-balancing-robot/
+```
 
-To configure the workspace:
+## Option 2: Configure a new workspace from the terminal
 
-1. Open the **nRF Connect for VS Code** extension.
-2. Click **Manage West Workspace**.
-3. Select **Switch West Manifest Repository**.
-4. Search for **self-balancing-robot (self-balancing-robot/west.yaml)** and select it.
-5. A window will appear—click **West Update**.
+Use a terminal in which the nRF Connect SDK v2.8.0 toolchain environment is
+active. This can be a terminal opened from Toolchain Manager or the nRF
+Connect extension.
 
-After completing these steps, your environment is ready.
+```bash
+west init \
+  -m https://github.com/K0nradG/self-balancing-robot.git \
+  --mr main \
+  self-balancing-robot-workspace
+cd self-balancing-robot-workspace
+west update
+west zephyr-export
+```
+
+The manifest imports the matching nRF Connect SDK revision automatically.
+The repository is available at:
+
+```text
+self-balancing-robot-workspace/self-balancing-robot/
+```
+
+## Option 3: Switch an existing workspace from the terminal
+
+If the repository has already been cloned into `~/ncs/v2.8.0`, the manifest
+can be selected without using VS Code:
+
+```bash
+cd ~/ncs/v2.8.0
+west config manifest.path self-balancing-robot
+west update
+west zephyr-export
+```
+
+Verify the environment before building:
+
+```bash
+west --version
+west topdir
+```
+
+`west topdir` should print the root of the workspace containing
+`self-balancing-robot`.
+
+Continue with [Building and flashing](building_and_running_fw.md).

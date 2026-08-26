@@ -24,6 +24,11 @@ and controller development.
 
 https://github.com/user-attachments/assets/bdc0d3e3-bf6b-4125-bade-0684ad42b085
 
+> 🎥 **See the robot in action!** 
+> Check out the [Lapun Embedded Control Lab](https://youtube.com/@lapunembededcontrollab) on YouTube for more demonstrations.
+>
+> [![Lapun Embedded Control Lab](https://img.shields.io/badge/YouTube-Visit_My_Channel-red?style=for-the-badge&logo=youtube)](https://youtube.com/@lapunembededcontrollab)
+
 ## Features
 
 ### Robot firmware

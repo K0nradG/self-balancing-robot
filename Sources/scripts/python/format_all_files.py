@@ -9,7 +9,8 @@ EXCLUDE_DIRS = {"build", "3rdParty"}
 def format_sources(root: Path):
     # Recursively find .cpp, .h and .c files, excluding certain directories
     files = [
-        f for f in root.rglob("*")
+        f
+        for f in root.rglob("*")
         if f.suffix in {".cpp", ".h", ".c"}
         and not any(part in EXCLUDE_DIRS for part in f.parts)
     ]

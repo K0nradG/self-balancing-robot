@@ -16,19 +16,11 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Check Python formatting with Black
+        uses: psf/black-action@v24.8.0
         with:
-          python-version: '3.11'
-
-      - name: Install Black
-        run: pip install black
-
-      - name: Run Black formatter
-        run: black --exclude '/(build|3rdParty)/' .
-
-      - name: Verify Python code formatting
-        run: git diff --exit-code
+          options: "--check --exclude '/(build|3rdParty)/'"
+          src: "."
 
   cpp-formatting:
     name: C/C++ Formatting (clang-format)
@@ -37,18 +29,9 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Check C/C++ formatting with clang-format
+        uses: jidicula/clang-format-action@v4.14.0
         with:
-          python-version: '3.11'
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
-
-      - name: Run C/C++ format script
-        run: python3 Sources/scripts/python/format_all_files.py
-
-      - name: Verify C/C++ code formatting
-        run: git diff --exit-code
+          clang-format-version: '19'
+          check-path: '.'
+          exclude-regex: '(build|3rdParty)'

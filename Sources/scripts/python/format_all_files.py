@@ -16,7 +16,8 @@ def format_sources(root: Path):
     ]
 
     if not files:
-        print("No .cpp, .h or .c files found.")
+        print
+        ("No .cpp, .h or .c files found.")
         return
 
     print(

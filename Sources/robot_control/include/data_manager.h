@@ -10,10 +10,12 @@ namespace Robot_Control
 
 class DataManager
 {
-    static constexpr float alpha_rotation = 0.8f;
+    static constexpr float alpha_rotation = 
+    0.8f;
 
 public:
-    static DataManager&
+    static DataManager
+    &
     instance();
 
     void

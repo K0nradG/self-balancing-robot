@@ -1,0 +1,34 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
+sample:
+  name: Self-balancing robot firmware
+  description: Firmware for the nRF52840-based self-balancing robot
+
+common:
+  build_only: true
+  sysbuild: true
+  platform_allow:
+    - nrf52840dongle/nrf52840
+  integration_platforms:
+    - nrf52840dongle/nrf52840
+  tags:
+    - robot
+    - firmware
+
+tests:
+  application.self_balancing_robot.pid:
+    extra_configs:
+      - CONFIG_PID_ENABLED=y
+      - CONFIG_MODEL_IDENTIFICATION_DRV=n
+
+  application.self_balancing_robot.lqr:
+    extra_configs:
+      - CONFIG_PID_ENABLED=n
+      - CONFIG_MODEL_IDENTIFICATION_DRV=n
+
+  application.self_balancing_robot.model_identification:
+    extra_configs:
+      - CONFIG_PID_ENABLED=y
+      - CONFIG_MODEL_IDENTIFICATION_DRV=y
+
+

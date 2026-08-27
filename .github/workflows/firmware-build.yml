@@ -1,0 +1,59 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
+name: Firmware build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build firmware variants
+    runs-on: ubuntu-22.04
+    container:
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v2.8.0
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out application
+        uses: actions/checkout@v4
+        with:
+          path: workspace/self-balancing-robot
+
+      - name: Initialize NCS workspace
+        working-directory: workspace
+        run: |
+          west init -l self-balancing-robot
+          west update --narrow -o=--depth=1
+
+      - name: Build application variants with Twister
+        working-directory: workspace
+        run: |
+          export ZEPHYR_BASE="$PWD/zephyr"
+          ./zephyr/scripts/twister \
+            --integration \
+            --platform nrf52840dongle/nrf52840 \
+            --testsuite-root self-balancing-robot/Sources/applications/app \
+            --outdir twister-out \
+            --inline-logs
+
+      - name: Upload firmware and Twister results
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-builds
+          if-no-files-found: error
+          path: |
+            workspace/twister-out/**/merged.hex
+            workspace/twister-out/twister.json
+            workspace/twister-out/twister.xml
+

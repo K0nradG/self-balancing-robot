@@ -1,0 +1,54 @@
+name: Code Formatting
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-formatting:
+    name: Python Formatting (Black)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Black
+        run: pip install black
+
+      - name: Run Black formatter
+        run: black --exclude '/(build|3rdParty)/' .
+
+      - name: Verify Python code formatting
+        run: git diff --exit-code
+
+  cpp-formatting:
+    name: C/C++ Formatting (clang-format)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Run C/C++ format script
+        run: python3 Sources/scripts/python/format_all_files.py
+
+      - name: Verify C/C++ code formatting
+        run: git diff --exit-code

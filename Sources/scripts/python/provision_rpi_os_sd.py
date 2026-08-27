@@ -35,10 +35,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, BinaryIO, Iterable
 
-
-RPI_IMAGES_INDEX = (
-    "https://downloads.raspberrypi.com/raspios_lite_armhf/images/"
-)
+RPI_IMAGES_INDEX = "https://downloads.raspberrypi.com/raspios_lite_armhf/images/"
 MEDIAMTX_RELEASE_API = (
     "https://api.github.com/repos/bluenviron/mediamtx/releases/latest"
 )
@@ -56,9 +53,7 @@ class LinkParser(HTMLParser):
         super().__init__()
         self.links: list[str] = []
 
-    def handle_starttag(
-        self, tag: str, attrs: list[tuple[str, str | None]]
-    ) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag != "a":
             return
         for key, value in attrs:
@@ -137,9 +132,7 @@ def discover_latest_rpi_image() -> tuple[str, str]:
         if re.fullmatch(r"[^/]+-armhf-lite\.img\.xz", urllib.parse.unquote(link))
     ]
     if not image_names:
-        raise ProvisionError(
-            f"Nie znaleziono obrazu Lite 32-bit w {release_url}"
-        )
+        raise ProvisionError(f"Nie znaleziono obrazu Lite 32-bit w {release_url}")
 
     image_url = urllib.parse.urljoin(release_url, max(image_names))
     return image_url, image_url + ".sha256"
@@ -244,9 +237,7 @@ def get_mediamtx(cache_dir: Path) -> Path:
         )
 
     asset = candidates[0]
-    archive = download(
-        asset["browser_download_url"], cache_dir / asset["name"]
-    )
+    archive = download(asset["browser_download_url"], cache_dir / asset["name"])
     digest = asset.get("digest")
     if digest:
         verify_sha256(archive, digest)
@@ -311,9 +302,7 @@ def get_device_node(device: str) -> tuple[str, dict[str, Any]]:
     for node in walk_nodes(lsblk_tree()):
         if os.path.realpath(node.get("path", "")) == resolved:
             if node.get("type") != "disk":
-                raise ProvisionError(
-                    f"Podaj całą kartę, nie partycję: {resolved}"
-                )
+                raise ProvisionError(f"Podaj całą kartę, nie partycję: {resolved}")
             return resolved, node
     raise ProvisionError(f"lsblk nie rozpoznał urządzenia {resolved}.")
 
@@ -322,9 +311,7 @@ def all_mountpoints(node: dict[str, Any]) -> list[str]:
     mountpoints: list[str] = []
     for child in walk_nodes([node]):
         mountpoints.extend(
-            mountpoint
-            for mountpoint in (child.get("mountpoints") or [])
-            if mountpoint
+            mountpoint for mountpoint in (child.get("mountpoints") or []) if mountpoint
         )
     return mountpoints
 
@@ -405,9 +392,7 @@ def flash_image(archive: Path, device: str) -> None:
                 copy_with_progress(source, destination)
         elif archive.name.endswith(".zip"):
             with zipfile.ZipFile(archive) as package:
-                images = [
-                    name for name in package.namelist() if name.endswith(".img")
-                ]
+                images = [name for name in package.namelist() if name.endswith(".img")]
                 if len(images) != 1:
                     raise ProvisionError(
                         "Archiwum ZIP nie zawiera dokładnie jednego obrazu."
@@ -458,17 +443,14 @@ def find_partitions(device: str) -> tuple[str, str]:
             (
                 child["path"]
                 for child in children
-                if child.get("fstype") == "ext4"
-                or child.get("label") == "rootfs"
+                if child.get("fstype") == "ext4" or child.get("label") == "rootfs"
             ),
             None,
         )
         if boot and root:
             return boot, root
         time.sleep(1)
-    raise ProvisionError(
-        "Nie znaleziono partycji bootfs i rootfs po zapisaniu obrazu."
-    )
+    raise ProvisionError("Nie znaleziono partycji bootfs i rootfs po zapisaniu obrazu.")
 
 
 def password_hash(password: str) -> str:
@@ -514,7 +496,7 @@ def configure_boot(
 
     config = boot / "config.txt"
     config_content = config.read_text(encoding="utf-8")
-    
+
     additions = []
     if "camera_auto_detect=1" not in config_content:
         additions.append("camera_auto_detect=1")
@@ -523,7 +505,9 @@ def configure_boot(
 
     if additions:
         with config.open("a", encoding="utf-8") as output:
-            output.write("\n# Robot camera provisioning\n" + "\n".join(additions) + "\n")
+            output.write(
+                "\n# Robot camera provisioning\n" + "\n".join(additions) + "\n"
+            )
 
 
 def configure_hostname(root: Path, hostname: str) -> None:
@@ -573,8 +557,7 @@ method=shared
 method=disabled
 """
     write_text(
-        root
-        / "etc/NetworkManager/system-connections/robot-ap.nmconnection",
+        root / "etc/NetworkManager/system-connections/robot-ap.nmconnection",
         profile,
         mode=0o600,
     )
@@ -674,9 +657,7 @@ def provision_filesystems(
                 country,
             )
             configure_hostname(root_mount, hostname)
-            configure_access_point(
-                root_mount, ssid, ap_password, channel
-            )
+            configure_access_point(root_mount, ssid, ap_password, channel)
             configure_mediamtx(
                 root_mount,
                 mediamtx_binary,
@@ -707,9 +688,7 @@ def valid_username(value: str) -> str:
 
 def valid_country(value: str) -> str:
     if not re.fullmatch(r"[A-Za-z]{2}", value):
-        raise argparse.ArgumentTypeError(
-            "Kod kraju musi mieć dwie litery, np. PL."
-        )
+        raise argparse.ArgumentTypeError("Kod kraju musi mieć dwie litery, np. PL.")
     return value.upper()
 
 
@@ -779,14 +758,10 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_secret(
-    supplied: str | None, prompt: str, minimum_length: int
-) -> str:
+def get_secret(supplied: str | None, prompt: str, minimum_length: int) -> str:
     value = supplied if supplied is not None else getpass.getpass(prompt)
     if len(value) < minimum_length:
-        raise ProvisionError(
-            f"Hasło musi mieć co najmniej {minimum_length} znaków."
-        )
+        raise ProvisionError(f"Hasło musi mieć co najmniej {minimum_length} znaków.")
     if "\n" in value or "\r" in value or "\x00" in value:
         raise ProvisionError("Hasło zawiera niedozwolony znak.")
     return value
@@ -798,9 +773,7 @@ def main() -> int:
         if sys.platform != "linux":
             raise ProvisionError("Ten skrypt działa wyłącznie na Linuksie.")
         if os.geteuid() != 0:
-            raise ProvisionError(
-                "Uruchom skrypt jako root, np. przez sudo."
-            )
+            raise ProvisionError("Uruchom skrypt jako root, np. przez sudo.")
         require_host_tools()
 
         if not (1 <= len(args.ssid.encode("utf-8")) <= 32):
@@ -812,23 +785,17 @@ def main() -> int:
         if args.bitrate < 100_000:
             raise ProvisionError("Bitrate musi wynosić co najmniej 100000.")
 
-        ap_password = get_secret(
-            args.ap_password, "Hasło sieci RobotCam: ", 8
-        )
+        ap_password = get_secret(args.ap_password, "Hasło sieci RobotCam: ", 8)
         if len(ap_password.encode("utf-8")) > 63:
             raise ProvisionError("Hasło WPA2 może mieć maksymalnie 63 bajty.")
-        user_password = get_secret(
-            args.user_password, "Hasło użytkownika SSH: ", 8
-        )
+        user_password = get_secret(args.user_password, "Hasło użytkownika SSH: ", 8)
 
         device, node = get_device_node(args.device)
         validate_target(device, node, args.force_non_removable)
         confirm_erase(device, node, args.yes)
         confirmed_identity = device_identity(node)
 
-        image = get_image_archive(
-            args.cache_dir, args.image_url, args.image_sha256
-        )
+        image = get_image_archive(args.cache_dir, args.image_url, args.image_sha256)
         mediamtx = get_mediamtx(args.cache_dir)
 
         # Check the device again after downloads, in case it was unplugged or

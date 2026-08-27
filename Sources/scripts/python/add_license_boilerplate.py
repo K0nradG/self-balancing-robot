@@ -3,7 +3,20 @@
 from pathlib import Path
 
 EXCLUDE_DIRS = {"build", ".git", "__pycache__"}
-EXTENSIONS = {".c", ".cpp", ".h", ".hpp", ".py", ".m", ".conf", ".overlay", ".yaml", ".yml", ".defconfig", ".sysbuild"}
+EXTENSIONS = {
+    ".c",
+    ".cpp",
+    ".h",
+    ".hpp",
+    ".py",
+    ".m",
+    ".conf",
+    ".overlay",
+    ".yaml",
+    ".yml",
+    ".defconfig",
+    ".sysbuild",
+}
 SPECIAL_FILENAMES = {"CMakeLists.txt", "Kconfig"}
 
 LICENSE_TEXT = """Copyright 2026 Filip Dymczyk and Konrad Grucel"""
@@ -11,7 +24,7 @@ LICENSE_TEXT = """Copyright 2026 Filip Dymczyk and Konrad Grucel"""
 
 def get_comment_style(file: Path):
     if file.suffix in {".c", ".cpp", ".h", ".hpp", ".overlay"}:
-        return "cpp" 
+        return "cpp"
     elif file.suffix == ".m":
         return "matlab"
     elif file.suffix in {".py", ".conf", ".yaml", ".yml", ".defconfig", ".sysbuild"}:

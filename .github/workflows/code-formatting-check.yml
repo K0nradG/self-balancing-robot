@@ -1,0 +1,36 @@
+name: Code Formatting
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-formatting:
+    name: Python Formatting (Black)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run Black Action
+        uses: psf/black-action@stable
+        with:
+          options: "--check --exclude '/(build|3rdParty)/'"
+          src: "."
+
+  cpp-formatting:
+    name: C/C++ Formatting (clang-format)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run clang-format check
+        uses: jcenter/clang-format-check@v2
+        with:
+          clang-format-version: '15'
+          exclude: './build ./3rdParty'

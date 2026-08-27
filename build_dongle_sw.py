@@ -8,6 +8,7 @@ import sys
 from Sources.scripts.python.format_changed_files import format_changed_files
 from Sources.scripts.python.get_compile_commands import get_compile_commands
 
+
 def run_nrfdongle_build_command():
     target_dir = os.path.join("Sources", "applications", "app")
     original_dir = os.getcwd()
@@ -22,6 +23,7 @@ def run_nrfdongle_build_command():
     finally:
         # Always return to the original directory
         os.chdir(original_dir)
+
 
 if __name__ == "__main__":
     format_changed_files()

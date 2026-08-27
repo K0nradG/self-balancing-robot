@@ -137,6 +137,9 @@ enum class Message_Type : uint8_t
     TRAJECTORY_COMMAND    = 0x25u,
     IDENTIFICATION_CONFIG = 0x26u,
     SET_LQR               = 0x27u,
+
+    DRIVE_COMMAND    = 0x28u,
+    SET_CONTROL_MODE = 0x29u,
 };
 
 enum class Controller_Id : uint8_t

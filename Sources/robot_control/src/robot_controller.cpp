@@ -49,6 +49,8 @@ Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint_ramp(rotate_setpoint_rate),
+      m_angular_speed_setpoint_ramp(angular_speed_setpoint_ramp_rate),
+      m_linear_speed_setpoint_ramp(linear_speed_setpoint_ramp_rate),
       m_trajectory_manager(m_distance_setpoint, m_rotate_setpoint_ramp),
       m_distance_pid(
           distance_pid_parameters, Saturation(-max_linear_speed, max_linear_speed), distance_pid_filter_alpha,
@@ -72,6 +74,7 @@ Robot_Controller::Robot_Controller()
           wheel_speed_pid_parameters,
           Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
           wheel_speed_pid_filter_alpha),
+      m_current_mode(Control_Mode::STANDARD),
       m_regulator_message_sending_in_progress(false)
 {
 }
@@ -84,6 +87,7 @@ Robot_Controller::normal_motors_control()
     imu_data const imu_data            = DataManager::instance().get_imu_data();
     encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
 
+    // needed only for telemetry in drive mode
     float const rotation_angle = DataManager::instance().get_rotation_angle();
 
 #ifdef CONFIG_VALIDATE_ROBOT_ANGLE
@@ -94,25 +98,39 @@ Robot_Controller::normal_motors_control()
 
     if(!disable_motors_command)
     {
-        m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
+        float target_linear_speed = 0.0f;
+        float target_speed_rotate = 0.0f;
 
-#ifdef CONFIG_PID_ENABLED
-        float const target_linear_speed =
-            m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
+        if(m_current_mode == Control_Mode::FREE_DRIVE)
+        {
+            m_angular_speed_setpoint_ramp.update(imu_data.time_dt);
+            m_linear_speed_setpoint_ramp.update(imu_data.time_dt);
+
+            target_linear_speed = m_linear_speed_setpoint_ramp.get_current_value();
+            target_speed_rotate = m_angular_speed_setpoint_ramp.get_current_value();
+        }
+        else  // Control_Mode::STANDARD
+        {
+            m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
+
+            target_linear_speed =
+                m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
+
+            m_rotate_setpoint_ramp.update(imu_data.time_dt);
+            target_speed_rotate = m_rotate_pid.calculate_output(
+                m_rotate_setpoint_ramp.get_current_value(), rotation_angle, imu_data.time_dt);
+        }
 
         float const balance_angle_deviation = m_linear_speed_pid.calculate_output(
             target_linear_speed, encoders_data.robot_linear_speed, imu_data.time_dt);
 
+#ifdef CONFIG_PID_ENABLED
         float const target_speed_balance = m_balance_pid.calculate_output(
             m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, imu_data.time_dt);
 #else
         float const target_speed_balance =
             m_balance_lqr.calculate_output(imu_data.angle_balance, imu_data.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
-
-        m_rotate_setpoint_ramp.update(imu_data.time_dt);
-        float const target_speed_rotate =
-            m_rotate_pid.calculate_output(m_rotate_setpoint_ramp.get_current_value(), rotation_angle, imu_data.time_dt);
 
         static Saturation const target_wheel_speed_saturation {-max_speed_rad_s, max_speed_rad_s};
         float const target_speed0 = target_wheel_speed_saturation.saturate(target_speed_balance - target_speed_rotate);
@@ -194,6 +212,8 @@ Robot_Controller::reset()
 {
     m_distance_setpoint = 0.0f;
     m_rotate_setpoint_ramp.reset();
+    m_angular_speed_setpoint_ramp.reset();
+    m_linear_speed_setpoint_ramp.reset();
     DataManager::instance().reset();
 
     m_wheel0_speed_pid.reset();
@@ -232,6 +252,38 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::received_packet const& receive
             status = applied ? Command_Status::OK : Command_Status::INVALID_STATE;
             break;
         }
+        case Message_Type::DRIVE_COMMAND:
+        {
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
+            float angular_speed_setpoint_value;
+            float linear_speed_setpoint_value;
+
+            if(!reader.get_float(angular_speed_setpoint_value) || !reader.get_float(linear_speed_setpoint_value) ||
+               !reader.done())
+            {
+                status = Command_Status::INVALID_LENGTH;
+                break;
+            }
+            m_angular_speed_setpoint_ramp.set_target(angular_speed_setpoint_value);
+            m_linear_speed_setpoint_ramp.set_target(linear_speed_setpoint_value);
+            break;
+        }
+
+        case Message_Type::SET_CONTROL_MODE:
+        {
+            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
+            uint8_t mode_value;
+
+            if(!reader.get_u8(mode_value) || !reader.done())
+            {
+                status = Command_Status::INVALID_LENGTH;
+                break;
+            }
+
+            m_current_mode = static_cast<Control_Mode>(mode_value);
+            break;
+        }
+
         case Message_Type::GET_PID_STATE:
         {
             BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);

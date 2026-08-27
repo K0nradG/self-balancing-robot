@@ -16,11 +16,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Run Black Action
-        uses: psf/black-action@stable
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          options: "--check --exclude '/(build|3rdParty)/'"
-          src: "."
+          python-version: '3.11'
+
+      - name: Install Black
+        run: pip install black
+
+      - name: Run Black formatter
+        run: black --exclude '/(build|3rdParty)/' .
+
+      - name: Verify Python code formatting
+        run: git diff --exit-code
 
   cpp-formatting:
     name: C/C++ Formatting (clang-format)
@@ -29,8 +37,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Run clang-format check
-        uses: jcenter/clang-format-check@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          clang-format-version: '15'
-          exclude: './build ./3rdParty'
+          python-version: '3.11'
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Run C/C++ format script
+        run: python3 Sources/scripts/python/format_all_files.py
+
+      - name: Verify C/C++ code formatting
+        run: git diff --exit-code

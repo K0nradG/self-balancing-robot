@@ -69,9 +69,7 @@ class RobotControlApp(QMainWindow):
         self.left_panel.disconnect_requested.connect(self.start_disconnect)
         self.left_panel.skip_dfu_requested.connect(self.handle_skip_dfu)
         self.left_panel.start_dfu_requested.connect(self.start_dfu_process)
-        self.left_panel.auto_record_toggled.connect(
-            self.ble_worker.set_auto_record
-        )
+        self.left_panel.auto_record_toggled.connect(self.ble_worker.set_auto_record)
         self.left_panel.enable_logs_toggled.connect(self.toggle_enable_logs)
 
         # Right panel signals connections
@@ -131,9 +129,7 @@ class RobotControlApp(QMainWindow):
         self._pending_dfu_action = ble_protocol.DfuAction.SKIP
         self.left_panel.set_dfu_skipped_state()
         self.left_panel.log_message(">> Waiting for robot control initialization...")
-        self.send_command(
-            ble_protocol.dfu_command(ble_protocol.DfuAction.SKIP)
-        )
+        self.send_command(ble_protocol.dfu_command(ble_protocol.DfuAction.SKIP))
 
     def start_dfu_process(self, target_name: str):
         if self.is_connected:
@@ -141,9 +137,7 @@ class RobotControlApp(QMainWindow):
             self._pending_dfu_target = target_name
             self.left_panel.set_dfu_running_state()
             self.left_panel.log_message(">> Requesting DFU mode...")
-            self.send_command(
-                ble_protocol.dfu_command(ble_protocol.DfuAction.START)
-            )
+            self.send_command(ble_protocol.dfu_command(ble_protocol.DfuAction.START))
             return
 
         self._launch_dfu(target_name)
@@ -187,9 +181,7 @@ class RobotControlApp(QMainWindow):
             self.dfu_skipped = True
             self.left_panel.set_dfu_skipped_state()
             self.right_panel.setEnabled(True)
-            self.left_panel.log_message(
-                ">> DFU skipped. Robot control panel unlocked."
-            )
+            self.left_panel.log_message(">> DFU skipped. Robot control panel unlocked.")
             self.send_command(ble_protocol.get_pid_state_command())
         elif pending_action == ble_protocol.DfuAction.START:
             target = self._pending_dfu_target

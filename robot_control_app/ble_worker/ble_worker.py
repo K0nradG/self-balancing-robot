@@ -66,9 +66,7 @@ class BLEWorker(QThread):
 
     def set_auto_record(self, enabled: bool):
         if self.loop and self.loop.is_running():
-            self.loop.call_soon_threadsafe(
-                self.data_processor.set_recording, enabled
-            )
+            self.loop.call_soon_threadsafe(self.data_processor.set_recording, enabled)
         else:
             self.data_processor.set_recording(enabled)
 

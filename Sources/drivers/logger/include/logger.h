@@ -2,8 +2,8 @@
 
 #pragma once
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #ifdef CONFIG_BLUETOOTH_DRV
 #include "ble_service.h"

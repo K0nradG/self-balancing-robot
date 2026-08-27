@@ -137,9 +137,7 @@ class DataProcessor:
                 self.expected_telemetry_packet_number,
                 packet.packet_number,
             )
-        self.expected_telemetry_packet_number = (
-            packet.packet_number + 1
-        ) & 0xFFFFFFFF
+        self.expected_telemetry_packet_number = (packet.packet_number + 1) & 0xFFFFFFFF
 
         samples = []
         for _ in range(sample_count):
@@ -251,9 +249,7 @@ class DataProcessor:
             )
         )
 
-    def _parse_identification_complete(
-        self, packet: ble_protocol.Packet
-    ) -> ParsedData:
+    def _parse_identification_complete(self, packet: ble_protocol.Packet) -> ParsedData:
         self._require_empty(packet.payload, "identification complete")
         return ParsedData(identification_complete=True)
 

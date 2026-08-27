@@ -111,7 +111,7 @@ class PayloadReader:
         end = self._offset + size
         if end > len(self._data):
             raise ValueError("Payload is truncated")
-        value = self._data[self._offset:end]
+        value = self._data[self._offset : end]
         self._offset = end
         return value
 
@@ -148,20 +148,25 @@ def pack_packet(
 ) -> bytes:
     if len(payload) > MAX_PAYLOAD_SIZE:
         raise ValueError(f"Payload exceeds {MAX_PAYLOAD_SIZE} bytes")
-    return HEADER.pack(
-        MAGIC,
-        int(message_type),
-        reserved,
-        len(payload),
-        packet_number & 0xFFFFFFFF,
-    ) + payload
+    return (
+        HEADER.pack(
+            MAGIC,
+            int(message_type),
+            reserved,
+            len(payload),
+            packet_number & 0xFFFFFFFF,
+        )
+        + payload
+    )
 
 
 def unpack_packet(data: bytes) -> Packet:
     if len(data) < HEADER.size:
         raise ValueError(f"Packet is too short: {len(data)} bytes")
 
-    magic, message_type, reserved, payload_length, packet_number = HEADER.unpack_from(data)
+    magic, message_type, reserved, payload_length, packet_number = HEADER.unpack_from(
+        data
+    )
     if magic != MAGIC:
         raise ValueError(f"Unexpected packet magic: 0x{magic:08X}")
     if payload_length > MAX_PAYLOAD_SIZE:
@@ -238,10 +243,7 @@ def trajectory_command(
 ) -> bytes:
     return pack_packet(
         MessageType.TRAJECTORY_COMMAND,
-        PayloadWriter()
-        .put_float(rotation_degrees)
-        .put_float(distance_m)
-        .to_bytes(),
+        PayloadWriter().put_float(rotation_degrees).put_float(distance_m).to_bytes(),
         packet_number=packet_number,
     )
 

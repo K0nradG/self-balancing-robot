@@ -18,7 +18,7 @@ constexpr size_t packet_number_offset  = payload_length_offset + sizeof(uint16_t
 // Total header size: magic, type, reserved byte, payload length, and packet number.
 constexpr size_t header_size = packet_number_offset + sizeof(uint32_t);
 // The requested ATT MTU and the part occupied by the ATT notification header.
-constexpr size_t target_att_mtu              = 247u;
+constexpr size_t target_att_mtu               = 247u;
 constexpr size_t att_notification_header_size = 3u;
 // Largest complete RBT1 packet that fits in one unfragmented notification.
 constexpr size_t max_packet_size = target_att_mtu - att_notification_header_size;

@@ -55,10 +55,7 @@ read_received_packet_fields(uint8_t const* data, uint16_t payload_length, receiv
 }  // namespace
 
 Payload_Writer::Payload_Writer(uint8_t* buffer, size_t capacity)
-    : m_buffer(buffer),
-      m_capacity(get_payload_buffer_size(capacity)),
-      m_size(0u),
-      m_valid(buffer != nullptr)
+    : m_buffer(buffer), m_capacity(get_payload_buffer_size(capacity)), m_size(0u), m_valid(buffer != nullptr)
 {
 }
 
@@ -95,7 +92,7 @@ Payload_Writer::put_float(float value)
 bool
 Payload_Writer::can_write_bytes(uint8_t const* data, size_t length) const
 {
-    bool const has_data = (data != nullptr) || (length == 0u);
+    bool const has_data  = (data != nullptr) || (length == 0u);
     bool const has_space = length <= (m_capacity - m_size);
     return m_valid && has_data && has_space;
 }
@@ -189,7 +186,7 @@ bool
 Payload_Reader::can_read_bytes(uint8_t* destination, size_t length) const
 {
     bool const has_destination = (destination != nullptr) || (length == 0u);
-    bool const has_bytes = length <= remaining();
+    bool const has_bytes       = length <= remaining();
     return m_valid && has_destination && has_bytes;
 }
 
@@ -236,7 +233,7 @@ Payload_Reader::valid() const
 Decode_Result
 decode_packet(uint8_t const* data, size_t length, received_packet& decoded_packet)
 {
-    uint16_t payload_length = 0u;
+    uint16_t payload_length          = 0u;
     Decode_Result const check_result = check_received_frame(data, length, payload_length);
     if(check_result != Decode_Result::OK)
     {

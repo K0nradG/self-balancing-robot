@@ -2,8 +2,6 @@
 
 #include "pid.h"
 #include <math.h>
-#include <stdlib.h>
-#include "ble_commands.h"
 #include "zephyr/sys/util.h"
 
 namespace Robot_Control
@@ -57,57 +55,6 @@ PID::calculate_output(float setpoint, float feedback, float dt, float feedback_d
 
     return saturated_output;
 }
-
-#ifdef CONFIG_BLUETOOTH_DRV
-void
-PID::parse_nus_parameters(char const* data)
-{
-    if(data == nullptr)
-    {
-        return;
-    }
-
-    while(*data)
-    {
-        if((*data == BLE_Commands::Regulator::PID_K_GAIN) || (*data == BLE_Commands::Regulator::PID_I_GAIN) ||
-           (*data == BLE_Commands::Regulator::PID_D_GAIN) || (*data == BLE_Commands::Regulator::PID_FILTER_ALPHA))
-        {
-            char key = *data;
-            data++;
-            char* next_data = nullptr;
-            float value     = strtof(data, &next_data);
-
-            if(data == next_data)
-            {
-                break;
-            }
-            data = next_data;
-
-            switch(key)
-            {
-                case BLE_Commands::Regulator::PID_K_GAIN:
-                    m_parameters.Kp = value;
-                    break;
-                case BLE_Commands::Regulator::PID_I_GAIN:
-                    m_parameters.Ki = value;
-                    break;
-                case BLE_Commands::Regulator::PID_D_GAIN:
-                    m_parameters.Kd = value;
-                    break;
-                case BLE_Commands::Regulator::PID_FILTER_ALPHA:
-                    m_filter.set_alpha(value);
-                    break;
-                default:
-                    break;
-            }
-        }
-        else
-        {
-            data++;
-        }
-    }
-}
-#endif  // CONFIG_BLUETOOTH_DRV
 
 PID::Parameters
 PID::get_parameters() const

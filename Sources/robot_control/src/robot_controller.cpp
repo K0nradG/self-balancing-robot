@@ -78,13 +78,13 @@ Robot_Controller::normal_motors_control()
     {
         m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
 
+#ifdef CONFIG_PID_ENABLED
         float const target_linear_speed =
             m_distance_pid.calculate_output(m_distance_setpoint, encoders_data.robot_distance_m, imu_data.time_dt);
 
         float const balance_angle_deviation = m_linear_speed_pid.calculate_output(
             target_linear_speed, encoders_data.robot_linear_speed, imu_data.time_dt);
 
-#ifdef CONFIG_PID_ENABLED
         float const target_speed_balance = m_balance_pid.calculate_output(
             m_balance_setpoint - balance_angle_deviation, imu_data.angle_balance, imu_data.time_dt);
 #else
@@ -182,7 +182,11 @@ Robot_Controller::reset()
     m_wheel0_speed_pid.reset();
     m_wheel1_speed_pid.reset();
     m_rotate_pid.reset();
+
+#ifdef CONFIG_PID_ENABLED
     m_balance_pid.reset();
+#endif  // CONFIG_PID_ENABLED
+
     m_trajectory_manager.reset();
 }
 
@@ -295,9 +299,15 @@ Robot_Controller::send_PID_controllers_parameters()
 {
     PID::Parameters const distance_pid_parameters     = m_distance_pid.get_parameters();
     PID::Parameters const linear_speed_pid_parameters = m_linear_speed_pid.get_parameters();
-    PID::Parameters const balance_pid_parameters      = m_balance_pid.get_parameters();
-    PID::Parameters const rotate_pid_parameters       = m_rotate_pid.get_parameters();
-    PID::Parameters const wheel_speed_pid_parameters  = m_wheel0_speed_pid.get_parameters();
+
+#ifdef CONFIG_PID_ENABLED
+    PID::Parameters const balance_pid_parameters = m_balance_pid.get_parameters();
+#else
+    PID::Parameters const balance_pid_parameters {};
+#endif  // CONFIG_PID_ENABLED
+
+    PID::Parameters const rotate_pid_parameters      = m_rotate_pid.get_parameters();
+    PID::Parameters const wheel_speed_pid_parameters = m_wheel0_speed_pid.get_parameters();
 
     snprintf(
         m_regulators_data, sizeof(m_regulators_data),

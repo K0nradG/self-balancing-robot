@@ -35,10 +35,10 @@ class Robot_Controller
     static constexpr float angle_backward_max_deviation          = -3.0f * (pi / radian_degrees);
     static constexpr float angle_forward_max_deviation           = 3.0f * (pi / radian_degrees);
 
+    static constexpr float max_speed_rad_s = 90.0f;
 #ifdef CONFIG_PID_ENABLED
     static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};
     static constexpr float balance_pid_filter_alpha         = 0.9f;
-    static constexpr float max_speed_rad_s                  = 90.0f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED

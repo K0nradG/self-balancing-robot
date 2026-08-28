@@ -16,6 +16,7 @@ from .widgets.left_panel_widget import LeftPanelWidget
 from .widgets.right_panel_widget import RightPanelWidget
 from .ble_worker.ble_worker import BLEWorker
 from .dfu_worker.dfu_worker import DFUWorker
+from .camera_worker.camera_worker import CameraWorker
 from . import ble_protocol
 
 logging.basicConfig(level=logging.INFO)
@@ -38,6 +39,11 @@ class RobotControlApp(QMainWindow):
 
         self.pressed_keys = set()
         self.keyboard_control_enabled = False
+        self.ai_control_enabled = False
+        self.ai_latest_angular = 0.0
+        self.ai_latest_linear = 0.0
+        self.camera_worker = None
+
         self.configured_linear_speed = 2.0  # m/s
         self.configured_angular_speed = 19.0  # rad/s
 
@@ -70,8 +76,7 @@ class RobotControlApp(QMainWindow):
         self.right_panel.setEnabled(False)
 
     def __connect_signals(self):
-
-        #  Left Panel signals connections
+        # Left Panel signals connections
         self.left_panel.connect_requested.connect(self.start_connect)
         self.left_panel.disconnect_requested.connect(self.start_disconnect)
         self.left_panel.skip_dfu_requested.connect(self.handle_skip_dfu)
@@ -82,6 +87,7 @@ class RobotControlApp(QMainWindow):
         # Right panel signals connections
         self.right_panel.send_command_requested.connect(self.send_command)
         self.right_panel.keyboard_control_toggled.connect(self.set_keyboard_control)
+        self.right_panel.ai_control_toggled.connect(self.set_ai_control)
 
         # BLE worker signals connections
         self.ble_worker.connected_signal.connect(self.update_connection_status)
@@ -213,25 +219,38 @@ class RobotControlApp(QMainWindow):
         status = "Enabled" if checked else "Disabled"
         self.left_panel.log_message(f">> BLE Logs {status}")
 
-    def closeEvent(self, event):
-        if self.dfu_thread and self.dfu_thread.isRunning():
-            self.dfu_thread.quit()
-            self.dfu_thread.wait(1000)
+    def set_ai_control(self, enabled: bool):
+        """Włącza/wyłącza tryb autonomiczny sterowany przez OpenCV/AI."""
+        self.ai_control_enabled = enabled
+        if enabled:
+            if self.keyboard_control_enabled:
+                self.right_panel.kb_control_cb.setChecked(False)
 
-        if self.is_connected:
-            self.ble_worker.disconnect_device()
-            time.sleep(0.3)
+            self.camera_worker = CameraWorker()
+            self.camera_worker.frame_signal.connect(self.right_panel.update_camera_feed)
+            self.camera_worker.ai_drive_signal.connect(self._update_ai_drive_params)
+            self.camera_worker.start()
+            self.left_panel.log_message(">> Autonomous AI mode started.")
+        else:
+            if self.camera_worker:
+                self.camera_worker.stop()
+                self.camera_worker = None
+                self.right_panel.video_label.setText("Camera feed stopped")
+                self.ai_latest_angular = 0.0
+                self.ai_latest_linear = 0.0
+            self.left_panel.log_message(">> Autonomous AI mode stopped.")
 
-        if self.ble_worker.loop:
-            self.ble_worker.loop.call_soon_threadsafe(self.ble_worker.loop.stop)
-
-        self.ble_worker.quit()
-        self.ble_worker.wait(1000)
-        event.accept()
+    def _update_ai_drive_params(self, angular: float, linear: float):
+        """Odbiera nastawy prędkości z wątku wizyjnego."""
+        self.ai_latest_angular = angular
+        self.ai_latest_linear = linear
 
     def set_keyboard_control(self, enabled: bool):
         self.keyboard_control_enabled = enabled
         if enabled:
+            if self.ai_control_enabled:
+                self.right_panel.ai_control_cb.setChecked(False)
+
             self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             self.setFocus()
         else:
@@ -239,7 +258,16 @@ class RobotControlApp(QMainWindow):
             self._send_current_drive_command()
 
     def _send_current_drive_command(self):
-        if not self.is_connected or not self.keyboard_control_enabled:
+        if not self.is_connected:
+            return
+
+        # Jeśli aktywny jest tryb autonomiczny, wyślij wyliczone prędkości AI
+        if self.ai_control_enabled:
+            cmd = ble_protocol.drive_command(self.ai_latest_angular, self.ai_latest_linear)
+            self.send_command(cmd)
+            return
+
+        if not self.keyboard_control_enabled:
             return
 
         linear = 0.0
@@ -309,3 +337,22 @@ class RobotControlApp(QMainWindow):
             self._send_current_drive_command()
         else:
             super().keyReleaseEvent(event)
+
+    def closeEvent(self, event):
+        if self.camera_worker and self.camera_worker.isRunning():
+            self.camera_worker.stop()
+
+        if self.dfu_thread and self.dfu_thread.isRunning():
+            self.dfu_thread.quit()
+            self.dfu_thread.wait(1000)
+
+        if self.is_connected:
+            self.ble_worker.disconnect_device()
+            time.sleep(0.3)
+
+        if self.ble_worker.loop:
+            self.ble_worker.loop.call_soon_threadsafe(self.ble_worker.loop.stop)
+
+        self.ble_worker.quit()
+        self.ble_worker.wait(1000)
+        event.accept()

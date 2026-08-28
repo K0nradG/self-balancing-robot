@@ -8,6 +8,14 @@ flashes an SD card, and configures:
   * a MediaMTX RTSP server using the Raspberry Pi camera.
 
 Run this script as root on a Linux host. The target block device is erased.
+
+last login and password:
+
+username: robot
+password: sbrobot123
+
+addres: ssh robot@192.168.4.1
+
 """
 
 from __future__ import annotations

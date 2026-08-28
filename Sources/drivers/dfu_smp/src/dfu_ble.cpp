@@ -8,6 +8,7 @@
 #include <zephyr/mgmt/mcumgr/mgmt/callbacks.h>
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
+#include "ble_payload_reader.h"
 #include "ble_protocol.h"
 #include "ble_service.h"
 #include "control_loop.h"

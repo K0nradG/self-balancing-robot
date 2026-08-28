@@ -8,72 +8,6 @@
 namespace BLE_Protocol
 {
 
-class Payload_Writer
-{
-public:
-    Payload_Writer(uint8_t* buffer, size_t capacity);
-
-    bool
-    put_u8(uint8_t value);
-    bool
-    put_u16(uint16_t value);
-    bool
-    put_u32(uint32_t value);
-    bool
-    put_float(float value);
-    bool
-    put_bytes(uint8_t const* data, size_t length);
-
-    uint8_t const*
-    data() const;
-    uint16_t
-    size() const;
-    bool
-    valid() const;
-
-private:
-    bool
-    can_write_bytes(uint8_t const* data, size_t length) const;
-
-    uint8_t* m_buffer;
-    size_t m_capacity;
-    size_t m_size;
-    bool m_valid;
-};
-
-class Payload_Reader
-{
-public:
-    Payload_Reader(uint8_t const* data, size_t length);
-
-    bool
-    get_u8(uint8_t& value);
-    bool
-    get_u16(uint16_t& value);
-    bool
-    get_u32(uint32_t& value);
-    bool
-    get_float(float& value);
-    bool
-    get_bytes(uint8_t* destination, size_t length);
-
-    size_t
-    remaining() const;
-    bool
-    done() const;
-    bool
-    valid() const;
-
-private:
-    bool
-    can_read_bytes(uint8_t* destination, size_t length) const;
-
-    uint8_t const* m_data;
-    size_t m_length;
-    size_t m_offset;
-    bool m_valid;
-};
-
 // RBT1 frame header (all integers and IEEE-754 floats are little-endian):
 //   MAGIC          u32  Identifies the packet as RBT1; packets with another value are rejected.
 //   type           u8   Selects the message and determines how its payload is decoded.
@@ -179,22 +113,7 @@ encode_header(
     uint8_t* buffer, size_t capacity, Message_Type type, uint16_t payload_length, uint32_t packet_number,
     uint8_t reserved = 0u);
 
-void
-put_u16(uint8_t* destination, uint16_t value);
-
-void
-put_u32(uint8_t* destination, uint32_t value);
-
-void
-put_float(uint8_t* destination, float value);
-
-uint16_t
-get_u16(uint8_t const* source);
-
-uint32_t
-get_u32(uint8_t const* source);
-
-float
-get_float(uint8_t const* source);
+bool
+has_command_header(uint8_t const* data, uint16_t length);
 
 }  // namespace BLE_Protocol

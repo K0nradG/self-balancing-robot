@@ -4,6 +4,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "ble_payload_writer.h"
 #include "ble_protocol.h"
 
 typedef void (*ble_packet_received_cb_t)(BLE_Protocol::received_packet const& received_packet);

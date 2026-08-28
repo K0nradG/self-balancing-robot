@@ -20,24 +20,24 @@ struct tx_packet
     uint8_t data[BLE_Protocol::MAX_PACKET_SIZE];
 };
 
-constexpr size_t tx_queue_count                = 3u;
-constexpr size_t tx_queue_capacity             = 8u;
-constexpr size_t max_pending_tx_packets        = tx_queue_count * tx_queue_capacity;
-constexpr size_t ble_tx_thread_stack_size      = 2048u;
-constexpr int ble_tx_thread_priority           = 5;
-constexpr uint32_t ble_tx_thread_options       = 0u;
-constexpr int32_t ble_tx_thread_start_delay_ms = 0;
-constexpr int tx_buffer_retry_delay_ms         = 1;
-constexpr unsigned int initial_pending_packets = 0u;
-constexpr size_t command_result_payload_size   = sizeof(uint32_t) + (2u * sizeof(uint8_t));
-constexpr size_t log_payload_header_size       = (2u * sizeof(uint8_t)) + sizeof(uint16_t);
+constexpr size_t log_payload_header_size = (2u * sizeof(uint8_t)) + sizeof(uint16_t);
 
 // Separate queues prevent telemetry and log bursts from delaying protocol responses.
-K_MSGQ_DEFINE(protocol_tx_queue, sizeof(tx_packet), tx_queue_capacity, alignof(tx_packet));
-K_MSGQ_DEFINE(telemetry_tx_queue, sizeof(tx_packet), tx_queue_capacity, alignof(tx_packet));
-K_MSGQ_DEFINE(log_tx_queue, sizeof(tx_packet), tx_queue_capacity, alignof(tx_packet));
+constexpr size_t TX_QUEUE_CAPACITY = 8u;
+K_MSGQ_DEFINE(protocol_tx_queue, sizeof(tx_packet), TX_QUEUE_CAPACITY, alignof(tx_packet));
+K_MSGQ_DEFINE(telemetry_tx_queue, sizeof(tx_packet), TX_QUEUE_CAPACITY, alignof(tx_packet));
+K_MSGQ_DEFINE(log_tx_queue, sizeof(tx_packet), TX_QUEUE_CAPACITY, alignof(tx_packet));
+
 // One semaphore count represents one packet waiting across all three queues.
-K_SEM_DEFINE(tx_available, initial_pending_packets, max_pending_tx_packets);
+constexpr unsigned int INITIAL_TX_PENDING_PACKETS = 0u;
+constexpr size_t TX_QUEUE_COUNT                   = 3u;
+constexpr size_t MAX_PENDING_TX_PACKETS           = TX_QUEUE_COUNT * TX_QUEUE_CAPACITY;
+K_SEM_DEFINE(tx_available, INITIAL_TX_PENDING_PACKETS, MAX_PENDING_TX_PACKETS);
+
+constexpr size_t BLE_TX_THREAD_STACK_SIZE      = 2048u;
+constexpr int BLE_TX_THREAD_PRIORITY           = 5;
+constexpr uint32_t BLE_TX_THREAD_OPTIONS       = 0u;
+constexpr int32_t BLE_TX_THREAD_START_DELAY_MS = 0;
 
 bool nus_notification_enabled                   = false;
 ble_packet_received_cb_t packet_received_cb     = nullptr;
@@ -152,7 +152,7 @@ send_packet_to_nus(tx_packet const& packet_to_send)
         if(send_result == -ENOMEM)
         {
             // Wait briefly until the Bluetooth stack releases a TX buffer.
-            k_sleep(K_MSEC(tx_buffer_retry_delay_ms));
+            k_sleep(K_MSEC(1));
         }
     } while(send_result == -ENOMEM);
 }
@@ -175,8 +175,8 @@ tx_thread(void*, void*, void*)
 }
 
 K_THREAD_DEFINE(
-    ble_tx_thread_id, ble_tx_thread_stack_size, tx_thread, nullptr, nullptr, nullptr, ble_tx_thread_priority,
-    ble_tx_thread_options, ble_tx_thread_start_delay_ms);
+    ble_tx_thread_id, BLE_TX_THREAD_STACK_SIZE, tx_thread, nullptr, nullptr, nullptr, BLE_TX_THREAD_PRIORITY,
+    BLE_TX_THREAD_OPTIONS, BLE_TX_THREAD_START_DELAY_MS);
 
 }  // namespace
 
@@ -195,7 +195,8 @@ set_notif_status(bool enabled)
 static void
 send_invalid_command_length_result(uint8_t const* command_data)
 {
-    uint8_t response_payload[command_result_payload_size] {};
+    constexpr size_t COMMAND_RESULT_PAYLOAD_SIZE = sizeof(uint32_t) + (2u * sizeof(uint8_t));
+    uint8_t response_payload[COMMAND_RESULT_PAYLOAD_SIZE] {};
     BLE_Protocol::Payload_Writer response_payload_writer(response_payload, sizeof(response_payload));
 
     uint32_t const request_packet_number = sys_get_le32(command_data + BLE_Protocol::PACKET_NUMBER_OFFSET);

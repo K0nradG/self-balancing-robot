@@ -21,10 +21,6 @@
 #include "interface.h"
 #endif
 
-#ifdef CONFIG_SHELL_DRV
-#include "shell.h"
-#endif
-
 #ifdef CONFIG_BATTERY_LEVEL_DRV
 #include "battery_level.h"
 #endif  // CONFIG_BATTERY_LEVEL_DRV

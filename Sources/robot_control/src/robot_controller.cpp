@@ -218,12 +218,12 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
     using BLE_Protocol::Message_Type;
 
     Command_Status status = Command_Status::OK;
+    BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
     switch(received_packet.type)
     {
         case Message_Type::STATE_COMMAND:
         {
-            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
-            uint8_t action;
+            uint8_t action {};
             if(!reader.get_u8(action) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
@@ -236,7 +236,6 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
         }
         case Message_Type::GET_PID_STATE:
         {
-            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             if(!reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
@@ -251,9 +250,8 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
         }
         case Message_Type::SET_PID:
         {
-            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
-            uint8_t controller_value;
-            PID::Parameters parameters;
+            uint8_t controller_value {};
+            PID::Parameters parameters {};
             if(!reader.get_u8(controller_value) || !reader.get_float(parameters.Kp) ||
                !reader.get_float(parameters.Ki) || !reader.get_float(parameters.Kd) || !reader.done())
             {
@@ -296,9 +294,8 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
         }
         case Message_Type::SET_SETPOINT:
         {
-            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
-            uint8_t controller_value;
-            float value;
+            uint8_t controller_value {};
+            float value {};
             if(!reader.get_u8(controller_value) || !reader.get_float(value) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
@@ -343,9 +340,8 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
         }
         case Message_Type::TRAJECTORY_COMMAND:
         {
-            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
-            float rotation_degrees;
-            float distance_m;
+            float rotation_degrees {};
+            float distance_m {};
             if(!reader.get_float(rotation_degrees) || !reader.get_float(distance_m) || !reader.done())
             {
                 status = Command_Status::INVALID_LENGTH;
@@ -358,7 +354,6 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
         case Message_Type::SET_LQR:
         {
 #ifndef CONFIG_PID_ENABLED
-            BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
             LQR::Parameters parameters;
             if(!reader.get_float(parameters.Kx) || !reader.get_float(parameters.Ky) || !reader.done())
             {

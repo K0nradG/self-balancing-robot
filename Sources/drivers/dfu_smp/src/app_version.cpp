@@ -3,7 +3,6 @@
 #include <zephyr/dfu/mcuboot.h>
 #include <zephyr/kernel.h>
 #include <zephyr/storage/flash_map.h>
-#include "ble_protocol.h"
 #include "ble_service.h"
 #include "dfu_ble.h"
 #include "logger.h"

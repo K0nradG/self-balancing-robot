@@ -1,6 +1,6 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-#include "ble_protocol.h"
+#include "ble_protocol_helpers.h"
 #include <zephyr/sys/byteorder.h>
 #include "ble_protocol_constants.h"
 
@@ -33,7 +33,7 @@ check_received_frame(uint8_t const* data, size_t length, uint16_t& payload_lengt
 }
 
 static void
-read_received_packet_fields(uint8_t const* data, uint16_t payload_length, received_packet& decoded_packet)
+read_received_packet_fields(uint8_t const* data, uint16_t payload_length, Received_Packet& decoded_packet)
 {
     decoded_packet.type           = static_cast<Message_Type>(data[PACKET_TYPE_OFFSET]);
     decoded_packet.reserved       = data[PACKER_RESERVED_OFFSET];
@@ -43,7 +43,7 @@ read_received_packet_fields(uint8_t const* data, uint16_t payload_length, receiv
 }
 
 Decode_Result
-decode_packet(uint8_t const* data, size_t length, received_packet& decoded_packet)
+decode_packet(uint8_t const* data, size_t length, Received_Packet& decoded_packet)
 {
     uint16_t payload_length          = 0u;
     Decode_Result const check_result = check_received_frame(data, length, payload_length);

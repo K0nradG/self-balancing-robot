@@ -5,9 +5,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "ble_payload_writer.h"
-#include "ble_protocol.h"
+#include "ble_protocol_types.h"
 
-typedef void (*ble_packet_received_cb_t)(BLE_Protocol::received_packet const& received_packet);
+typedef void (*ble_packet_received_cb_t)(BLE_Protocol::Received_Packet const& received_packet);
 
 int
 ble_service_init();

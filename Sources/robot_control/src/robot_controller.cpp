@@ -3,8 +3,8 @@
 #include "robot_controller.h"
 #include <math.h>
 #include "ble_payload_reader.h"
-#include "ble_protocol.h"
 #include "ble_protocol_constants.h"
+#include "ble_protocol_types.h"
 #include "ble_service.h"
 #include "data_manager.h"
 #include "logger.h"
@@ -27,7 +27,7 @@ namespace Robot_Control
 static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
 static void
-send_command_result(BLE_Protocol::received_packet const& received_packet, BLE_Protocol::Command_Status status)
+send_command_result(BLE_Protocol::Received_Packet const& received_packet, BLE_Protocol::Command_Status status)
 {
     uint8_t payload[6] {};
     BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
@@ -211,7 +211,7 @@ Robot_Controller::reset()
 
 #ifdef CONFIG_BLUETOOTH_DRV
 void
-Robot_Controller::handle_ble_packet(BLE_Protocol::received_packet const& received_packet)
+Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& received_packet)
 {
     using BLE_Protocol::Command_Status;
     using BLE_Protocol::Controller_Id;

@@ -7,8 +7,8 @@
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/byteorder.h>
 #include "ble_connection.h"
-#include "ble_protocol.h"
 #include "ble_protocol_constants.h"
+#include "ble_protocol_helpers.h"
 #include "ble_service.h"
 
 namespace
@@ -207,7 +207,7 @@ send_invalid_command_length_result(uint8_t const* command_data)
 }
 
 static void
-pass_received_packet_to_callback(BLE_Protocol::received_packet const& received_packet)
+pass_received_packet_to_callback(BLE_Protocol::Received_Packet const& received_packet)
 {
     if(received_packet.type == BLE_Protocol::Message_Type::DFU_COMMAND)
     {
@@ -230,7 +230,7 @@ nus_data_received(bt_conn* conn, const uint8_t* data, uint16_t len)
     ARG_UNUSED(conn);
 
     // Holds the decoded fields and payload view of the frame received from NUS.
-    BLE_Protocol::received_packet received_packet {};
+    BLE_Protocol::Received_Packet received_packet {};
     BLE_Protocol::Decode_Result const result = BLE_Protocol::decode_packet(data, len, received_packet);
     if(result != BLE_Protocol::Decode_Result::OK)
     {

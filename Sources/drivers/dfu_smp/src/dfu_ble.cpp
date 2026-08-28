@@ -9,7 +9,7 @@
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
 #include "ble_payload_reader.h"
-#include "ble_protocol.h"
+#include "ble_protocol_types.h"
 #include "ble_service.h"
 #include "control_loop.h"
 
@@ -97,7 +97,7 @@ send_dfu_command_result(uint32_t request_packet_number, BLE_Protocol::Command_St
 }
 
 void
-dfu_packet_received(BLE_Protocol::received_packet const& received_packet)
+dfu_packet_received(BLE_Protocol::Received_Packet const& received_packet)
 {
     BLE_Protocol::Command_Status status = BLE_Protocol::Command_Status::OK;
     BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);

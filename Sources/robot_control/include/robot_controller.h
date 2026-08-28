@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ble_protocol_types.h"
 #include "pid.h"
 #include "ramp.h"
 #include "trajectory_manager.h"
@@ -13,10 +14,6 @@
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-
-#ifdef CONFIG_BLUETOOTH_DRV
-#include "ble_protocol.h"
-#endif
 
 namespace Robot_Control
 {
@@ -78,7 +75,7 @@ public:
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
-    handle_ble_packet(BLE_Protocol::received_packet const& received_packet);
+    handle_ble_packet(BLE_Protocol::Received_Packet const& received_packet);
 
     void
     send_PID_controllers_parameters();

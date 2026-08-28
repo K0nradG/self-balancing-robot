@@ -2,7 +2,6 @@
 
 #include "trajectory_manager.h"
 #include <math.h>
-#include "ble_protocol.h"
 #include "ble_service.h"
 #include "logger.h"
 #include "trajectory_state_machine.h"

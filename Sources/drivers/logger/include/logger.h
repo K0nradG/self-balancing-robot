@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #ifdef CONFIG_BLUETOOTH_DRV
-#include "ble_service.h"
+#include "ble_transfer_handler.h"
 #endif
 
 // Used by the including modules

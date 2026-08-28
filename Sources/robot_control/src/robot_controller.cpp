@@ -5,7 +5,6 @@
 #include "ble_payload_reader.h"
 #include "ble_protocol_constants.h"
 #include "ble_protocol_types.h"
-#include "ble_service.h"
 #include "data_manager.h"
 #include "logger.h"
 #include "main_state_machine.h"

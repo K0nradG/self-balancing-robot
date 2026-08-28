@@ -9,8 +9,10 @@
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
 #include "ble_payload_reader.h"
+#include "ble_payload_writer.h"
 #include "ble_protocol_types.h"
 #include "ble_service.h"
+#include "ble_transfer_handler.h"
 #include "control_loop.h"
 
 /*TODO: now dfu is mandatory so BLE needs to be default y*/

@@ -5,8 +5,9 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 #include "ble_connection.h"
+#include "ble_payload_writer.h"
 #include "ble_protocol_constants.h"
-#include "ble_service.h"
+#include "ble_transfer_handler.h"
 
 namespace Robot_Control
 {

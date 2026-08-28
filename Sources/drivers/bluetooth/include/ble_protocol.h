@@ -8,27 +8,6 @@
 namespace BLE_Protocol
 {
 
-// Identifies an RBT1 packet at the beginning of the header.
-constexpr uint32_t magic = 0x31544252u;
-// Header field offsets are derived from the sizes of all preceding fields.
-constexpr size_t type_offset           = sizeof(magic);
-constexpr size_t reserved_offset       = type_offset + sizeof(uint8_t);
-constexpr size_t payload_length_offset = reserved_offset + sizeof(uint8_t);
-constexpr size_t packet_number_offset  = payload_length_offset + sizeof(uint16_t);
-// Total header size: magic, type, reserved byte, payload length, and packet number.
-constexpr size_t header_size = packet_number_offset + sizeof(uint32_t);
-// The requested ATT MTU and the part occupied by the ATT notification header.
-constexpr size_t target_att_mtu               = 247u;
-constexpr size_t att_notification_header_size = 3u;
-// Largest complete RBT1 packet that fits in one unfragmented notification.
-constexpr size_t max_packet_size = target_att_mtu - att_notification_header_size;
-// Payload capacity after subtracting the RBT1 header.
-constexpr size_t max_payload_size = max_packet_size - header_size;
-// Every IEEE-754 float is encoded as one 32-bit little-endian value.
-constexpr size_t encoded_float_size = sizeof(uint32_t);
-
-static_assert(packet_number_offset + sizeof(uint32_t) == header_size);
-
 class Payload_Writer
 {
 public:
@@ -96,7 +75,7 @@ private:
 };
 
 // RBT1 frame header (all integers and IEEE-754 floats are little-endian):
-//   magic          u32  Identifies the packet as RBT1; packets with another value are rejected.
+//   MAGIC          u32  Identifies the packet as RBT1; packets with another value are rejected.
 //   type           u8   Selects the message and determines how its payload is decoded.
 //   reserved       u8   Reserved for future protocol options; currently always zero.
 //   payload_length u16  Number of bytes after the header, used to validate the complete packet.

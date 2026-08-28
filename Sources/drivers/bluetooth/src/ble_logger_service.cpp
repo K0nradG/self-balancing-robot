@@ -7,6 +7,7 @@
 #include <zephyr/sys/atomic.h>
 #include "ble_connection.h"
 #include "ble_protocol.h"
+#include "ble_protocol_constants.h"
 #include "ble_service.h"
 
 namespace
@@ -15,7 +16,7 @@ namespace
 struct tx_packet
 {
     uint16_t length;
-    uint8_t data[BLE_Protocol::max_packet_size];
+    uint8_t data[BLE_Protocol::MAX_PACKET_SIZE];
 };
 
 constexpr size_t tx_queue_count                = 3u;
@@ -96,7 +97,7 @@ build_tx_packet(
 
     if(payload_length != 0u)
     {
-        memcpy(packet_to_queue.data + BLE_Protocol::header_size, payload, payload_length);
+        memcpy(packet_to_queue.data + BLE_Protocol::HEADER_SIZE, payload, payload_length);
     }
 
     return 0;
@@ -195,9 +196,9 @@ set_notif_status(bool enabled)
 static bool
 has_command_header(uint8_t const* data, uint16_t length)
 {
-    return (data != nullptr) && (length >= BLE_Protocol::header_size) &&
-           (BLE_Protocol::get_u32(data) == BLE_Protocol::magic) &&
-           (data[BLE_Protocol::type_offset] >= minimum_command_type_value);
+    return (data != nullptr) && (length >= BLE_Protocol::HEADER_SIZE) &&
+           (BLE_Protocol::get_u32(data) == BLE_Protocol::MAGIC) &&
+           (data[BLE_Protocol::PACKET_TYPE_OFFSET] >= minimum_command_type_value);
 }
 
 static void
@@ -206,9 +207,9 @@ send_invalid_command_length_result(uint8_t const* command_data)
     uint8_t response_payload[command_result_payload_size] {};
     BLE_Protocol::Payload_Writer response_payload_writer(response_payload, sizeof(response_payload));
 
-    uint32_t const request_packet_number = BLE_Protocol::get_u32(command_data + BLE_Protocol::packet_number_offset);
+    uint32_t const request_packet_number = BLE_Protocol::get_u32(command_data + BLE_Protocol::PACKET_NUMBER_OFFSET);
     response_payload_writer.put_u32(request_packet_number);
-    response_payload_writer.put_u8(command_data[BLE_Protocol::type_offset]);
+    response_payload_writer.put_u8(command_data[BLE_Protocol::PACKET_TYPE_OFFSET]);
     response_payload_writer.put_u8(static_cast<uint8_t>(BLE_Protocol::Command_Status::INVALID_LENGTH));
 
     ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, response_payload_writer);
@@ -313,14 +314,14 @@ ble_send_telemetry_packet(BLE_Protocol::Payload_Writer const& payload)
 static size_t
 get_log_module_length(char const* module)
 {
-    size_t const available_length = BLE_Protocol::max_payload_size - log_payload_header_size;
+    size_t const available_length = BLE_Protocol::MAX_PAYLOAD_SIZE - log_payload_header_size;
     return MIN(strlen(module), MIN(static_cast<size_t>(UINT8_MAX), available_length));
 }
 
 static size_t
 get_log_message_length(char const* message, size_t module_length)
 {
-    size_t const available_length = BLE_Protocol::max_payload_size - log_payload_header_size - module_length;
+    size_t const available_length = BLE_Protocol::MAX_PAYLOAD_SIZE - log_payload_header_size - module_length;
     return MIN(strlen(message), available_length);
 }
 
@@ -347,7 +348,7 @@ ble_send_log(uint8_t level, char const* module, char const* message)
     size_t const module_length  = get_log_module_length(module);
     size_t const message_length = get_log_message_length(message, module_length);
 
-    uint8_t log_payload[BLE_Protocol::max_payload_size] {};
+    uint8_t log_payload[BLE_Protocol::MAX_PAYLOAD_SIZE] {};
     BLE_Protocol::Payload_Writer log_payload_writer(log_payload, sizeof(log_payload));
     write_log_payload(log_payload_writer, level, module, module_length, message, message_length);
 

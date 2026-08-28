@@ -3,6 +3,7 @@
 #include "robot_controller.h"
 #include <math.h>
 #include "ble_protocol.h"
+#include "ble_protocol_constants.h"
 #include "ble_service.h"
 #include "data_manager.h"
 #include "logger.h"
@@ -416,7 +417,7 @@ Robot_Controller::send_PID_controllers_parameters()
         distance_pid_parameters, linear_speed_pid_parameters, balance_pid_parameters,
         rotate_pid_parameters,   wheel_speed_pid_parameters,
     };
-    uint8_t payload[ARRAY_SIZE(parameters) * 3u * BLE_Protocol::encoded_float_size] {};
+    uint8_t payload[ARRAY_SIZE(parameters) * 3u * BLE_Protocol::ENCODED_FLOAT_SIZE] {};
     BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
     for(PID::Parameters const& parameter: parameters)
     {
@@ -427,7 +428,7 @@ Robot_Controller::send_PID_controllers_parameters()
     ble_send_packet(BLE_Protocol::Message_Type::PID_STATE, writer);
 #ifndef CONFIG_PID_ENABLED
     LQR::Parameters const lqr_parameters = m_balance_lqr.get_parameters();
-    uint8_t lqr_payload[2u * BLE_Protocol::encoded_float_size] {};
+    uint8_t lqr_payload[2u * BLE_Protocol::ENCODED_FLOAT_SIZE] {};
     BLE_Protocol::Payload_Writer lqr_writer(lqr_payload, sizeof(lqr_payload));
     lqr_writer.put_float(lqr_parameters.Kx);
     lqr_writer.put_float(lqr_parameters.Ky);

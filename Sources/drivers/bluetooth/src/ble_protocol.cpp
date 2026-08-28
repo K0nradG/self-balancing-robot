@@ -3,6 +3,7 @@
 #include "ble_protocol.h"
 #include <string.h>
 #include <zephyr/sys/byteorder.h>
+#include "ble_protocol_constants.h"
 
 namespace BLE_Protocol
 {
@@ -12,9 +13,9 @@ namespace
 size_t
 get_payload_buffer_size(size_t requested_size)
 {
-    if(requested_size > max_payload_size)
+    if(requested_size > MAX_PAYLOAD_SIZE)
     {
-        return max_payload_size;
+        return MAX_PAYLOAD_SIZE;
     }
 
     return requested_size;
@@ -23,18 +24,18 @@ get_payload_buffer_size(size_t requested_size)
 Decode_Result
 check_received_frame(uint8_t const* data, size_t length, uint16_t& payload_length)
 {
-    if((data == nullptr) || (length < header_size))
+    if((data == nullptr) || (length < HEADER_SIZE))
     {
         return Decode_Result::TOO_SHORT;
     }
 
-    if(get_u32(data) != magic)
+    if(get_u32(data) != MAGIC)
     {
         return Decode_Result::INVALID_MAGIC;
     }
 
-    payload_length = get_u16(data + payload_length_offset);
-    if((payload_length > max_payload_size) || (length != (header_size + payload_length)))
+    payload_length = get_u16(data + PACKET_PAYLOAD_LENGTH_OFFSET);
+    if((payload_length > MAX_PAYLOAD_SIZE) || (length != (HEADER_SIZE + payload_length)))
     {
         return Decode_Result::INVALID_LENGTH;
     }
@@ -45,11 +46,11 @@ check_received_frame(uint8_t const* data, size_t length, uint16_t& payload_lengt
 void
 read_received_packet_fields(uint8_t const* data, uint16_t payload_length, received_packet& decoded_packet)
 {
-    decoded_packet.type           = static_cast<Message_Type>(data[type_offset]);
-    decoded_packet.reserved       = data[reserved_offset];
+    decoded_packet.type           = static_cast<Message_Type>(data[PACKET_TYPE_OFFSET]);
+    decoded_packet.reserved       = data[PACKER_RESERVED_OFFSET];
     decoded_packet.payload_length = payload_length;
-    decoded_packet.packet_number  = get_u32(data + packet_number_offset);
-    decoded_packet.payload        = data + header_size;
+    decoded_packet.packet_number  = get_u32(data + PACKET_NUMBER_OFFSET);
+    decoded_packet.payload        = data + HEADER_SIZE;
 }
 
 }  // namespace
@@ -84,7 +85,7 @@ Payload_Writer::put_u32(uint32_t value)
 bool
 Payload_Writer::put_float(float value)
 {
-    uint8_t encoded[encoded_float_size];
+    uint8_t encoded[ENCODED_FLOAT_SIZE];
     BLE_Protocol::put_float(encoded, value);
     return put_bytes(encoded, sizeof(encoded));
 }
@@ -136,7 +137,7 @@ Payload_Reader::Payload_Reader(uint8_t const* data, size_t length)
     : m_data(data),
       m_length(length),
       m_offset(0u),
-      m_valid(((data != nullptr) || (length == 0u)) && (length <= max_payload_size))
+      m_valid(((data != nullptr) || (length == 0u)) && (length <= MAX_PAYLOAD_SIZE))
 {
 }
 
@@ -173,7 +174,7 @@ Payload_Reader::get_u32(uint32_t& value)
 bool
 Payload_Reader::get_float(float& value)
 {
-    uint8_t encoded[encoded_float_size];
+    uint8_t encoded[ENCODED_FLOAT_SIZE];
     if(!get_bytes(encoded, sizeof(encoded)))
     {
         return false;
@@ -249,17 +250,17 @@ encode_header(
     uint8_t* buffer, size_t capacity, Message_Type type, uint16_t payload_length, uint32_t packet_number,
     uint8_t reserved)
 {
-    size_t const packet_length = header_size + payload_length;
-    if((buffer == nullptr) || (payload_length > max_payload_size) || (capacity < packet_length))
+    size_t const packet_length = HEADER_SIZE + payload_length;
+    if((buffer == nullptr) || (payload_length > MAX_PAYLOAD_SIZE) || (capacity < packet_length))
     {
         return 0u;
     }
 
-    put_u32(buffer, magic);
-    buffer[type_offset]     = static_cast<uint8_t>(type);
-    buffer[reserved_offset] = reserved;
-    put_u16(buffer + payload_length_offset, payload_length);
-    put_u32(buffer + packet_number_offset, packet_number);
+    put_u32(buffer, MAGIC);
+    buffer[PACKET_TYPE_OFFSET]     = static_cast<uint8_t>(type);
+    buffer[PACKER_RESERVED_OFFSET] = reserved;
+    put_u16(buffer + PACKET_PAYLOAD_LENGTH_OFFSET, payload_length);
+    put_u32(buffer + PACKET_NUMBER_OFFSET, packet_number);
     return packet_length;
 }
 

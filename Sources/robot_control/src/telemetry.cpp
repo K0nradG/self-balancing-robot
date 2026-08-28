@@ -6,6 +6,7 @@
 #include <zephyr/sys/atomic.h>
 #include "ble_connection.h"
 #include "ble_protocol.h"
+#include "ble_protocol_constants.h"
 #include "ble_service.h"
 
 namespace Robot_Control
@@ -39,7 +40,7 @@ atomic_t dropped_samples;
 size_t
 get_samples_per_frame(uint16_t att_payload_size)
 {
-    size_t const fixed_size = BLE_Protocol::header_size + telemetry_metadata_size;
+    size_t const fixed_size = BLE_Protocol::HEADER_SIZE + telemetry_metadata_size;
     if(att_payload_size < (fixed_size + telemetry_sample_size))
     {
         return 0u;

@@ -3,8 +3,8 @@
 #include <zephyr/dfu/mcuboot.h>
 #include <zephyr/kernel.h>
 #include <zephyr/storage/flash_map.h>
-#include "ble_protocol.h"
-#include "ble_service.h"
+#include "ble_payload_writer.h"
+#include "ble_transfer_handler.h"
 #include "dfu_ble.h"
 #include "logger.h"
 

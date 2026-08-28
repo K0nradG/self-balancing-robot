@@ -2,8 +2,8 @@
 
 #include "model_identification.h"
 #include <math.h>
-#include "ble_protocol.h"
-#include "ble_service.h"
+#include "ble_payload_reader.h"
+#include "ble_transfer_handler.h"
 
 void
 Model_Identification::update(float dt)

@@ -5,27 +5,28 @@
 #include <zephyr/kernel.h>
 #include <zephyr/sys/atomic.h>
 #include "ble_connection.h"
-#include "ble_protocol.h"
-#include "ble_service.h"
+#include "ble_payload_writer.h"
+#include "ble_protocol_constants.h"
+#include "ble_transfer_handler.h"
 
 namespace Robot_Control
 {
 namespace
 {
 
-constexpr size_t max_samples_per_frame      = 5u;
-constexpr size_t telemetry_queue_length     = 128u;
-constexpr size_t telemetry_metadata_size    = 8u;
-constexpr size_t telemetry_sample_size      = 44u;
-constexpr size_t telemetry_payload_capacity = telemetry_metadata_size + (max_samples_per_frame * telemetry_sample_size);
-constexpr int send_retry_delay_ms           = 1;
-constexpr size_t telemetry_thread_stack_size      = 2048u;
-constexpr int telemetry_thread_priority           = 5;
-constexpr uint32_t telemetry_thread_options       = 0u;
-constexpr int32_t telemetry_thread_start_delay_ms = 0;
-static_assert(telemetry_payload_capacity == 228u);
+constexpr size_t MAX_SAMPLES_PER_FRAME      = 5u;
+constexpr size_t TELEMETRY_METADATA_SIZE    = 8u;
+constexpr size_t TELEMETRY_SAMPLE_SIZE      = 44u;
+constexpr size_t TELEMETRY_PAYLOAD_CAPACITY = TELEMETRY_METADATA_SIZE + (MAX_SAMPLES_PER_FRAME * TELEMETRY_SAMPLE_SIZE);
+static_assert(TELEMETRY_PAYLOAD_CAPACITY == 228u);
 
-K_MSGQ_DEFINE(telemetry_queue, sizeof(Telemetry_Sample), telemetry_queue_length, alignof(Telemetry_Sample));
+constexpr size_t TELEMETRY_THREAD_STACK_SIZE      = 2048u;
+constexpr int TELEMETRY_THREAD_PRIORITY           = 5;
+constexpr uint32_t TELEMETRY_THREAD_OPTIONS       = 0u;
+constexpr int32_t TELEMETRY_THREAD_START_DELAY_MS = 0;
+
+constexpr size_t TELEMETRY_QUEUE_LENGTH = 128u;
+K_MSGQ_DEFINE(telemetry_queue, sizeof(Telemetry_Sample), TELEMETRY_QUEUE_LENGTH, alignof(Telemetry_Sample));
 
 atomic_t dropped_samples;
 
@@ -39,16 +40,16 @@ atomic_t dropped_samples;
 size_t
 get_samples_per_frame(uint16_t att_payload_size)
 {
-    size_t const fixed_size = BLE_Protocol::header_size + telemetry_metadata_size;
-    if(att_payload_size < (fixed_size + telemetry_sample_size))
+    size_t const fixed_size = BLE_Protocol::HEADER_SIZE + TELEMETRY_METADATA_SIZE;
+    if(att_payload_size < (fixed_size + TELEMETRY_SAMPLE_SIZE))
     {
         return 0u;
     }
 
-    size_t const sample_capacity = (att_payload_size - fixed_size) / telemetry_sample_size;
-    if(sample_capacity > max_samples_per_frame)
+    size_t const sample_capacity = (att_payload_size - fixed_size) / TELEMETRY_SAMPLE_SIZE;
+    if(sample_capacity > MAX_SAMPLES_PER_FRAME)
     {
-        return max_samples_per_frame;
+        return MAX_SAMPLES_PER_FRAME;
     }
 
     return sample_capacity;
@@ -104,13 +105,13 @@ write_telemetry_payload(
 int
 send_telemetry_payload(BLE_Protocol::Payload_Writer const& payload_writer)
 {
-    int send_result;
+    int send_result {};
     do
     {
         send_result = ble_send_telemetry_packet(payload_writer);
         if(send_result == -ENOMEM)
         {
-            k_sleep(K_MSEC(send_retry_delay_ms));
+            k_sleep(K_MSEC(1));
         }
     } while(send_result == -ENOMEM);
 
@@ -129,8 +130,8 @@ count_samples_not_sent(int send_result, size_t sample_count)
 void
 telemetry_thread(void*, void*, void*)
 {
-    Telemetry_Sample samples[max_samples_per_frame] {};
-    uint8_t payload[telemetry_payload_capacity] {};
+    Telemetry_Sample samples[MAX_SAMPLES_PER_FRAME] {};
+    uint8_t payload[TELEMETRY_PAYLOAD_CAPACITY] {};
 
     while(true)
     {
@@ -154,8 +155,8 @@ telemetry_thread(void*, void*, void*)
 }
 
 K_THREAD_DEFINE(
-    telemetry_thread_id, telemetry_thread_stack_size, telemetry_thread, nullptr, nullptr, nullptr,
-    telemetry_thread_priority, telemetry_thread_options, telemetry_thread_start_delay_ms);
+    telemetry_thread_id, TELEMETRY_THREAD_STACK_SIZE, telemetry_thread, nullptr, nullptr, nullptr,
+    TELEMETRY_THREAD_PRIORITY, TELEMETRY_THREAD_OPTIONS, TELEMETRY_THREAD_START_DELAY_MS);
 
 }  // namespace
 

@@ -8,8 +8,11 @@
 #include <zephyr/mgmt/mcumgr/mgmt/callbacks.h>
 #include <zephyr/mgmt/mcumgr/mgmt/mgmt.h>
 #include <zephyr/mgmt/mcumgr/transport/smp_bt.h>
-#include "ble_protocol.h"
+#include "ble_payload_reader.h"
+#include "ble_payload_writer.h"
+#include "ble_protocol_types.h"
 #include "ble_service.h"
+#include "ble_transfer_handler.h"
 #include "control_loop.h"
 
 /*TODO: now dfu is mandatory so BLE needs to be default y*/
@@ -18,10 +21,6 @@
 
 #ifdef CONFIG_INTERFACE_DRV
 #include "interface.h"
-#endif
-
-#ifdef CONFIG_SHELL_DRV
-#include "shell.h"
 #endif
 
 #ifdef CONFIG_BATTERY_LEVEL_DRV
@@ -96,7 +95,7 @@ send_dfu_command_result(uint32_t request_packet_number, BLE_Protocol::Command_St
 }
 
 void
-dfu_packet_received(BLE_Protocol::received_packet const& received_packet)
+dfu_packet_received(BLE_Protocol::Received_Packet const& received_packet)
 {
     BLE_Protocol::Command_Status status = BLE_Protocol::Command_Status::OK;
     BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);

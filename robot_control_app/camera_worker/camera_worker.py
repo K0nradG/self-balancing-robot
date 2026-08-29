@@ -14,19 +14,18 @@ class CameraWorker(QThread):
         self.rtsp_url = rtsp_url
         self.running = True
         
-        # Parametry naszego "modelu" podążania za linią
-        self.base_linear_speed = 0.13  # Zmniejszona prędkość do przodu
-        self.kp_angular = -0.0105         # Zmniejszona agresywność skrętu
+        # Parametry sterowania (PD + skalowanie prędkości)
+        self.base_linear_speed = 0.13
+        self.kp_angular = -0.0105
+        self.kd_angular = -0.002      # Dodany człon różniczkowy
+        self.k_slow = 0.005           # Współczynnik zwalniania w zakrętach
+        self.last_error = 0.0         # Pamięć błędu do obliczania pochodnej
 
     def run(self):
-
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "fflags;nobuffer|flags;low_delay"
-
         cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
-
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         
-        # Pętla musi być z wcięciem (wewnątrz funkcji run)
         while self.running:
             ret, frame = cap.read()
             if not ret:
@@ -35,17 +34,17 @@ class CameraWorker(QThread):
 
             h, w, _ = frame.shape
 
-            # 1. Konwersja na szarość i rozmycie (usuwa szumy i fakturę podłogi)
+            # 1. Konwersja na szarość i rozmycie
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             blurred = cv2.GaussianBlur(gray, (9, 9), 0)
 
-            # 2. Binaryzacja (dostosuj wartość 70 jeśli taśma nie jest wykrywana)
+            # 2. Binaryzacja
             _, mask = cv2.threshold(blurred, 70, 255, cv2.THRESH_BINARY_INV)
 
-            # 3. ROI (Region of Interest) - ignorujemy górną połowę ekranu (patrzymy pod nogi)
+            # 3. ROI (Region of Interest)
             mask[0:int(h/3), 0:w] = 0
 
-            # 4. Operacje morfologiczne (usuwają małe plamki z paneli)
+            # 4. Operacje morfologiczne
             kernel = np.ones((5, 5), np.uint8)
             mask = cv2.erode(mask, kernel, iterations=1)
             mask = cv2.dilate(mask, kernel, iterations=2)
@@ -58,7 +57,6 @@ class CameraWorker(QThread):
             linear = 0.0
 
             if contours:
-                # 5. Filtrowanie i wybór - odrzucamy zbyt małe śmieci
                 valid_contours = [c for c in contours if cv2.contourArea(c) > 500]
                 
                 if valid_contours:
@@ -70,14 +68,21 @@ class CameraWorker(QThread):
                         cy = int(M["m01"] / M["m00"])
 
                         # Wizualizacja
-                        cv2.drawContours(frame, [c], -1, (255, 0, 0), 2)  # Obrys taśmy
-                        cv2.circle(frame, (cx, cy), 8, (0, 0, 255), -1)   # Środek taśmy
-                        cv2.line(frame, (w // 2, 0), (w // 2, h), (0, 255, 0), 2) # Środek kamery
+                        cv2.drawContours(frame, [c], -1, (255, 0, 0), 2)
+                        cv2.circle(frame, (cx, cy), 8, (0, 0, 255), -1)
+                        cv2.line(frame, (w // 2, 0), (w // 2, h), (0, 255, 0), 2)
 
-                        # Obliczenie błędu
+                        # Obliczenie błędu i jego pochodnej (PD)
                         error = (w / 2) - cx
-                        angular = self.kp_angular * error
-                        linear = self.base_linear_speed
+                        error_derivative = error - self.last_error
+                        self.last_error = error
+
+                        angular = (self.kp_angular * error) + (self.kd_angular * error_derivative)
+                        linear = self.base_linear_speed * max(0.2, 1.0 - min(1.0, self.k_slow * abs(error)))
+                else:
+                    self.last_error = 0.0
+            else:
+                self.last_error = 0.0
 
             self.ai_drive_signal.emit(angular, linear)
 
@@ -89,9 +94,9 @@ class CameraWorker(QThread):
             )
             self.frame_signal.emit(qt_img.copy())
 
-        # cap.release() musi być poza pętlą while! Wywoła się dopiero przy wyłączaniu AI
         cap.release()
 
     def stop(self):
         self.running = False
         self.wait()
+

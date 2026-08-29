@@ -14,8 +14,8 @@ class CameraWorker(QThread):
         self.running = True
         
         # Parametry naszego "modelu" podążania za linią
-        self.base_linear_speed = 0.12  # Zmniejszona prędkość do przodu
-        self.kp_angular = -0.01         # Zmniejszona agresywność skrętu
+        self.base_linear_speed = 0.13  # Zmniejszona prędkość do przodu
+        self.kp_angular = -0.0105         # Zmniejszona agresywność skrętu
 
     def run(self):
         cap = cv2.VideoCapture(self.rtsp_url)

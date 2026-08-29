@@ -118,7 +118,7 @@ class RightPanelWidget(QWidget):
         self.kb_control_cb.toggled.connect(self.keyboard_control_toggled.emit)
         controls_layout.addWidget(self.kb_control_cb)
 
-        self.ai_control_cb = QCheckBox("Enable AI Autonomous Control")
+        self.ai_control_cb = QCheckBox("Enable Autonomous Control")
         self.ai_control_cb.toggled.connect(self.ai_control_toggled.emit)
         controls_layout.addWidget(self.ai_control_cb)
 

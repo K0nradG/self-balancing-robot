@@ -2,13 +2,14 @@ import cv2
 import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QImage
+import os
 
 class CameraWorker(QThread):
     # Sygnały do komunikacji z głównym wątkiem aplikacji
     frame_signal = pyqtSignal(QImage)
     ai_drive_signal = pyqtSignal(float, float)  # angular_speed, linear_speed
 
-    def __init__(self, rtsp_url="rtsp://192.168.4.1:8554/camera"):
+    def __init__(self, rtsp_url="tcp://192.168.4.1:8555"):
         super().__init__()
         self.rtsp_url = rtsp_url
         self.running = True
@@ -18,7 +19,12 @@ class CameraWorker(QThread):
         self.kp_angular = -0.0105         # Zmniejszona agresywność skrętu
 
     def run(self):
-        cap = cv2.VideoCapture(self.rtsp_url)
+
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "fflags;nobuffer|flags;low_delay"
+
+        cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         
         # Pętla musi być z wcięciem (wewnątrz funkcji run)
         while self.running:
@@ -37,7 +43,7 @@ class CameraWorker(QThread):
             _, mask = cv2.threshold(blurred, 70, 255, cv2.THRESH_BINARY_INV)
 
             # 3. ROI (Region of Interest) - ignorujemy górną połowę ekranu (patrzymy pod nogi)
-            mask[0:int(h/2), 0:w] = 0
+            mask[0:int(h/3), 0:w] = 0
 
             # 4. Operacje morfologiczne (usuwają małe plamki z paneli)
             kernel = np.ones((5, 5), np.uint8)

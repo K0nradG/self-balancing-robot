@@ -15,10 +15,10 @@ class CameraWorker(QThread):
         self.running = True
         
         # Parametry sterowania (PD + skalowanie prędkości)
-        self.base_linear_speed = 0.13
-        self.kp_angular = -0.0105
-        self.kd_angular = -0.002      # Dodany człon różniczkowy
-        self.k_slow = 0.005           # Współczynnik zwalniania w zakrętach
+        self.base_linear_speed = 0.25
+        self.kp_angular = -0.018
+        self.kd_angular = -0.005      # Dodany człon różniczkowy
+        self.k_slow = 0.007           # Współczynnik zwalniania w zakrętach
         self.last_error = 0.0         # Pamięć błędu do obliczania pochodnej
 
     def run(self):

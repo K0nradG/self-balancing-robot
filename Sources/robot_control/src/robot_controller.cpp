@@ -5,6 +5,7 @@
 #include "data_manager.h"
 #include "logger.h"
 #include "motor_controller.h"
+#include "proximity_sensor.h"
 #include "saturation.h"
 #include "zephyr/kernel.h"
 
@@ -123,6 +124,8 @@ Robot_Controller::normal_motors_control()
                     (double)(rotation_angle * radian_degrees / pi), (double)target_speed0, (double)target_speed1,
                     (double)encoders_data.encoder_0.angular_velocity_rad_s,
                     (double)encoders_data.encoder_1.angular_velocity_rad_s, (double)m_pwm0, (double)m_pwm1);
+
+                // robot_control_logger.platform_log(LOG_LEVEL::INF, "p: %f m", (double)(get_proximity_m()));
             }
         }
     }

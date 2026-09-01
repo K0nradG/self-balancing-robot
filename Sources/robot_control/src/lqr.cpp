@@ -1,7 +1,6 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 #include "lqr.h"
-#include <stdlib.h>
 #include "zephyr/sys/util.h"
 
 namespace Robot_Control
@@ -17,48 +16,16 @@ LQR::calculate_output(float x, float y)
     return output;
 }
 
-#ifdef CONFIG_BLUETOOTH_DRV
 void
-LQR::parse_nus_parameters(char const* data)
+LQR::set_parameters(Parameters parameters)
 {
-    if(data == nullptr)
-    {
-        return;
-    }
-
-    while(*data)
-    {
-        if((*data == 'x') || (*data == 'y'))
-        {
-            char key = *data;
-            data++;
-            char* next_data;
-            float value = strtof(data, &next_data);
-
-            if(data == next_data)
-            {
-                break;
-            }
-            data = next_data;
-
-            switch(key)
-            {
-                case 'x':
-                    m_parameters.Kx = value;
-                    break;
-                case 'y':
-                    m_parameters.Ky = value;
-                    break;
-                default:
-                    break;
-            }
-        }
-        else
-        {
-            data++;
-        }
-    }
+    m_parameters = parameters;
 }
-#endif  // CONFIG_BLUETOOTH_DRV
+
+LQR::Parameters
+LQR::get_parameters() const
+{
+    return m_parameters;
+}
 
 }  // namespace Robot_Control

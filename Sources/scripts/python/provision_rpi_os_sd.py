@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """Provision an SD card for a Raspberry Pi Zero 2 W camera access point.
 
-The script downloads and verifies Raspberry Pi OS Lite 32-bit and MediaMTX,
+The script downloads and verifies Raspberry Pi OS Lite 32-bit,
 flashes an SD card, and configures:
   * a WPA2 Wi-Fi access point with a static 192.168.4.1 address,
   * SSH,
-  * a MediaMTX RTSP server using the Raspberry Pi camera.
+  * a low-latency MJPEG camera stream service over TCP via rpicam-vid.
 
 Run this script as root on a Linux host. The target block device is erased.
+
+last login and password:
+
+username: robot
+password: sbrobot123
+
+addres: ssh robot@192.168.4.1
+
 """
 
 from __future__ import annotations
@@ -23,7 +31,6 @@ import shutil
 import stat
 import subprocess
 import sys
-import tarfile
 import tempfile
 import time
 import urllib.error
@@ -36,9 +43,6 @@ from pathlib import Path
 from typing import Any, BinaryIO, Iterable
 
 RPI_IMAGES_INDEX = "https://downloads.raspberrypi.com/raspios_lite_armhf/images/"
-MEDIAMTX_RELEASE_API = (
-    "https://api.github.com/repos/bluenviron/mediamtx/releases/latest"
-)
 USER_AGENT = "robot-rpi-sd-provisioner/1.0"
 COPY_CHUNK_SIZE = 4 * 1024 * 1024
 MIN_DEVICE_SIZE = 3_000_000_000
@@ -103,10 +107,6 @@ def request(url: str) -> urllib.request.Request:
 def fetch_text(url: str) -> str:
     with urllib.request.urlopen(request(url), timeout=60) as response:
         return response.read().decode("utf-8")
-
-
-def fetch_json(url: str) -> dict[str, Any]:
-    return json.loads(fetch_text(url))
 
 
 def parse_links(html: str) -> list[str]:
@@ -221,52 +221,6 @@ def get_image_archive(
         raise ProvisionError("Serwer zwrócił nieprawidłową sumę SHA-256 obrazu.")
     verify_sha256(archive, expected)
     return archive
-
-
-def get_mediamtx(cache_dir: Path) -> Path:
-    info("Wyszukiwanie najnowszego MediaMTX dla ARMv7")
-    release = fetch_json(MEDIAMTX_RELEASE_API)
-    candidates = [
-        asset
-        for asset in release.get("assets", [])
-        if asset.get("name", "").endswith("_linux_armv7.tar.gz")
-    ]
-    if len(candidates) != 1:
-        raise ProvisionError(
-            "Nie udało się jednoznacznie znaleźć wydania MediaMTX ARMv7."
-        )
-
-    asset = candidates[0]
-    archive = download(asset["browser_download_url"], cache_dir / asset["name"])
-    digest = asset.get("digest")
-    if digest:
-        verify_sha256(archive, digest)
-    else:
-        warn(
-            "GitHub nie podał sumy SHA-256 MediaMTX; archiwum nie może zostać "
-            "niezależnie zweryfikowane."
-        )
-
-    binary = cache_dir / f"mediamtx-{release.get('tag_name', 'latest')}-armv7"
-    if binary.exists():
-        return binary
-
-    info("Rozpakowywanie MediaMTX")
-    with tarfile.open(archive, "r:gz") as package:
-        members = [
-            member
-            for member in package.getmembers()
-            if member.isfile() and Path(member.name).name == "mediamtx"
-        ]
-        if len(members) != 1:
-            raise ProvisionError("Archiwum MediaMTX nie zawiera jednego pliku.")
-        source = package.extractfile(members[0])
-        if source is None:
-            raise ProvisionError("Nie można odczytać programu MediaMTX.")
-        with binary.open("wb") as output:
-            shutil.copyfileobj(source, output, COPY_CHUNK_SIZE)
-    binary.chmod(0o755)
-    return binary
 
 
 def lsblk_tree() -> list[dict[str, Any]]:
@@ -563,42 +517,20 @@ method=disabled
     )
 
 
-def configure_mediamtx(
+def configure_camera_streamer(
     root: Path,
-    mediamtx_binary: Path,
     width: int,
     height: int,
     fps: int,
-    bitrate: int,
 ) -> None:
-    destination = root / "usr/local/bin/mediamtx"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(mediamtx_binary, destination)
-    destination.chmod(0o755)
-
-    configuration = f"""logLevel: info
-rtsp: yes
-rtspAddress: :8554
-rtspTransports: [tcp]
-
-paths:
-  camera:
-    source: rpiCamera
-    rpiCameraWidth: {width}
-    rpiCameraHeight: {height}
-    rpiCameraFPS: {fps}
-    rpiCameraBitrate: {bitrate}
-"""
-    write_text(root / "etc/mediamtx.yml", configuration)
-
-    service = """[Unit]
-Description=Robot camera RTSP server
+    service = f"""[Unit]
+Description=Robot MJPEG Camera Streamer
 Wants=network-online.target
 After=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/mediamtx /etc/mediamtx.yml
+ExecStart=/usr/bin/rpicam-vid -t 0 --codec mjpeg --width {width} --height {height} --framerate {fps} --listen -o tcp://0.0.0.0:8555
 Restart=on-failure
 RestartSec=2
 
@@ -623,14 +555,11 @@ def provision_filesystems(
     ssid: str,
     ap_password: str,
     channel: int,
-    mediamtx_binary: Path,
     width: int,
     height: int,
     fps: int,
-    bitrate: int,
 ) -> None:
     boot_partition, root_partition = find_partitions(device)
-    # Desktop automounters can mount fresh partitions immediately after flashing.
     _, refreshed_node = get_device_node(device)
     unmount_device(refreshed_node)
 
@@ -658,13 +587,11 @@ def provision_filesystems(
             )
             configure_hostname(root_mount, hostname)
             configure_access_point(root_mount, ssid, ap_password, channel)
-            configure_mediamtx(
+            configure_camera_streamer(
                 root_mount,
-                mediamtx_binary,
                 width,
                 height,
                 fps,
-                bitrate,
             )
             os.sync()
         finally:
@@ -696,7 +623,7 @@ def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Zapisuje Raspberry Pi OS Lite 32-bit na kartę SD i konfiguruje "
-            "Pi Zero 2 W jako AP z serwerem kamery RTSP."
+            "Pi Zero 2 W jako AP z niskopomiarowym streamerem MJPEG."
         )
     )
     parser.add_argument(
@@ -726,12 +653,6 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=640)
     parser.add_argument("--height", type=int, default=480)
     parser.add_argument("--fps", type=int, default=20)
-    parser.add_argument(
-        "--bitrate",
-        type=int,
-        default=1_000_000,
-        help="Bitrate H.264 w bit/s.",
-    )
     parser.add_argument(
         "--cache-dir",
         type=Path,
@@ -782,8 +703,6 @@ def main() -> int:
             raise ProvisionError("Wymiary obrazu muszą być dodatnie.")
         if not 1 <= args.fps <= 60:
             raise ProvisionError("FPS musi należeć do zakresu 1–60.")
-        if args.bitrate < 100_000:
-            raise ProvisionError("Bitrate musi wynosić co najmniej 100000.")
 
         ap_password = get_secret(args.ap_password, "Hasło sieci RobotCam: ", 8)
         if len(ap_password.encode("utf-8")) > 63:
@@ -796,10 +715,7 @@ def main() -> int:
         confirmed_identity = device_identity(node)
 
         image = get_image_archive(args.cache_dir, args.image_url, args.image_sha256)
-        mediamtx = get_mediamtx(args.cache_dir)
 
-        # Check the device again after downloads, in case it was unplugged or
-        # device names changed while the potentially long downloads ran.
         device, node = get_device_node(device)
         validate_target(device, node, args.force_non_removable)
         if device_identity(node) != confirmed_identity:
@@ -818,11 +734,9 @@ def main() -> int:
             ssid=args.ssid,
             ap_password=ap_password,
             channel=args.channel,
-            mediamtx_binary=mediamtx,
             width=args.width,
             height=args.height,
             fps=args.fps,
-            bitrate=args.bitrate,
         )
 
         info("Karta SD została przygotowana.")
@@ -830,7 +744,7 @@ def main() -> int:
             "\nPo uruchomieniu Raspberry Pi:\n"
             f"  Wi-Fi:       {args.ssid}\n"
             "  adres RPi:   192.168.4.1\n"
-            "  RTSP:        rtsp://192.168.4.1:8554/camera\n"
+            "  Strumień:    tcp://192.168.4.1:8555 (MJPEG)\n"
             f"  SSH:         ssh {args.username}@192.168.4.1\n"
             "\nMożesz teraz bezpiecznie wyjąć kartę SD."
         )

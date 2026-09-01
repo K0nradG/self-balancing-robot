@@ -14,36 +14,49 @@
 #include "model_identification.h"
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
 
+#ifdef CONFIG_BLUETOOTH_DRV
+#include "ble_protocol.h"
+#endif
+
 namespace Robot_Control
 {
+
+enum class Control_Mode : uint8_t
+{
+    STANDARD   = 0,
+    FREE_DRIVE = 1
+};
 
 class Robot_Controller
 {
     static constexpr float pi             = 3.14159265358979323846f;
     static constexpr float radian_degrees = 180.0f;
 
-    static constexpr float balance_setpoint     = -16.5f * (pi / radian_degrees);  // [rad]
+    static constexpr float balance_setpoint     = -14.5f * (pi / radian_degrees);  // [rad]
     static constexpr float rotate_setpoint_rate = 180.0f * (pi / radian_degrees);  // [rad/s]
+
+    static constexpr float angular_speed_setpoint_ramp_rate = 1080.0f * (pi / radian_degrees);  // [rad/s^2]
+    static constexpr float linear_speed_setpoint_ramp_rate  = 0.5f;                             // [m/s^2]
 
     static constexpr PID::Parameters distance_pid_parameters = {.Kp = 2.0f, .Ki = 0.1f, .Kd = 0.0f};
     static constexpr float distance_pid_filter_alpha         = 0.9f;
     static constexpr float max_linear_speed                  = 0.5f;  // [m/s]
     static constexpr float distance_pid_hysteresis           = 0.01f;
 
-    static constexpr PID::Parameters linear_speed_pid_parameters = {.Kp = 0.175, .Ki = 0.0f, .Kd = 0.0f};
+    static constexpr PID::Parameters linear_speed_pid_parameters = {.Kp = 0.2350, .Ki = 0.0f, .Kd = 0.0f};
     static constexpr float linear_speed_pid_filter_alpha         = 0.1f;
-    static constexpr float angle_backward_max_deviation          = -3.0f * (pi / radian_degrees);
-    static constexpr float angle_forward_max_deviation           = 3.0f * (pi / radian_degrees);
+    static constexpr float angle_backward_max_deviation          = -5.0f * (pi / radian_degrees);
+    static constexpr float angle_forward_max_deviation           = 5.0f * (pi / radian_degrees);
+    static constexpr float max_speed_rad_s                       = 180.0f;
 
-    static constexpr float max_speed_rad_s = 90.0f;
 #ifdef CONFIG_PID_ENABLED
-    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};
+    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 80.0, .Ki = 900.0f, .Kd = 3.9f};
     static constexpr float balance_pid_filter_alpha         = 0.9f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED
 
-    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 50.0f, .Ki = 25.0f, .Kd = 0.0f};
+    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 80.0f, .Ki = 25.0f, .Kd = 0.0f};
     static constexpr float rotate_pid_filter_alpha         = 1.0f;  // No filtering.
     static constexpr float rotate_pid_hysteresis           = 0.5f * (pi / radian_degrees);
 
@@ -74,7 +87,7 @@ public:
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
-    parse_nus_data(char const* data);
+    handle_ble_packet(BLE_Protocol::received_packet const& received_packet);
 
     void
     send_PID_controllers_parameters();
@@ -91,6 +104,8 @@ private:
     float m_distance_setpoint;
     float m_balance_setpoint;
     Ramp m_rotate_setpoint_ramp;
+    Ramp m_angular_speed_setpoint_ramp;
+    Ramp m_linear_speed_setpoint_ramp;
 
     Trajectory_Manager m_trajectory_manager;
 
@@ -109,7 +124,8 @@ private:
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
 
-    char m_regulators_data[250];
+    Control_Mode m_current_mode = Control_Mode::STANDARD;
+
     bool m_regulator_message_sending_in_progress;
 
     float m_pwm0 {};

@@ -20,6 +20,10 @@ if(CONFIG_ROBOT_CONTROL)
         list(APPEND ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/lqr.cpp) # Appending necessary so as not to overwrite previous ROBOT_CONTROL_SRC value.   
     endif() # NOT CONFIG_PID_ENABLED
 
+    if(CONFIG_ROBOT_CONTROL_LOG AND CONFIG_BLUETOOTH_DRV)
+        list(APPEND ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/telemetry.cpp)
+    endif()
+
     zephyr_include_directories(${ROBOT_CONTROL_INC})
     zephyr_library_sources(${ROBOT_CONTROL_SRC})
 

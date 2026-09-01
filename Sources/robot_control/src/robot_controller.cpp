@@ -8,6 +8,7 @@
 #include "logger.h"
 #include "main_state_machine.h"
 #include "motor_controller.h"
+#include "proximity_sensor.h"
 #include "saturation.h"
 #include "zephyr/kernel.h"
 
@@ -140,6 +141,9 @@ Robot_Controller::normal_motors_control()
                 .pwm_1             = m_pwm1,
             };
             telemetry_submit(telemetry_sample);
+            robot_control_logger.platform_log(
+                LOG_LEVEL::INF, "d: %f, p: %f, dt: %f", (double)encoders_data.robot_distance_m,
+                (double)(get_proximity_m()), (double)imu_data.time_dt);
         }
 #endif
     }

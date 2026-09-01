@@ -19,6 +19,10 @@
 #include "encoder.h"
 #endif  // CONFIG_ENCODER_DRV
 
+#ifdef CONFIG_PROXIMITY_SENSOR_DRV
+#include "proximity_sensor.h"
+#endif  // PROXIMITY_SENSOR_DRV
+
 namespace Robot_Control
 {
 
@@ -46,6 +50,10 @@ Drivers_Initializer::init()
     ret = encoders_init();
     reboot_on_error(ret);
 #endif  // CONFIG_ENCODER_DRV
+
+#ifdef CONFIG_PROXIMITY_SENSOR_DRV
+    // ret = proximity_sensor_init();
+#endif  // CONFIG_PROXIMITY_SENSOR_DRV
 }
 
 void

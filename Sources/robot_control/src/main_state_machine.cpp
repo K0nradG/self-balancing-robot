@@ -1,7 +1,6 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 #include "main_state_machine.h"
-#include "ble_commands.h"
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
@@ -72,18 +71,12 @@ Main_State_Machine::set_stop_command()
     m_flags.stop = true;
 }
 
-void
-Main_State_Machine::parse_nus_commands(char const* data)
+bool
+Main_State_Machine::apply_command(BLE_Protocol::State_Action action)
 {
-    if((data == nullptr) || (*data == '\0'))
+    switch(action)
     {
-        return;
-    }
-
-    char const command = data[0];
-    switch(command)
-    {
-        case BLE_Commands::State_Machine::START:
+        case BLE_Protocol::State_Action::START:
             if(m_state == READY_TO_START)
             {
                 m_flags.start = true;
@@ -91,17 +84,20 @@ Main_State_Machine::parse_nus_commands(char const* data)
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
                 Model_Identification::instance().activate_identification();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
+                return true;
             }
             break;
-        case BLE_Commands::State_Machine::STOP:
+        case BLE_Protocol::State_Action::STOP:
             if(m_state == OPERATION)
             {
                 m_flags.stop = true;
+                return true;
             }
             break;
         default:
             break;
     }
+    return false;
 }
 
 }  // namespace Robot_Control

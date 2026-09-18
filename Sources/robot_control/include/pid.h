@@ -31,11 +31,6 @@ public:
     float
     calculate_output(float setpoint, float feedback, float dt, float feedback_dt = 0.0f);
 
-#ifdef CONFIG_BLUETOOTH_DRV
-    void
-    parse_nus_parameters(char const* data);
-#endif  // CONFIG_BLUETOOTH_DRV
-
     Parameters
     get_parameters() const;
 

@@ -13,8 +13,8 @@ constexpr uint32_t MAGIC = 0x31544252u;
 
 // Header field offsets are derived from the sizes of all preceding fields.
 constexpr size_t PACKET_TYPE_OFFSET           = sizeof(MAGIC);
-constexpr size_t PACKER_RESERVED_OFFSET       = PACKET_TYPE_OFFSET + sizeof(uint8_t);
-constexpr size_t PACKET_PAYLOAD_LENGTH_OFFSET = PACKER_RESERVED_OFFSET + sizeof(uint8_t);
+constexpr size_t PACKET_RESERVED_OFFSET       = PACKET_TYPE_OFFSET + sizeof(uint8_t);
+constexpr size_t PACKET_PAYLOAD_LENGTH_OFFSET = PACKET_RESERVED_OFFSET + sizeof(uint8_t);
 constexpr size_t PACKET_NUMBER_OFFSET         = PACKET_PAYLOAD_LENGTH_OFFSET + sizeof(uint16_t);
 
 // Total header size: magic, type, reserved byte, payload length, and packet number.

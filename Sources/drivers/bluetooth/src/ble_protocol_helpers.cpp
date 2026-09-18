@@ -36,7 +36,7 @@ static void
 read_received_packet_fields(uint8_t const* data, uint16_t payload_length, Received_Packet& decoded_packet)
 {
     decoded_packet.type           = static_cast<Message_Type>(data[PACKET_TYPE_OFFSET]);
-    decoded_packet.reserved       = data[PACKER_RESERVED_OFFSET];
+    decoded_packet.reserved       = data[PACKET_RESERVED_OFFSET];
     decoded_packet.payload_length = payload_length;
     decoded_packet.packet_number  = sys_get_le32(data + PACKET_NUMBER_OFFSET);
     decoded_packet.payload        = data + HEADER_SIZE;
@@ -69,7 +69,7 @@ encode_header(
 
     sys_put_le32(MAGIC, buffer);
     buffer[PACKET_TYPE_OFFSET]     = static_cast<uint8_t>(type);
-    buffer[PACKER_RESERVED_OFFSET] = reserved;
+    buffer[PACKET_RESERVED_OFFSET] = reserved;
     sys_put_le16(payload_length, buffer + PACKET_PAYLOAD_LENGTH_OFFSET);
     sys_put_le32(packet_number, buffer + PACKET_NUMBER_OFFSET);
     return packet_length;

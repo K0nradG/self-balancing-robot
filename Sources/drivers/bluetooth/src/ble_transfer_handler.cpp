@@ -30,7 +30,7 @@ constexpr int BLE_TX_THREAD_PRIORITY           = 5;
 constexpr uint32_t BLE_TX_THREAD_OPTIONS       = 0u;
 constexpr int32_t BLE_TX_THREAD_START_DELAY_MS = 0;
 
-constexpr size_t log_payload_header_size = (2u * sizeof(uint8_t)) + sizeof(uint16_t);
+constexpr size_t LOG_PAYLOAD_HEADER_SIZE = (2u * sizeof(uint8_t)) + sizeof(uint16_t);
 
 // Telemetry has an independent packet-number stream for gap detection.
 atomic_t tx_packet_number;
@@ -74,14 +74,14 @@ ble_send_telemetry_packet(BLE_Protocol::Payload_Writer const& payload_writer)
 static size_t
 get_log_module_length(char const* module)
 {
-    size_t const available_length = BLE_Protocol::MAX_PAYLOAD_SIZE - log_payload_header_size;
+    static size_t constexpr available_length = BLE_Protocol::MAX_PAYLOAD_SIZE - LOG_PAYLOAD_HEADER_SIZE;
     return MIN(strlen(module), MIN(static_cast<size_t>(UINT8_MAX), available_length));
 }
 
 static size_t
 get_log_message_length(char const* message, size_t module_length)
 {
-    size_t const available_length = BLE_Protocol::MAX_PAYLOAD_SIZE - log_payload_header_size - module_length;
+    size_t const available_length = BLE_Protocol::MAX_PAYLOAD_SIZE - LOG_PAYLOAD_HEADER_SIZE - module_length;
     return MIN(strlen(message), available_length);
 }
 
@@ -119,12 +119,6 @@ ble_send_log(uint8_t level, char const* module, char const* message)
 
     return put_packet_in_queue(
         &log_tx_queue, BLE_Protocol::Message_Type::LOG, log_payload_writer.data(), log_payload_writer.size());
-}
-
-int
-put_packet_in_log_queue(BLE_Protocol::Message_Type type, uint8_t const* payload, uint16_t payload_length)
-{
-    return put_packet_in_queue(&log_tx_queue, type, payload, payload_length);
 }
 
 static uint32_t

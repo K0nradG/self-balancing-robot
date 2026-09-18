@@ -95,7 +95,7 @@ Payload_Writer::put_float_helper(float value, uint8_t* destination)
     static_assert(sizeof(float) == sizeof(uint32_t));
     uint32_t raw_value {};
     memcpy(&raw_value, &value, sizeof(raw_value));
-    sys_put_le32(value, destination);
+    sys_put_le32(raw_value, destination);
 }
 
 }  // namespace BLE_Protocol

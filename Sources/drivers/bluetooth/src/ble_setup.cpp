@@ -1,10 +1,10 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
+#include "ble_setup.h"
 #include <zephyr/bluetooth/bluetooth.h>
 #include <zephyr/bluetooth/gap.h>
 #include <zephyr/bluetooth/gatt.h>
 #include "ble_connection.h"
-#include "ble_setup.h"
 
 bt_conn* my_conn = nullptr;
 

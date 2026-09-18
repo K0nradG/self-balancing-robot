@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ble_protocol.h"
+#include "ble_protocol_types.h"
 
 namespace Robot_Control
 {

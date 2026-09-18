@@ -1,7 +1,6 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 import struct
-import math
 from dataclasses import dataclass
 from enum import IntEnum
 
@@ -27,9 +26,14 @@ class MessageType(IntEnum):
     GET_PID_STATE = 0x22
     SET_PID = 0x23
     SET_SETPOINT = 0x24
-    TRAJECTORY_COMMAND = 0x25
-    IDENTIFICATION_CONFIG = 0x26
     SET_LQR = 0x27
+    DRIVE_COMMAND = 0x28
+    SET_MODE = 0x29
+
+
+class ControlMode(IntEnum):
+    STANDARD = 0
+    FREE_DRIVE = 1
 
 
 class ControllerId(IntEnum):
@@ -238,34 +242,6 @@ def set_setpoint_command(
     )
 
 
-def trajectory_command(
-    rotation_degrees: float, distance_m: float, packet_number: int = 0
-) -> bytes:
-    return pack_packet(
-        MessageType.TRAJECTORY_COMMAND,
-        PayloadWriter().put_float(rotation_degrees).put_float(distance_m).to_bytes(),
-        packet_number=packet_number,
-    )
-
-
-def identification_command(
-    pwm_values: list[float],
-    durations_s: list[float],
-    packet_number: int = 0,
-) -> bytes:
-    if len(pwm_values) != 10 or len(durations_s) != 10:
-        raise ValueError("Identification requires 10 PWM values and 10 durations")
-    if not all(math.isfinite(value) for value in pwm_values + durations_s):
-        raise ValueError("Identification values must be finite")
-    if not all(duration > 0.0 for duration in durations_s):
-        raise ValueError("Identification durations must be positive")
-    return pack_packet(
-        MessageType.IDENTIFICATION_CONFIG,
-        _float_payload(pwm_values + durations_s),
-        packet_number=packet_number,
-    )
-
-
 def set_lqr_command(kx: float, ky: float, packet_number: int = 0) -> bytes:
     return pack_packet(
         MessageType.SET_LQR,
@@ -274,8 +250,19 @@ def set_lqr_command(kx: float, ky: float, packet_number: int = 0) -> bytes:
     )
 
 
-def _float_payload(values: list[float]) -> bytes:
-    writer = PayloadWriter()
-    for value in values:
-        writer.put_float(value)
-    return writer.to_bytes()
+def drive_command(
+    angular_speed: float, linear_speed: float, packet_number: int = 0
+) -> bytes:
+    return pack_packet(
+        MessageType.DRIVE_COMMAND,
+        PayloadWriter().put_float(angular_speed).put_float(linear_speed).to_bytes(),
+        packet_number=packet_number,
+    )
+
+
+def set_mode_command(mode: ControlMode, packet_number: int = 0) -> bytes:
+    return pack_packet(
+        MessageType.SET_MODE,
+        PayloadWriter().put_u8(mode).to_bytes(),
+        packet_number=packet_number,
+    )

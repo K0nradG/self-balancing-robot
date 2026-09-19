@@ -136,7 +136,9 @@ class RightPanelWidget(QWidget):
         self.dist_plot = pg.PlotWidget(title="Distance")
         self.dist_plot.setLabel("left", "Distance [m]")
         self.dist_plot.addLegend()
-        self.curve_ds = self.dist_plot.plot(pen=pg.mkPen("c", width=2), name="Reference")
+        self.curve_ds = self.dist_plot.plot(
+            pen=pg.mkPen("c", width=2), name="Reference"
+        )
         self.curve_dm = self.dist_plot.plot(pen=pg.mkPen("m", width=2), name="Actual")
         panel_layout.addWidget(self.dist_plot)
 

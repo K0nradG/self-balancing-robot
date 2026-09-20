@@ -16,8 +16,4 @@ config PID_ENABLED
 config VALIDATE_ROBOT_ANGLE
     bool "Validate robot angle and disable motors if angle is out of range"
 
-config ROBOT_CONTROL_LOG_NUS_PERIOD_MS
-    int "Logs sending period over nus in mili seconds"
-    default 1000
-
 endif #ROBOT_CONTROL

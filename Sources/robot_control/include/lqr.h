@@ -22,10 +22,11 @@ public:
     float
     calculate_output(float x, float y);
 
-#ifdef CONFIG_BLUETOOTH_DRV
     void
-    parse_nus_parameters(char const* data);
-#endif  // CONFIG_BLUETOOTH_DRV
+    set_parameters(Parameters parameters);
+
+    Parameters
+    get_parameters() const;
 
 private:
     Parameters m_parameters;

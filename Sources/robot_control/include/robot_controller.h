@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ble_protocol_types.h"
 #include "pid.h"
 #include "ramp.h"
 #include "trajectory_manager.h"
@@ -22,7 +23,7 @@ class Robot_Controller
     static constexpr float pi             = 3.14159265358979323846f;
     static constexpr float radian_degrees = 180.0f;
 
-    static constexpr float balance_setpoint     = -16.5f * (pi / radian_degrees);  // [rad]
+    static constexpr float balance_setpoint     = -14.5f * (pi / radian_degrees);  // [rad]
     static constexpr float rotate_setpoint_rate = 180.0f * (pi / radian_degrees);  // [rad/s]
 
     static constexpr PID::Parameters distance_pid_parameters = {.Kp = 2.0f, .Ki = 0.1f, .Kd = 0.0f};
@@ -34,8 +35,8 @@ class Robot_Controller
     static constexpr float linear_speed_pid_filter_alpha         = 0.1f;
     static constexpr float angle_backward_max_deviation          = -3.0f * (pi / radian_degrees);
     static constexpr float angle_forward_max_deviation           = 3.0f * (pi / radian_degrees);
+    static constexpr float max_speed_rad_s                       = 90.0f;
 
-    static constexpr float max_speed_rad_s = 90.0f;
 #ifdef CONFIG_PID_ENABLED
     static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};
     static constexpr float balance_pid_filter_alpha         = 0.9f;
@@ -74,7 +75,7 @@ public:
 
 #ifdef CONFIG_BLUETOOTH_DRV
     void
-    parse_nus_data(char const* data);
+    handle_ble_packet(BLE_Protocol::Received_Packet const& received_packet);
 
     void
     send_PID_controllers_parameters();
@@ -109,7 +110,6 @@ private:
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
 
-    char m_regulators_data[250];
     bool m_regulator_message_sending_in_progress;
 
     float m_pwm0 {};

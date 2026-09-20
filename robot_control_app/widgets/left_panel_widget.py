@@ -1,6 +1,6 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-# Left panel widget handling BLE Connection, DFU Firmware Updates, logging console, and direct commands
+# Left panel widget handling BLE connection, DFU updates, logs, and recording.
 
 
 from PyQt6.QtWidgets import (
@@ -25,7 +25,6 @@ class LeftPanelWidget(QWidget):
     disconnect_requested = pyqtSignal()
     skip_dfu_requested = pyqtSignal()
     start_dfu_requested = pyqtSignal(str)
-    send_command_requested = pyqtSignal(str)
     auto_record_toggled = pyqtSignal(bool)
     enable_logs_toggled = pyqtSignal(bool)
 
@@ -95,22 +94,15 @@ class LeftPanelWidget(QWidget):
         self.enable_logs_checkbox.toggled.connect(self.enable_logs_toggled.emit)
         left_layout.addWidget(self.enable_logs_checkbox)
 
-        input_group = QGroupBox("Command Interface")
+        input_group = QGroupBox("Telemetry Recording")
         input_layout = QHBoxLayout(input_group)
-
-        self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("Enter command to send...")
-
-        self.send_btn = QPushButton("Send")
-        self.send_btn.clicked.connect(self.__on_send_command_clicked)
 
         self.auto_rec_cb = QCheckBox("Auto-record Data")
         self.auto_rec_cb.setChecked(False)
         self.auto_rec_cb.toggled.connect(self.auto_record_toggled.emit)
 
-        input_layout.addWidget(self.cmd_input, stretch=2)
-        input_layout.addWidget(self.send_btn)
         input_layout.addWidget(self.auto_rec_cb)
+        input_layout.addStretch()
         left_layout.addWidget(input_group)
 
     def __on_connect_clicked(self):
@@ -127,21 +119,15 @@ class LeftPanelWidget(QWidget):
         else:
             self.log_message("Error: Device target name is required for DFU.")
 
-    def __on_send_command_clicked(self):
-        cmd = self.cmd_input.text().strip()
-        if cmd:
-            self.send_command_requested.emit(cmd)
-            self.cmd_input.clear()
-
     # --- UI Update Slots & Public Methods ---
     def set_battery_led(self, color: str):
         self.battery_led.setStyleSheet(
             f"background-color: {color}; border-radius: 7px; border: 1px solid #444;"
         )
 
-    def update_battery_status(self, mv: float):
+    def update_battery_status(self, mv: int, percent: int):
         volts = mv / 1000.0
-        self.battery_label.setText(f"Battery Level: {volts:.2f} V")
+        self.battery_label.setText(f"Battery Level: {volts:.2f} V ({percent}%)")
         self.set_battery_led("#2ea44f" if volts >= 7.0 else "#d73a49")
 
     def update_connection_status(

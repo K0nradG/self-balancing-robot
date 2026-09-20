@@ -52,7 +52,8 @@ Drivers_Initializer::init()
 #endif  // CONFIG_ENCODER_DRV
 
 #ifdef CONFIG_PROXIMITY_SENSOR_DRV
-    // ret = proximity_sensor_init();
+    ret = proximity_sensor_init();
+    reboot_on_error(ret);
 #endif  // CONFIG_PROXIMITY_SENSOR_DRV
 }
 

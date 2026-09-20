@@ -26,12 +26,6 @@ proximity_sensor_init()
 float
 get_proximity_m()
 {
-    if(!device_is_ready(proximity_sensor_dev))
-    {
-        proximity_sensor_logger.platform_log(LOG_LEVEL::ERR, "VL53L0X device not ready");
-        return -1.0f;
-    }
-
     int ret = sensor_sample_fetch(proximity_sensor_dev);
     if(ret != 0)
     {
@@ -39,7 +33,7 @@ get_proximity_m()
         return -1.0f;
     }
 
-    struct sensor_value val{};
+    struct sensor_value val {};
     ret = sensor_channel_get(proximity_sensor_dev, SENSOR_CHAN_DISTANCE, &val);
     if(ret != 0)
     {
@@ -47,18 +41,13 @@ get_proximity_m()
         return -1.0f;
     }
 
-    return (float)val.val1 + ((float)val.val2 / 1000000.0f);
+    static constexpr float conversion_factor = 1.0f / 1000000.0f;
+    return (float)val.val1 + ((float)val.val2 * conversion_factor);
 }
 
 bool
 is_proximity_safe()
 {
-    if(!device_is_ready(proximity_sensor_dev))
-    {
-        proximity_sensor_logger.platform_log(LOG_LEVEL::ERR, "VL53L0X device not ready");
-        return false;
-    }
-
     int ret = sensor_sample_fetch(proximity_sensor_dev);
     if(ret != 0)
     {
@@ -66,7 +55,7 @@ is_proximity_safe()
         return false;
     }
 
-    struct sensor_value val{};
+    struct sensor_value val {};
     ret = sensor_channel_get(proximity_sensor_dev, SENSOR_CHAN_PROX, &val);
     if(ret != 0)
     {

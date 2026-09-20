@@ -1,0 +1,13 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
+config PROXIMITY_SENSOR_DRV
+    bool "Proximity sensor module"
+    select GPIO
+    
+if PROXIMITY_SENSOR_DRV
+
+config  PROXIMITY_SENSOR_LOG
+    bool "Enable logs from proximity sensor module"
+    depends on LOGGER_DRV
+
+endif

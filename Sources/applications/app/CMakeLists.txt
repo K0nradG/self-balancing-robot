@@ -6,6 +6,6 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 
 project(self-balancing-robot C CXX)
 
-FILE(GLOB app_sources src/*.cpp)
+set(app_sources src/main.cpp)
 
 target_sources(app PRIVATE ${app_sources})

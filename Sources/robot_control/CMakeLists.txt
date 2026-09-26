@@ -12,7 +12,7 @@ if(CONFIG_ROBOT_CONTROL)
     set(TRAJECTORY_SRC_DIR ${ROBOT_CONTROL_SRC_DIR}/trajectory)
     set(UTILS_SRC_DIR ${ROBOT_CONTROL_SRC_DIR}/utils)
 
-    set(ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/control_loop.cpp
+    set(ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/control_task.cpp
                             ${ROBOT_CONTROL_SRC_DIR}/data_manager.cpp
                             ${ROBOT_CONTROL_SRC_DIR}/drivers_initializer.cpp
                             ${ROBOT_CONTROL_SRC_DIR}/main_state_machine.cpp
@@ -21,7 +21,8 @@ if(CONFIG_ROBOT_CONTROL)
         list(APPEND ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/telemetry.cpp)
     endif()
     
-    set(CONTROLLERS_SRC ${CONTROLLERS_SRC_DIR}/pid.cpp)
+    set(CONTROLLERS_SRC ${CONTROLLERS_SRC_DIR}/control_loop.cpp
+                        ${CONTROLLERS_SRC_DIR}/pid.cpp)
     if(NOT CONFIG_PID_ENABLED)
         list(APPEND CONTROLLERS_SRC ${CONTROLLERS_SRC_DIR}/lqr.cpp)
     endif()

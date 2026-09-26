@@ -5,14 +5,14 @@
 namespace Robot_Control
 {
 
-void
-trigger_control_loop();
-
-void
-stop_control_loop();
-
 int
-control_loop_init();
+control_task_init();
+
+void
+trigger_control_task();
+
+void
+stop_control_task();
 
 #ifdef CONFIG_BLUETOOTH_DRV
 void

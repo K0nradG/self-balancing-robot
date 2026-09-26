@@ -1,6 +1,7 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 #include "control_task.h"
+#include "ble_handler.h"
 #include "ble_protocol_types.h"
 #include "drivers_initializer.h"
 #include "interface.h"
@@ -31,7 +32,7 @@ namespace Robot_Control
 void
 ble_packet_callback(BLE_Protocol::Received_Packet const& received_packet)
 {
-    Robot_Controller::instance().handle_ble_packet(received_packet);
+    BLE_Handler::instance().handle_received_packet(received_packet);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 

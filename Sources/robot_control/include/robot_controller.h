@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ble_payload_reader.h"
 #include "ble_protocol_types.h"
 #include "constants.h"
 #include "ramp.h"
@@ -41,10 +42,11 @@ public:
     void
     reset();
 
-#ifdef CONFIG_BLUETOOTH_DRV
-    void
-    handle_ble_packet(BLE_Protocol::Received_Packet const& received_packet);
-#endif  // CONFIG_BLUETOOTH_DRV
+    BLE_Protocol::Command_Status
+    set_setpoints(BLE_Protocol::Payload_Reader& reader);
+
+    BLE_Protocol::Command_Status
+    set_trajectory_command(BLE_Protocol::Payload_Reader& reader);
 
 private:
     Robot_Controller();

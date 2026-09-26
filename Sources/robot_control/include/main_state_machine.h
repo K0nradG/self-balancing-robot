@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "ble_payload_reader.h"
 #include "ble_protocol_types.h"
 
 namespace Robot_Control
@@ -58,8 +59,8 @@ public:
     void
     set_stop_command();
 
-    bool
-    apply_command(BLE_Protocol::State_Action action);
+    BLE_Protocol::Command_Status
+    receive_command(BLE_Protocol::Payload_Reader& reader);
 
 private:
     Main_State_Machine()                          = default;
@@ -72,6 +73,9 @@ private:
 
     State m_state = State::READY_TO_START;
     Transition_Flags m_flags {};
+
+    BLE_Protocol::Command_Status
+    apply_command(BLE_Protocol::State_Action action);
 };
 
 }  // namespace Robot_Control

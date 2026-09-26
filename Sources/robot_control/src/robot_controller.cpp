@@ -24,17 +24,6 @@ namespace Robot_Control
 
 static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
-static void
-send_command_result(BLE_Protocol::Received_Packet const& received_packet, BLE_Protocol::Command_Status status)
-{
-    uint8_t payload[6] {};
-    BLE_Protocol::Payload_Writer writer(payload, sizeof(payload));
-    writer.put_u32(received_packet.packet_number);
-    writer.put_u8(static_cast<uint8_t>(received_packet.type));
-    writer.put_u8(static_cast<uint8_t>(status));
-    ble_send_packet(BLE_Protocol::Message_Type::COMMAND_RESULT, writer);
-}
-
 Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
@@ -161,144 +150,6 @@ Robot_Controller::reset()
     Control_Loop::instance().reset();
 }
 
-#ifdef CONFIG_BLUETOOTH_DRV
-void
-Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& received_packet)
-{
-    using BLE_Protocol::Command_Status;
-    using BLE_Protocol::Controller_Id;
-    using BLE_Protocol::Message_Type;
-
-    Command_Status status = Command_Status::OK;
-    BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
-    switch(received_packet.type)
-    {
-        case Message_Type::STATE_COMMAND:
-        {
-            uint8_t action {};
-            if(!reader.get_u8(action) || !reader.done())
-            {
-                status = Command_Status::INVALID_LENGTH;
-                break;
-            }
-            bool const applied =
-                Main_State_Machine::instance().apply_command(static_cast<BLE_Protocol::State_Action>(action));
-            status = applied ? Command_Status::OK : Command_Status::INVALID_STATE;
-            break;
-        }
-        case Message_Type::GET_PID_STATE:
-        {
-            if(!reader.done())
-            {
-                status = Command_Status::INVALID_LENGTH;
-                break;
-            }
-            if(!m_regulator_message_sending_in_progress)
-            {
-                m_regulator_message_sending_in_progress = true;
-                Control_Loop::instance().send_PID_controllers_parameters();
-                m_regulator_message_sending_in_progress = false;
-            }
-            break;
-        }
-        case Message_Type::SET_PID:
-        {
-            status = Control_Loop::instance().set_PID_parameters(reader);
-            break;
-        }
-        case Message_Type::SET_SETPOINT:
-        {
-            uint8_t controller_value {};
-            float value {};
-            if(!reader.get_u8(controller_value) || !reader.get_float(value) || !reader.done())
-            {
-                status = Command_Status::INVALID_LENGTH;
-                break;
-            }
-            Controller_Id const controller = static_cast<Controller_Id>(controller_value);
-            if(!isfinite(value))
-            {
-                status = Command_Status::INVALID_VALUE;
-                break;
-            }
-            switch(controller)
-            {
-                case Controller_Id::DISTANCE:
-                    if(m_trajectory_manager.trajectory_started())
-                    {
-                        status = Command_Status::INVALID_STATE;
-                    }
-                    else
-                    {
-                        m_distance_setpoint = value;
-                    }
-                    break;
-                case Controller_Id::BALANCE:
-                    m_balance_setpoint = value * (PI / RADIAN_IN_DEGREES);
-                    break;
-                case Controller_Id::ROTATE:
-                    if(m_trajectory_manager.trajectory_started())
-                    {
-                        status = Command_Status::INVALID_STATE;
-                    }
-                    else
-                    {
-                        m_rotate_setpoint_ramp.set_target(value * (PI / RADIAN_IN_DEGREES));
-                    }
-                    break;
-                default:
-                    status = Command_Status::INVALID_VALUE;
-                    break;
-            }
-            break;
-        }
-        case Message_Type::TRAJECTORY_COMMAND:
-        {
-            float rotation_degrees {};
-            float distance_m {};
-            if(!reader.get_float(rotation_degrees) || !reader.get_float(distance_m) || !reader.done())
-            {
-                status = Command_Status::INVALID_LENGTH;
-                break;
-            }
-            bool const accepted = m_trajectory_manager.set_trajectory_point(rotation_degrees, distance_m);
-            status              = accepted ? Command_Status::OK : Command_Status::INVALID_STATE;
-            break;
-        }
-        case Message_Type::SET_LQR:
-        {
-#ifndef CONFIG_PID_ENABLED
-            status = Control_Loop::instance().set_LQR_parameters(reader);
-#else
-            status = Command_Status::UNSUPPORTED_MESSAGE;
-#endif
-            break;
-        }
-#ifdef CONFIG_MODEL_IDENTIFICATION_DRV
-        case Message_Type::IDENTIFICATION_CONFIG:
-            if(received_packet.payload_length != (10u * 2u * sizeof(float)))
-            {
-                status = Command_Status::INVALID_LENGTH;
-            }
-            else
-            {
-                status = Model_Identification::instance().set_identification_profile(
-                             received_packet.payload, received_packet.payload_length) ?
-                             Command_Status::OK :
-                             Command_Status::INVALID_VALUE;
-            }
-            break;
-#endif
-        default:
-            status = Command_Status::UNSUPPORTED_MESSAGE;
-            break;
-    }
-
-    send_command_result(received_packet, status);
-}
-
-#endif  // CONFIG_BLUETOOTH_DRV
-
 void
 Robot_Controller::send_motors_data(float pwm_motor0, float pwm_motor1)
 {
@@ -355,6 +206,79 @@ Robot_Controller::ramp_pwm_to_stop(float& pwm)
     }
 
     return motor_stopped;
+}
+
+BLE_Protocol::Command_Status
+Robot_Controller::set_setpoints(BLE_Protocol::Payload_Reader& reader)
+{
+    uint8_t controller_value {};
+    float value {};
+    if(!reader.get_u8(controller_value) || !reader.get_float(value) || !reader.done())
+    {
+        return BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+
+    auto const controller = static_cast<BLE_Protocol::Controller_Id>(controller_value);
+    if(!isfinite(value))
+    {
+        return BLE_Protocol::Command_Status::INVALID_VALUE;
+    }
+
+    auto status = BLE_Protocol::Command_Status::OK;
+    switch(controller)
+    {
+        case BLE_Protocol::Controller_Id::DISTANCE:
+        {
+            if(m_trajectory_manager.trajectory_started())
+            {
+                status = BLE_Protocol::Command_Status::INVALID_STATE;
+            }
+            else
+            {
+                m_distance_setpoint = value;
+            }
+            break;
+        }
+        case BLE_Protocol::Controller_Id::BALANCE:
+        {
+            m_balance_setpoint = value * (PI / RADIAN_IN_DEGREES);
+            break;
+        }
+        case BLE_Protocol::Controller_Id::ROTATE:
+        {
+            if(m_trajectory_manager.trajectory_started())
+            {
+                status = BLE_Protocol::Command_Status::INVALID_STATE;
+            }
+            else
+            {
+                m_rotate_setpoint_ramp.set_target(value * (PI / RADIAN_IN_DEGREES));
+            }
+            break;
+        }
+        default:
+        {
+            status = BLE_Protocol::Command_Status::INVALID_VALUE;
+            break;
+        }
+    }
+
+    return status;
+}
+
+BLE_Protocol::Command_Status
+Robot_Controller::set_trajectory_command(BLE_Protocol::Payload_Reader& reader)
+{
+    float rotation_degrees {};
+    float distance_m {};
+    if(!reader.get_float(rotation_degrees) || !reader.get_float(distance_m) || !reader.done())
+    {
+        return BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+
+    bool const accepted = m_trajectory_manager.set_trajectory_point(rotation_degrees, distance_m);
+    auto const status   = accepted ? BLE_Protocol::Command_Status::OK : BLE_Protocol::Command_Status::INVALID_STATE;
+    return status;
 }
 
 }  // namespace Robot_Control

@@ -118,7 +118,7 @@ Control_Loop::set_PID_parameters(BLE_Protocol::Payload_Reader& reader)
         return BLE_Protocol::Command_Status::INVALID_VALUE;
     }
 
-    BLE_Protocol::Command_Status status = BLE_Protocol::Command_Status::OK;
+    auto status = BLE_Protocol::Command_Status::OK;
     switch(controller)
     {
         case BLE_Protocol::Controller_Id::DISTANCE:

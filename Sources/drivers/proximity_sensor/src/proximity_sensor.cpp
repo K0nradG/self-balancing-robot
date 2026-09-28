@@ -33,8 +33,8 @@ get_proximity_m()
         return -1.0f;
     }
 
-    struct sensor_value val {};
-    ret = sensor_channel_get(proximity_sensor_dev, SENSOR_CHAN_DISTANCE, &val);
+    struct sensor_value val = {};
+    ret                     = sensor_channel_get(proximity_sensor_dev, SENSOR_CHAN_DISTANCE, &val);
     if(ret != 0)
     {
         proximity_sensor_logger.platform_log(LOG_LEVEL::ERR, "Failed to get distance channel, err: %d", ret);

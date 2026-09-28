@@ -8,7 +8,6 @@
 #include "control_loop.h"
 #include "data_manager.h"
 #include "logger.h"
-#include "main_state_machine.h"
 #include "motor_controller.h"
 
 #if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
@@ -66,11 +65,12 @@ Robot_Controller::normal_motors_control()
             .angle_balance_dt = imu_data.angle_balance_dt,
 #endif  // CONFIG_PID_ENABLED
             .rotation_angle          = rotation_angle,
-            .angular_velocity0_rad_s = imu_data.angle_balance_dt,
-            .angular_velocity1_rad_s = imu_data.angle_balance_dt};
+            .angular_velocity0_rad_s = encoders_data.encoder_0.angular_velocity_rad_s,
+            .angular_velocity1_rad_s = encoders_data.encoder_1.angular_velocity_rad_s};
 
         Control_Loop::Output const control_loop_output =
             Control_Loop::instance().update(setpoints, feedback, imu_data.time_dt);
+
         m_pwm0 = control_loop_output.pwm0;
         m_pwm1 = control_loop_output.pwm1;
 
@@ -78,11 +78,11 @@ Robot_Controller::normal_motors_control()
         if(!m_trajectory_manager.stop_logs())
         {
             Telemetry_Sample const telemetry_sample = {
-                .timestamp_us      = k_uptime_get_32() * 1000u,
-                .balance_setpoint  = m_balance_setpoint * RADIAN_IN_DEGREES / PI,
-                .balance_angle     = imu_data.angle_balance * RADIAN_IN_DEGREES / PI,
-                .rotation_setpoint = m_rotate_setpoint_ramp.get_current_value() * RADIAN_IN_DEGREES / PI,
-                .rotation_angle    = rotation_angle * RADIAN_IN_DEGREES / PI,
+                .timestamp_us      = k_uptime_get_32() * static_cast<uint32_t>(MICRO_TO_MILLI),
+                .balance_setpoint  = m_balance_setpoint * RADIANS_TO_DEGREES,
+                .balance_angle     = imu_data.angle_balance * RADIANS_TO_DEGREES,
+                .rotation_setpoint = m_rotate_setpoint_ramp.get_current_value() * RADIANS_TO_DEGREES,
+                .rotation_angle    = rotation_angle * RADIANS_TO_DEGREES,
                 .target_speed_0    = control_loop_output.target_speed0,
                 .target_speed_1    = control_loop_output.target_speed1,
                 .measured_speed_0  = encoders_data.encoder_0.angular_velocity_rad_s,
@@ -162,8 +162,8 @@ bool
 Robot_Controller::validate_robot_angle(float balance_angle)
 {
     static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 20.0f * (PI / RADIAN_IN_DEGREES);
-    static constexpr float safe_angle_hysteresis = 0.5f * (PI / RADIAN_IN_DEGREES);
+    static constexpr float safe_angle_margin     = 20.0f * DEGREES_TO_RADIANS;
+    static constexpr float safe_angle_hysteresis = 0.5f * DEGREES_TO_RADIANS;
 
     float const upper_limit = m_balance_setpoint + safe_angle_margin;
     float const lower_limit = m_balance_setpoint - safe_angle_margin;
@@ -218,14 +218,14 @@ Robot_Controller::set_setpoints(BLE_Protocol::Payload_Reader& reader)
         return BLE_Protocol::Command_Status::INVALID_LENGTH;
     }
 
-    auto const controller = static_cast<BLE_Protocol::Controller_Id>(controller_value);
     if(!isfinite(value))
     {
         return BLE_Protocol::Command_Status::INVALID_VALUE;
     }
 
-    auto status = BLE_Protocol::Command_Status::OK;
-    switch(controller)
+    auto const controller_id = static_cast<BLE_Protocol::Controller_Id>(controller_value);
+    auto status              = BLE_Protocol::Command_Status::OK;
+    switch(controller_id)
     {
         case BLE_Protocol::Controller_Id::DISTANCE:
         {
@@ -241,7 +241,7 @@ Robot_Controller::set_setpoints(BLE_Protocol::Payload_Reader& reader)
         }
         case BLE_Protocol::Controller_Id::BALANCE:
         {
-            m_balance_setpoint = value * (PI / RADIAN_IN_DEGREES);
+            m_balance_setpoint = value * DEGREES_TO_RADIANS;
             break;
         }
         case BLE_Protocol::Controller_Id::ROTATE:
@@ -252,7 +252,7 @@ Robot_Controller::set_setpoints(BLE_Protocol::Payload_Reader& reader)
             }
             else
             {
-                m_rotate_setpoint_ramp.set_target(value * (PI / RADIAN_IN_DEGREES));
+                m_rotate_setpoint_ramp.set_target(value * DEGREES_TO_RADIANS);
             }
             break;
         }

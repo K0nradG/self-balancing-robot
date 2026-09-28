@@ -71,14 +71,13 @@ BLE_Handler::handle_received_packet(BLE_Protocol::Received_Packet const& receive
             if(received_packet.payload_length != (10u * 2u * sizeof(float)))
             {
                 status = BLE_Protocol::Command_Status::INVALID_LENGTH;
+                break;
             }
-            else
-            {
-                status = Model_Identification::instance().set_identification_profile(
-                             received_packet.payload, received_packet.payload_length) ?
-                             BLE_Protocol::Command_Status::OK :
-                             BLE_Protocol::Command_Status::INVALID_VALUE;
-            }
+ 
+            status = Model_Identification::instance().set_identification_profile(
+                            received_packet.payload, received_packet.payload_length) ?
+                            BLE_Protocol::Command_Status::OK :
+                            BLE_Protocol::Command_Status::INVALID_VALUE;
             break;
         }
 #endif

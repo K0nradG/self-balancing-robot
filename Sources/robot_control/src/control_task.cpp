@@ -1,6 +1,7 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-#include "control_loop.h"
+#include "control_task.h"
+#include "ble_handler.h"
 #include "ble_protocol_types.h"
 #include "drivers_initializer.h"
 #include "interface.h"
@@ -31,12 +32,12 @@ namespace Robot_Control
 void
 ble_packet_callback(BLE_Protocol::Received_Packet const& received_packet)
 {
-    Robot_Controller::instance().handle_ble_packet(received_packet);
+    BLE_Handler::instance().handle_received_packet(received_packet);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 
 int
-control_loop_init()
+control_task_init()
 {
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
     robot_control_logger.platform_log(LOG_LEVEL::INF, "Model identification driver is enabled.");
@@ -105,13 +106,13 @@ control_loop_work_handler(k_work* work)
 static K_WORK_DELAYABLE_DEFINE(s_control_work, control_loop_work_handler);
 
 void
-trigger_control_loop()
+trigger_control_task()
 {
     k_work_submit(&s_control_work.work);
 }
 
 void
-stop_control_loop()
+stop_control_task()
 {
     set_enable_controller(false);
     led_stop_periodic_blinking();

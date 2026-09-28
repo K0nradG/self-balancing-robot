@@ -71,9 +71,22 @@ Main_State_Machine::set_stop_command()
     m_flags.stop = true;
 }
 
-bool
+BLE_Protocol::Command_Status
+Main_State_Machine::receive_command(BLE_Protocol::Payload_Reader& reader)
+{
+    uint8_t action {};
+    if(!reader.get_u8(action) || !reader.done())
+    {
+        return BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+
+    return Main_State_Machine::instance().apply_command(static_cast<BLE_Protocol::State_Action>(action));
+}
+
+BLE_Protocol::Command_Status
 Main_State_Machine::apply_command(BLE_Protocol::State_Action action)
 {
+    auto status = BLE_Protocol::Command_Status::OK;
     switch(action)
     {
         case BLE_Protocol::State_Action::START:
@@ -84,20 +97,21 @@ Main_State_Machine::apply_command(BLE_Protocol::State_Action action)
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
                 Model_Identification::instance().activate_identification();
 #endif  // CONFIG_MODEL_IDENTIFICATION_DRV
-                return true;
             }
             break;
         case BLE_Protocol::State_Action::STOP:
             if(m_state == OPERATION)
             {
                 m_flags.stop = true;
-                return true;
             }
             break;
         default:
+        {
+            status = BLE_Protocol::Command_Status::INVALID_STATE;
             break;
+        }
     }
-    return false;
+    return status;
 }
 
 }  // namespace Robot_Control

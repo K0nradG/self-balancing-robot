@@ -13,7 +13,7 @@
 #include "ble_protocol_types.h"
 #include "ble_service.h"
 #include "ble_transfer_handler.h"
-#include "control_loop.h"
+#include "control_task.h"
 
 /*TODO: now dfu is mandatory so BLE needs to be default y*/
 #include "ble_setup.h"
@@ -151,7 +151,7 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
 
     if(g_dfu_state == DFU_STATE_SKIP)
     {
-        Robot_Control::control_loop_init();
+        Robot_Control::control_task_init();
         send_dfu_command_result(g_dfu_request_packet_number, BLE_Protocol::Command_Status::OK);
         if(dfu_action_cb)
         {

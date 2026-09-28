@@ -136,7 +136,7 @@ Control_Loop::set_PID_parameters(BLE_Protocol::Payload_Reader& reader)
 #ifdef CONFIG_PID_ENABLED
             m_balance_pid.set_parameters(parameters);
 #else
-            status = Command_Status::UNSUPPORTED_MESSAGE;
+            status = BLE_Protocol::Command_Status::UNSUPPORTED_MESSAGE;
 #endif  // CONFIG_PID_ENABLED
             break;
         }

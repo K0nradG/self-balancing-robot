@@ -74,8 +74,7 @@ Robot_Controller::Robot_Controller()
           Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
           wheel_speed_pid_filter_alpha),
       m_regulator_message_sending_in_progress(false)
-{
-}
+{}
 
 #ifndef CONFIG_MODEL_IDENTIFICATION_DRV
 bool

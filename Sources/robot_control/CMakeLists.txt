@@ -14,7 +14,8 @@ if(CONFIG_ROBOT_CONTROL)
                                 ${ROBOT_CONTROL_SRC_DIR}/ramp.cpp
                                 ${ROBOT_CONTROL_SRC_DIR}/saturation.cpp
                                 ${ROBOT_CONTROL_SRC_DIR}/trajectory_manager.cpp
-                                ${ROBOT_CONTROL_SRC_DIR}/trajectory_state_machine.cpp)
+                                ${ROBOT_CONTROL_SRC_DIR}/trajectory_state_machine.cpp
+                                ${ROBOT_CONTROL_SRC_DIR}/protection_manager.cpp)
 
     if(NOT CONFIG_PID_ENABLED)
         list(APPEND ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/lqr.cpp) # Appending necessary so as not to overwrite previous ROBOT_CONTROL_SRC value.   

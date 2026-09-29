@@ -119,9 +119,6 @@ private:
     send_motors_data(float pwm_motor0, float pwm_motor1);
 
     bool
-    validate_robot_angle(float balance_angle);
-
-    bool
     ramp_pwm_to_stop(float& pwm);
 };
 

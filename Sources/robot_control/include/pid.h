@@ -25,8 +25,7 @@ public:
           m_filter(alpha),
           m_hysteresis(hysteresis),
           m_use_feedback_dt(use_feedback_dt)
-    {
-    }
+    {}
 
     float
     calculate_output(float setpoint, float feedback, float dt, float feedback_dt = 0.0f);

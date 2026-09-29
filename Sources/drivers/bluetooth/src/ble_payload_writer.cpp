@@ -13,8 +13,7 @@ Payload_Writer::Payload_Writer(uint8_t* buffer, size_t capacity)
       m_capacity((capacity < MAX_PAYLOAD_SIZE) ? capacity : MAX_PAYLOAD_SIZE),
       m_size(0u),
       m_valid(buffer != nullptr)
-{
-}
+{}
 
 bool
 Payload_Writer::put_u8(uint8_t value)

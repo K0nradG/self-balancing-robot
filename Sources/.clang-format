@@ -20,6 +20,8 @@ BraceWrapping:
   AfterCaseLabel: true
   BeforeElse: true
   BeforeCatch: true
+  SplitEmptyRecord: false
+  SplitEmptyFunction: false
 BreakBeforeTernaryOperators: false
 ColumnLimit: 120
 Cpp11BracedListStyle: true

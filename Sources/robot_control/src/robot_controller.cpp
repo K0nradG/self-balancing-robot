@@ -9,6 +9,7 @@
 #include "logger.h"
 #include "main_state_machine.h"
 #include "motor_controller.h"
+#include "protection_manager.h"
 #include "saturation.h"
 #include "zephyr/kernel.h"
 
@@ -74,27 +75,22 @@ Robot_Controller::Robot_Controller()
           Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
           wheel_speed_pid_filter_alpha),
       m_regulator_message_sending_in_progress(false)
-{
-}
+{}
 
 #ifndef CONFIG_MODEL_IDENTIFICATION_DRV
 bool
 Robot_Controller::normal_motors_control()
 {
     DataManager::instance().update();
-    imu_data const imu_data            = DataManager::instance().get_imu_data();
-    encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
+    imu_data const imu_data = DataManager::instance().get_imu_data();
 
-    float const rotation_angle = DataManager::instance().get_rotation_angle();
-
-#ifdef CONFIG_VALIDATE_ROBOT_ANGLE
-    bool const disable_motors_command = validate_robot_angle(imu_data.angle_balance);
-#else
-    bool const disable_motors_command = false;
-#endif  // CONFIG_VALIDATE_ROBOT_ANGLE
-
+    bool const disable_motors_command =
+        Protection_Manager::instance().validate_robot_angle(m_balance_setpoint, imu_data.angle_balance);
     if(!disable_motors_command)
     {
+        encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
+        float const rotation_angle         = DataManager::instance().get_rotation_angle();
+
         m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
 
 #ifdef CONFIG_PID_ENABLED
@@ -443,32 +439,6 @@ Robot_Controller::send_motors_data(float pwm_motor0, float pwm_motor1)
     set_start_motors(true);
     set_duty_cycle_value(static_cast<int>(pwm_motor0), static_cast<int>(pwm_motor1));
 }
-
-#ifdef CONFIG_VALIDATE_ROBOT_ANGLE
-bool
-Robot_Controller::validate_robot_angle(float balance_angle)
-{
-    static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
-    static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
-
-    float const upper_limit = m_balance_setpoint + safe_angle_margin;
-    float const lower_limit = m_balance_setpoint - safe_angle_margin;
-
-    if(!disable_motors_command && (balance_angle > upper_limit || balance_angle < lower_limit))
-    {
-        disable_motors_command = true;
-        return disable_motors_command;
-    }
-
-    if(disable_motors_command && (balance_angle < (upper_limit - safe_angle_hysteresis)) &&
-       (balance_angle > (lower_limit + safe_angle_hysteresis)))
-    {
-        disable_motors_command = false;
-    }
-    return disable_motors_command;
-}
-#endif  // CONFIG_VALIDATE_ROBOT_ANGLE
 
 bool
 Robot_Controller::ramp_pwm_to_stop(float& pwm)

@@ -19,7 +19,7 @@ public:
     void
     update();
 
-    imu_data
+    imu_data const
     get_imu_data() const;
 
     encoders_data const&
@@ -27,6 +27,9 @@ public:
 
     float
     get_rotation_angle() const;
+
+    float
+    get_proximity_m() const;
 
     void
     reset();
@@ -42,6 +45,7 @@ private:
     imu_data m_imu_data {};
     encoders_data m_encoders_data {};
     float m_rotation_angle {};
+    float m_proximity_m {};
 };
 
 }  // namespace Robot_Control

@@ -46,6 +46,8 @@ thread_proximity_sensor(void* p1, void* p2, void* p3)
     {
         float const proximity_m = internal_get_proximity_m();
         s_proximity_m           = proximity_m;
+
+        k_sleep(K_MSEC(20));
     }
 }
 

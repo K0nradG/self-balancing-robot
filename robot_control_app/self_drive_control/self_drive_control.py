@@ -10,15 +10,16 @@ class SelfDriveController:
         if not line_found:
             self.last_error = 0.0
             return 0.0, 0.0
-            
+
         error_derivative = error - self.last_error
         self.last_error = error
 
         angular = (self.kp_angular * error) + (self.kd_angular * error_derivative)
-        linear = self.base_linear_speed * max(0.2, 1.0 - min(1.0, self.k_slow * abs(error)))
-        
+        linear = self.base_linear_speed * max(
+            0.2, 1.0 - min(1.0, self.k_slow * abs(error))
+        )
+
         return angular, linear
-        
+
     def reset(self):
         self.last_error = 0.0
-

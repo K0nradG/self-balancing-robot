@@ -16,8 +16,7 @@ public:
 
     LQR(Parameters parameters, float output_saturation)
         : m_parameters(parameters), m_output_saturation(output_saturation)
-    {
-    }
+    {}
 
     float
     calculate_output(float x, float y);

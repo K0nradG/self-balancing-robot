@@ -1,3 +1,7 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
+# Right panel widget handling robot control, control loop parameters and telemetry data plotting
+
 from robot_control_app import ble_protocol
 from PyQt6.QtWidgets import (
     QWidget,
@@ -12,10 +16,10 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QCheckBox,
 )
-from PyQt6.QtCore import pyqtSignal, Qt
-from PyQt6.QtGui import QDoubleValidator, QPixmap, QImage
+from PyQt6.QtCore import pyqtSignal, QRegularExpression, Qt
 from collections import deque
 import pyqtgraph as pg
+from PyQt6.QtGui import QRegularExpressionValidator, QPixmap, QImage
 
 MAX_PLOT_POINTS = 200
 
@@ -41,6 +45,8 @@ class RightPanelWidget(QWidget):
         self.current_mode = ble_protocol.ControlMode.STANDARD
 
         self.plot_time = deque(maxlen=MAX_PLOT_POINTS)
+        self.ds_buf = deque(maxlen=MAX_PLOT_POINTS)
+        self.dm_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.bs_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.ab_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.rs_buf = deque(maxlen=MAX_PLOT_POINTS)
@@ -78,8 +84,9 @@ class RightPanelWidget(QWidget):
         btn_layout.addWidget(self.stop_control_btn)
         ctrl_actions_layout.addLayout(btn_layout)
 
-        num_validator = QDoubleValidator(-180.0, 180.0, 4)
-        num_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        # Regex validator accepting digits with '.' decimal point and optional leading '-'
+        float_regex = QRegularExpression(r"^-?\d*\.?\d*$")
+        num_validator = QRegularExpressionValidator(float_regex)
 
         self.standard_widget = QWidget()
         std_layout = QVBoxLayout(self.standard_widget)
@@ -107,7 +114,20 @@ class RightPanelWidget(QWidget):
 
         ctrl_actions_layout.addWidget(self.standard_widget)
 
-        # Free Drive Widget z podglądem kamery i przełącznikami
+        trajectory_layout = QHBoxLayout()
+        trajectory_layout.addWidget(QLabel("Trajectory rotation [deg]:"))
+        self.trajectory_rotation_input = QLineEdit("0.0")
+        self.trajectory_rotation_input.setValidator(num_validator)
+        trajectory_layout.addWidget(self.trajectory_rotation_input)
+        trajectory_layout.addWidget(QLabel("distance [m]:"))
+        self.trajectory_distance_input = QLineEdit("0.0")
+        self.trajectory_distance_input.setValidator(num_validator)
+        trajectory_layout.addWidget(self.trajectory_distance_input)
+        self.send_trajectory_btn = QPushButton("Start trajectory")
+        self.send_trajectory_btn.clicked.connect(self._send_trajectory)
+        trajectory_layout.addWidget(self.send_trajectory_btn)
+        ctrl_actions_layout.addLayout(trajectory_layout)
+
         self.drive_widget = QWidget()
         drive_layout = QVBoxLayout(self.drive_widget)
         drive_layout.setContentsMargins(0, 0, 0, 0)
@@ -124,10 +144,11 @@ class RightPanelWidget(QWidget):
 
         drive_layout.addLayout(controls_layout)
 
-        # Ekran podglądu z kamery
         self.video_label = QLabel("Camera feed disabled")
         self.video_label.setMinimumSize(320, 240)
-        self.video_label.setStyleSheet("background-color: black; color: white; border: 1px solid #444;")
+        self.video_label.setStyleSheet(
+            "background-color: black; color: white; border: 1px solid #444;"
+        )
         self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         drive_layout.addWidget(self.video_label)
 
@@ -135,18 +156,20 @@ class RightPanelWidget(QWidget):
 
         panel_layout.addWidget(ctrl_actions_group)
 
-        pid_group = self.__create_pid_tuning_group()
+        pid_group = self.__create_pid_tuning_group(num_validator)
         panel_layout.addWidget(pid_group)
 
         pg.setConfigOption("background", "#1e1e1e")
         pg.setConfigOption("foreground", "#dcdcdc")
 
-        self.bal_plot = pg.PlotWidget(title="Balance Angle")
-        self.bal_plot.setLabel("left", "Angle [deg]")
-        self.bal_plot.addLegend()
-        self.curve_bs = self.bal_plot.plot(pen=pg.mkPen("c", width=2), name="Reference")
-        self.curve_ab = self.bal_plot.plot(pen=pg.mkPen("m", width=2), name="Actual")
-        panel_layout.addWidget(self.bal_plot)
+        self.dist_plot = pg.PlotWidget(title="Distance")
+        self.dist_plot.setLabel("left", "Distance [m]")
+        self.dist_plot.addLegend()
+        self.curve_ds = self.dist_plot.plot(
+            pen=pg.mkPen("c", width=2), name="Reference"
+        )
+        self.curve_dm = self.dist_plot.plot(pen=pg.mkPen("m", width=2), name="Actual")
+        panel_layout.addWidget(self.dist_plot)
 
         self.rot_plot = pg.PlotWidget(title="Rotation Angle")
         self.rot_plot.setLabel("left", "Angle [deg]")
@@ -154,6 +177,13 @@ class RightPanelWidget(QWidget):
         self.curve_rs = self.rot_plot.plot(pen=pg.mkPen("g", width=2), name="Reference")
         self.curve_ar = self.rot_plot.plot(pen=pg.mkPen("y", width=2), name="Actual")
         panel_layout.addWidget(self.rot_plot)
+
+        self.bal_plot = pg.PlotWidget(title="Balance Angle")
+        self.bal_plot.setLabel("left", "Angle [deg]")
+        self.bal_plot.addLegend()
+        self.curve_bs = self.bal_plot.plot(pen=pg.mkPen("c", width=2), name="Reference")
+        self.curve_ab = self.bal_plot.plot(pen=pg.mkPen("m", width=2), name="Actual")
+        panel_layout.addWidget(self.bal_plot)
 
         self.pwm_plot = pg.PlotWidget(title="Wheel PWMs")
         self.pwm_plot.setLabel("left", "PWM")
@@ -165,7 +195,7 @@ class RightPanelWidget(QWidget):
 
         right_layout.addWidget(self.main_group)
 
-    def __create_pid_tuning_group(self):
+    def __create_pid_tuning_group(self, validator) -> QGroupBox:
         pid_group = QGroupBox("Control loop parameters")
         pid_layout = QVBoxLayout(pid_group)
 
@@ -191,17 +221,14 @@ class RightPanelWidget(QWidget):
             ("wheel_speed", "Wheel Speed PID"),
         ]
 
-        pid_validator = QDoubleValidator(-10000.0, 10000.0, 6)
-        pid_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
-
         for row, (key, label_text) in enumerate(controllers, start=1):
             grid.addWidget(QLabel(label_text), row, 0)
             kp_input = QLineEdit("0.0")
-            kp_input.setValidator(pid_validator)
+            kp_input.setValidator(validator)
             ki_input = QLineEdit("0.0")
-            ki_input.setValidator(pid_validator)
+            ki_input.setValidator(validator)
             kd_input = QLineEdit("0.0")
-            kd_input.setValidator(pid_validator)
+            kd_input.setValidator(validator)
 
             set_btn = QPushButton(f"Set {label_text}")
             set_btn.clicked.connect(lambda _, k=key: self._send_pid_parameters(k))
@@ -220,7 +247,10 @@ class RightPanelWidget(QWidget):
         """Aktualizuje podgląd wideo w interfejsie."""
         if self.isVisible() and self.drive_widget.isVisible():
             pixmap = QPixmap.fromImage(image).scaled(
-                400, 300, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                400,
+                300,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
             )
             self.video_label.setPixmap(pixmap)
 
@@ -310,6 +340,27 @@ class RightPanelWidget(QWidget):
     def _get_pid_parameters(self):
         self.send_command_requested.emit(ble_protocol.get_pid_state_command())
 
+    def _send_trajectory(self):
+        try:
+            rotation = float(
+                self.trajectory_rotation_input.text().strip().replace(",", ".")
+            )
+            distance = float(
+                self.trajectory_distance_input.text().strip().replace(",", ".")
+            )
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Invalid Input",
+                "Trajectory rotation and distance must be valid numbers.",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+
+        self.send_command_requested.emit(
+            ble_protocol.trajectory_command(rotation, distance)
+        )
+
     def _send_pid_parameters(self, controller_key):
         inputs = self.pid_inputs.get(controller_key)
         if not inputs:
@@ -359,18 +410,37 @@ class RightPanelWidget(QWidget):
         self.sample_idx += 1
         self.plot_time.append(self.sample_idx)
 
-        self.bs_buf.append(data["bs"])
-        self.ab_buf.append(data["ab"])
-        self.rs_buf.append(data["rs"])
-        self.ar_buf.append(data["ar"])
-        self.pwm0_buf.append(data["pwm0"])
-        self.pwm1_buf.append(data["pwm1"])
+        if "ds" in data:
+            self.ds_buf.append(data["ds"])
+        if "dm" in data:
+            self.dm_buf.append(data["dm"])
+        if "bs" in data:
+            self.bs_buf.append(data["bs"])
+        if "ab" in data:
+            self.ab_buf.append(data["ab"])
+        if "rs" in data:
+            self.rs_buf.append(data["rs"])
+        if "ar" in data:
+            self.ar_buf.append(data["ar"])
+        if "pwm0" in data:
+            self.pwm0_buf.append(data["pwm0"])
+        if "pwm1" in data:
+            self.pwm1_buf.append(data["pwm1"])
 
         t_data = list(self.plot_time)
-        self.curve_bs.setData(t_data, list(self.bs_buf))
-        self.curve_ab.setData(t_data, list(self.ab_buf))
-        self.curve_rs.setData(t_data, list(self.rs_buf))
-        self.curve_ar.setData(t_data, list(self.ar_buf))
-        self.curve_pwm0.setData(t_data, list(self.pwm0_buf))
-        self.curve_pwm1.setData(t_data, list(self.pwm1_buf))
-    
+        if self.ds_buf:
+            self.curve_ds.setData(t_data, list(self.ds_buf))
+        if self.dm_buf:
+            self.curve_dm.setData(t_data, list(self.dm_buf))
+        if self.bs_buf:
+            self.curve_bs.setData(t_data, list(self.bs_buf))
+        if self.ab_buf:
+            self.curve_ab.setData(t_data, list(self.ab_buf))
+        if self.rs_buf:
+            self.curve_rs.setData(t_data, list(self.rs_buf))
+        if self.ar_buf:
+            self.curve_ar.setData(t_data, list(self.ar_buf))
+        if self.pwm0_buf:
+            self.curve_pwm0.setData(t_data, list(self.pwm0_buf))
+        if self.pwm1_buf:
+            self.curve_pwm1.setData(t_data, list(self.pwm1_buf))

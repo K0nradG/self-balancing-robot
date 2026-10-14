@@ -1,6 +1,7 @@
 // Copyright 2026 Filip Dymczyk and Konrad Grucel
 
 #include "data_manager.h"
+#include "proximity_sensor.h"
 
 namespace Robot_Control
 {
@@ -19,9 +20,10 @@ DataManager::update()
     m_encoders_data  = _get_encoders_data();
     m_rotation_angle = alpha_rotation * (m_rotation_angle + m_imu_data.angle_rotation_dt * m_imu_data.time_dt) +
                        (1.0f - alpha_rotation) * m_encoders_data.robot_angle_rad;
+    m_proximity_m = _get_proximity_m();
 }
 
-imu_data
+imu_data const
 DataManager::get_imu_data() const
 {
     return m_imu_data;
@@ -37,6 +39,12 @@ float
 DataManager::get_rotation_angle() const
 {
     return m_rotation_angle;
+}
+
+float
+DataManager::get_proximity_m() const
+{
+    return m_proximity_m;
 }
 
 void

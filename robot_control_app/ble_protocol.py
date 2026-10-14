@@ -26,6 +26,7 @@ class MessageType(IntEnum):
     GET_PID_STATE = 0x22
     SET_PID = 0x23
     SET_SETPOINT = 0x24
+    TRAJECTORY_COMMAND = 0x25
     SET_LQR = 0x27
     DRIVE_COMMAND = 0x28
     SET_MODE = 0x29
@@ -238,6 +239,16 @@ def set_setpoint_command(
     return pack_packet(
         MessageType.SET_SETPOINT,
         PayloadWriter().put_u8(controller).put_float(value).to_bytes(),
+        packet_number=packet_number,
+    )
+
+
+def trajectory_command(
+    rotation_degrees: float, distance_m: float, packet_number: int = 0
+) -> bytes:
+    return pack_packet(
+        MessageType.TRAJECTORY_COMMAND,
+        PayloadWriter().put_float(rotation_degrees).put_float(distance_m).to_bytes(),
         packet_number=packet_number,
     )
 

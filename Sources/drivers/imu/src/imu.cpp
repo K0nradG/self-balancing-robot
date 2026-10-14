@@ -2,7 +2,7 @@
 
 #include "imu.h"
 #include <zephyr/init.h>
-#include "control_loop.h"
+#include "control_task.h"
 #include "imu_config.h"
 #include "logger.h"
 
@@ -212,7 +212,7 @@ process_imu(device const* dev)
     if(ret != 0)
     {
         imu_logger.platform_log(LOG_LEVEL::ERR, "imu processing failed");
-        Robot_Control::stop_control_loop();
+        Robot_Control::stop_control_task();
         return -ENODEV;
     }
 
@@ -220,7 +220,7 @@ process_imu(device const* dev)
     calibrate_gyro(gyro_data);
 #else
     s_imu_data = get_data(accelerometer_data, gyro_data, &temperature);
-    Robot_Control::trigger_control_loop();
+    Robot_Control::trigger_control_task();
 #endif  // CONFIG_IMU_CALIBRATE_GYRO
 
     return ret;

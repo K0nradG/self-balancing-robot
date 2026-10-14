@@ -38,7 +38,7 @@ class RobotControlApp(QMainWindow):
 
         self.pressed_keys = set()
         self.keyboard_control_enabled = False
-        
+
         self.self_drive_enabled = False
         self.self_drive_angular = 0.0
         self.self_drive_linear = 0.0
@@ -87,12 +87,20 @@ class RobotControlApp(QMainWindow):
         self.right_panel.ai_control_toggled.connect(self.set_self_drive_control)
 
         self.ble_worker.connected_signal.connect(self.update_connection_status)
-        self.ble_worker.data_received_signal.connect(self.left_panel.display_received_data)
+        self.ble_worker.data_received_signal.connect(
+            self.left_panel.display_received_data
+        )
         self.ble_worker.battery_signal.connect(self.left_panel.update_battery_status)
         self.ble_worker.log_signal.connect(self.left_panel.log_message)
-        self.ble_worker.telemetry_signal.connect(self.right_panel.update_telemetry_plots)
-        self.ble_worker.pid_params_signal.connect(self.right_panel.update_pid_parameters)
-        self.ble_worker.lqr_params_signal.connect(self.right_panel.update_lqr_parameters)
+        self.ble_worker.telemetry_signal.connect(
+            self.right_panel.update_telemetry_plots
+        )
+        self.ble_worker.pid_params_signal.connect(
+            self.right_panel.update_pid_parameters
+        )
+        self.ble_worker.lqr_params_signal.connect(
+            self.right_panel.update_lqr_parameters
+        )
         self.ble_worker.command_result_signal.connect(self.handle_command_result)
         self.ble_worker.app_version_signal.connect(
             lambda version: self.left_panel.log_message(
@@ -141,10 +149,12 @@ class RobotControlApp(QMainWindow):
 
     def _launch_dfu(self, target_name: str):
         if self.is_connected:
-            self.left_panel.log_message(">> Disconnecting active BLE session for DFU process...")
+            self.left_panel.log_message(
+                ">> Disconnecting active BLE session for DFU process..."
+            )
             self.ble_worker.disconnect_device()
             QThread.msleep(500)
-            
+
         self.left_panel.set_dfu_running_state()
         self.left_panel.log_message(">> Starting DFU worker thread...")
 
@@ -166,7 +176,7 @@ class RobotControlApp(QMainWindow):
 
         pending_action = self._pending_dfu_action
         self._pending_dfu_action = None
-        
+
         if status != ble_protocol.CommandStatus.OK:
             self.left_panel.update_connection_status(
                 self.is_connected, self.ble_worker.target_address or "", False
@@ -187,10 +197,14 @@ class RobotControlApp(QMainWindow):
 
     def _on_dfu_finished(self, return_code: int, message: str):
         if return_code == 0:
-            self.left_panel.log_message(f"<font color='green'><b>DFU Success:</b> {message}</font>")
+            self.left_panel.log_message(
+                f"<font color='green'><b>DFU Success:</b> {message}</font>"
+            )
         else:
-            self.left_panel.log_message(f"<font color='red'><b>DFU Failed (Code {return_code}):</b> {message}</font>")
-            
+            self.left_panel.log_message(
+                f"<font color='red'><b>DFU Failed (Code {return_code}):</b> {message}</font>"
+            )
+
         self.left_panel.log_message("Connection can be restored")
         self.dfu_skipped = False
         self.update_connection_status(False, "")
@@ -209,7 +223,9 @@ class RobotControlApp(QMainWindow):
             self.self_drive_controller.reset()
             self.camera_worker = CameraWorker()
             self.camera_worker.frame_signal.connect(self.right_panel.update_camera_feed)
-            self.camera_worker.line_tracking_signal.connect(self._process_self_drive_perception)
+            self.camera_worker.line_tracking_signal.connect(
+                self._process_self_drive_perception
+            )
             self.camera_worker.start()
             self.left_panel.log_message(">> Autonomous self drive mode started.")
         else:
@@ -243,7 +259,9 @@ class RobotControlApp(QMainWindow):
             return
 
         if self.self_drive_enabled:
-            cmd = ble_protocol.drive_command(self.self_drive_angular, self.self_drive_linear)
+            cmd = ble_protocol.drive_command(
+                self.self_drive_angular, self.self_drive_linear
+            )
             self.send_command(cmd)
             return
 
@@ -289,7 +307,12 @@ class RobotControlApp(QMainWindow):
             super().keyPressEvent(event)
             return
 
-        if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Left, Qt.Key.Key_Right):
+        if event.key() in (
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+        ):
             self.pressed_keys.add(event.key())
             self._send_current_drive_command()
         else:
@@ -300,7 +323,12 @@ class RobotControlApp(QMainWindow):
             super().keyReleaseEvent(event)
             return
 
-        if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Left, Qt.Key.Key_Right):
+        if event.key() in (
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+        ):
             self.pressed_keys.discard(event.key())
             self._send_current_drive_command()
         else:

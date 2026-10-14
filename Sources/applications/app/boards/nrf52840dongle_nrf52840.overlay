@@ -8,9 +8,7 @@
     chosen {
         zephyr_console = &uart0;
     };
-
 };
-
 
 &adc {
     status = "okay";
@@ -30,17 +28,22 @@
 
 &gpio0 {
     status = "okay";
+
     a_in_pins {
         compatible = "gpio-keys";
+
         a_in1: a_in1 {
             gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
         };
+
         a_in2: a_in2 {
             gpios = <&gpio0 24 GPIO_ACTIVE_HIGH>;
         };
     };
-    b_in_pins{
+
+    b_in_pins {
         compatible = "gpio-keys";
+
         b_in2: b_in2 {
             gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
         };
@@ -49,8 +52,10 @@
 
 &gpio1 {
     status = "okay";
-    b_in_pins{
+
+    b_in_pins {
         compatible = "gpio-keys";
+
         b_in1: b_in1 {
             gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
         };
@@ -159,7 +164,6 @@
     };
 };
 
-
 &uart0 {
     compatible = "nordic,nrf-uart";
     status = "okay";
@@ -170,7 +174,6 @@
     pinctrl-names = "default", "sleep";
     disable-rx;
 };
-
 
 &i2c0 {
     status = "okay";
@@ -183,5 +186,12 @@
         reg = <0x68>;
         status = "okay";
         int-gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+    };
+
+    vl53l0x@29 {
+        compatible = "st,vl53l0x";
+        reg = <0x29>;
+        status = "okay";
+        /* xshut-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>; */ /* Optional: Uncomment if connected */
     };
 };

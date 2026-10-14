@@ -1,5 +1,7 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
+# This is the BLE worker implementation that runs in a separate thread and handles BLE operations over NUS.
+
 import asyncio
 import logging
 import time
@@ -27,6 +29,7 @@ class BLEWorker(QThread):
     lqr_params_signal = pyqtSignal(dict)
     log_signal = pyqtSignal(str)
     app_version_signal = pyqtSignal(dict)
+    trajectory_complete_signal = pyqtSignal()
     command_result_signal = pyqtSignal(dict)
 
     def __init__(self):
@@ -216,11 +219,6 @@ class BLEWorker(QThread):
             parsed: ParsedData = self.data_processor.process_packet(packet)
 
             if parsed.telemetry_samples:
-                if self.enable_logs:
-                    self.data_received_signal.emit(
-                        f"TELEMETRY packet {packet.packet_number}: "
-                        f"{len(parsed.telemetry_samples)} samples"
-                    )
                 now = time.monotonic()
                 if (
                     parsed.telemetry is not None
@@ -251,6 +249,8 @@ class BLEWorker(QThread):
                 self.pid_params_signal.emit(parsed.pid_params)
             if parsed.lqr_params is not None:
                 self.lqr_params_signal.emit(parsed.lqr_params)
+            if parsed.trajectory_complete:
+                self.trajectory_complete_signal.emit()
             if parsed.command_result is not None:
                 result = parsed.command_result
                 self.command_result_signal.emit(

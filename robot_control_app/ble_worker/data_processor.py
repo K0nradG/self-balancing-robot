@@ -9,17 +9,10 @@ from dataclasses import dataclass, field
 
 from robot_control_app import ble_protocol
 
-TELEMETRY_HEADER = struct.Struct("<IB3s")
-TELEMETRY_SAMPLE = struct.Struct("<I10f")
-TELEMETRY_SAMPLES_PER_FRAME = 5
-LOG_HEADER = struct.Struct("<BBH")
-BATTERY_STATUS = struct.Struct("<HBB")
-APP_VERSION = struct.Struct("<BBBBI")
-PID_STATE = struct.Struct("<15f")
-LQR_STATE = struct.Struct("<ff")
-COMMAND_RESULT = struct.Struct("<IBB")
 TELEMETRY_KEYS = (
     "timestamp_us",
+    "ds",
+    "dm",
     "bs",
     "ab",
     "rs",
@@ -31,6 +24,19 @@ TELEMETRY_KEYS = (
     "pwm0",
     "pwm1",
 )
+
+NUM_FLOATS_TELEMETRY = len(TELEMETRY_KEYS) - 1
+
+TELEMETRY_SAMPLES_PER_FRAME = 4
+TELEMETRY_HEADER = struct.Struct("<IB3s")
+TELEMETRY_SAMPLE = struct.Struct(f"<I{NUM_FLOATS_TELEMETRY}f")
+
+LOG_HEADER = struct.Struct("<BBH")
+BATTERY_STATUS = struct.Struct("<HBB")
+APP_VERSION = struct.Struct("<BBBBI")
+PID_STATE = struct.Struct("<15f")
+LQR_STATE = struct.Struct("<ff")
+COMMAND_RESULT = struct.Struct("<IBB")
 
 logger = logging.getLogger("DataProcessor")
 
@@ -72,6 +78,7 @@ class ParsedData:
     app_version: AppVersion | None = None
     pid_params: dict | None = None
     lqr_params: dict | None = None
+    trajectory_complete: bool = False
     command_result: CommandResult | None = None
 
 
@@ -98,6 +105,7 @@ class DataProcessor:
             ble_protocol.MessageType.BATTERY_STATUS: self._parse_battery,
             ble_protocol.MessageType.APP_VERSION: self._parse_app_version,
             ble_protocol.MessageType.PID_STATE: self._parse_pid_state,
+            ble_protocol.MessageType.TRAJECTORY_COMPLETE: self._parse_trajectory_complete,
             ble_protocol.MessageType.LQR_STATE: self._parse_lqr_state,
             ble_protocol.MessageType.COMMAND_RESULT: self._parse_command_result,
         }
@@ -138,7 +146,7 @@ class DataProcessor:
         samples = []
         for _ in range(sample_count):
             values = [reader.get_u32()]
-            values.extend(reader.get_float() for _ in range(10))
+            values.extend(reader.get_float() for _ in range(NUM_FLOATS_TELEMETRY))
             sample = dict(zip(TELEMETRY_KEYS, values))
             sample["packet_number"] = packet.packet_number
             sample["dropped_samples"] = dropped_samples
@@ -218,6 +226,11 @@ class DataProcessor:
         ky = reader.get_float()
         reader.finish()
         return ParsedData(lqr_params={"kx": kx, "ky": ky})
+    
+    def _parse_trajectory_complete(self, packet: ble_protocol.Packet) -> ParsedData:
+        if packet.payload:
+            raise ValueError(f"Invalid trajectory complete payload size: expected 0")
+        return ParsedData(trajectory_complete=True)
 
     def _parse_command_result(self, packet: ble_protocol.Packet) -> ParsedData:
         reader = ble_protocol.PayloadReader(packet.payload)
@@ -240,7 +253,7 @@ class DataProcessor:
                 request_packet_number, typed_request, typed_status
             )
         )
-
+        
     def close_recording(self):
         if self.csv_file:
             self.csv_file.flush()

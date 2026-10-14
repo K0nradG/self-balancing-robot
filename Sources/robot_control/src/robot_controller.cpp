@@ -241,7 +241,7 @@ Robot_Controller::set_setpoints(BLE_Protocol::Payload_Reader& reader)
             }
             else
             {
-                m_distance_setpoint = value;
+                m_distance_setpoint += value;
             }
             break;
         }
@@ -258,7 +258,7 @@ Robot_Controller::set_setpoints(BLE_Protocol::Payload_Reader& reader)
             }
             else
             {
-                m_rotate_setpoint_ramp.set_target(value * DEGREES_TO_RADIANS);
+                m_rotate_setpoint_ramp.set_target(m_rotate_setpoint_ramp.get_target() + value * DEGREES_TO_RADIANS);
             }
             break;
         }

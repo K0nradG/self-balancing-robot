@@ -1,3 +1,7 @@
+# Copyright 2026 Filip Dymczyk and Konrad Grucel
+
+# Right panel widget handling robot control, control loop parameters and telemetry data plotting
+
 from robot_control_app import ble_protocol
 from PyQt6.QtWidgets import (
     QWidget,
@@ -12,10 +16,10 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QCheckBox,
 )
-from PyQt6.QtCore import pyqtSignal, QRegularExpression
+from PyQt6.QtCore import pyqtSignal, QRegularExpression, Qt
 from collections import deque
 import pyqtgraph as pg
-from PyQt6.QtGui import QRegularExpressionValidator
+from PyQt6.QtGui import QRegularExpressionValidator, QPixmap, QImage
 
 MAX_PLOT_POINTS = 200
 
@@ -31,6 +35,7 @@ CONTROLLER_MAP = {
 class RightPanelWidget(QWidget):
     send_command_requested = pyqtSignal(bytes)
     keyboard_control_toggled = pyqtSignal(bool)
+    ai_control_toggled = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -126,9 +131,27 @@ class RightPanelWidget(QWidget):
         self.drive_widget = QWidget()
         drive_layout = QVBoxLayout(self.drive_widget)
         drive_layout.setContentsMargins(0, 0, 0, 0)
+
+        controls_layout = QHBoxLayout()
+
         self.kb_control_cb = QCheckBox("Enable Keyboard Control (Arrows)")
         self.kb_control_cb.toggled.connect(self.keyboard_control_toggled.emit)
-        drive_layout.addWidget(self.kb_control_cb)
+        controls_layout.addWidget(self.kb_control_cb)
+
+        self.ai_control_cb = QCheckBox("Enable Autonomous Control")
+        self.ai_control_cb.toggled.connect(self.ai_control_toggled.emit)
+        controls_layout.addWidget(self.ai_control_cb)
+
+        drive_layout.addLayout(controls_layout)
+
+        self.video_label = QLabel("Camera feed disabled")
+        self.video_label.setMinimumSize(320, 240)
+        self.video_label.setStyleSheet(
+            "background-color: black; color: white; border: 1px solid #444;"
+        )
+        self.video_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        drive_layout.addWidget(self.video_label)
+
         ctrl_actions_layout.addWidget(self.drive_widget)
 
         panel_layout.addWidget(ctrl_actions_group)
@@ -219,6 +242,17 @@ class RightPanelWidget(QWidget):
 
         pid_layout.addLayout(grid)
         return pid_group
+
+    def update_camera_feed(self, image: QImage):
+        """Aktualizuje podgląd wideo w interfejsie."""
+        if self.isVisible() and self.drive_widget.isVisible():
+            pixmap = QPixmap.fromImage(image).scaled(
+                400,
+                300,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self.video_label.setPixmap(pixmap)
 
     def _on_mode_changed(self, index):
         new_mode = self.mode_combo.itemData(index)

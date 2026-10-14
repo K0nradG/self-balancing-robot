@@ -10,11 +10,10 @@ from bleak import BleakClient, BleakScanner
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from robot_control_app import ble_protocol
-
 from .data_processor import DataProcessor, ParsedData
 
-NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"  # Host -> Robot
-NUS_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"  # Robot -> Host
+NUS_RX_CHAR_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"
+NUS_TX_CHAR_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"
 PLOT_UPDATE_PERIOD_S = 0.02
 
 logging.basicConfig(level=logging.INFO)
@@ -261,8 +260,6 @@ class BLEWorker(QThread):
                         "status": result.status,
                     }
                 )
-            if parsed.identification_complete:
-                self.log_signal.emit("Identification complete.")
 
         except ValueError as error:
             logger.warning("Rejected BLE notification: %s", error)

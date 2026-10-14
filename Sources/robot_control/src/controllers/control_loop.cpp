@@ -36,12 +36,23 @@ Control_Loop::Control_Loop()
 {}
 
 Control_Loop::Output
-Control_Loop::update(Setpoints const& setpoints, Feedback const& feedback, float time_dt)
+Control_Loop::update(Setpoints const& setpoints, Feedback const& feedback, Targets const& targets, float time_dt)
 {
-#ifdef CONFIG_PID_ENABLED
-    float const target_linear_speed =
-        m_distance_pid.calculate_output(setpoints.distance, feedback.robot_distance_m, time_dt);
+    float target_linear_speed = 0.0f;
+    float target_speed_rotate = 0.0f;
 
+    if(m_current_mode == Control_Mode::FREE_DRIVE)
+    {
+        target_linear_speed = targets.target_linear_speed;
+        target_speed_rotate = targets.target_speed_rotate;
+    }
+    else  // Control_Mode::STANDARD
+    {
+        target_linear_speed = m_distance_pid.calculate_output(setpoints.distance, feedback.robot_distance_m, time_dt);
+        target_speed_rotate = m_rotate_pid.calculate_output(setpoints.rotate, feedback.rotation_angle, time_dt);
+    }
+
+#ifdef CONFIG_PID_ENABLED
     float const balance_angle_deviation =
         m_linear_speed_pid.calculate_output(target_linear_speed, feedback.robot_linear_speed, time_dt);
 
@@ -51,8 +62,6 @@ Control_Loop::update(Setpoints const& setpoints, Feedback const& feedback, float
     float const target_speed_balance =
         m_balance_lqr.calculate_output(feedback.angle_balance, feedback.angle_balance_dt);
 #endif  // CONFIG_PID_ENABLED
-
-    float const target_speed_rotate = m_rotate_pid.calculate_output(setpoints.rotate, feedback.rotation_angle, time_dt);
 
     static Saturation const target_wheel_speed_saturation {-max_speed_rad_s, max_speed_rad_s};
     float const target_speed0 = target_wheel_speed_saturation.saturate(target_speed_balance - target_speed_rotate);
@@ -98,6 +107,21 @@ Control_Loop::send_PID_controllers_parameters()
     lqr_writer.put_float(lqr_parameters.Ky);
     ble_send_packet(BLE_Protocol::Message_Type::LQR_STATE, lqr_writer);
 #endif
+}
+
+BLE_Protocol::Command_Status
+Control_Loop::set_control_mode(BLE_Protocol::Payload_Reader& reader)
+{
+    uint8_t mode_value {};
+
+    auto status = BLE_Protocol::Command_Status::OK;
+    if(!reader.get_u8(mode_value) || !reader.done())
+    {
+        status = BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+
+    m_current_mode = static_cast<Control_Loop::Control_Mode>(mode_value);
+    return status;
 }
 
 BLE_Protocol::Command_Status
@@ -177,6 +201,18 @@ Control_Loop::set_LQR_parameters(BLE_Protocol::Payload_Reader& reader)
     return BLE_Protocol::Command_Status::OK;
 }
 #endif  // not CONFIG_PID_ENABLED
+
+void
+Control_Loop::set_control_mode(Control_Mode mode)
+{
+    m_current_mode = mode;
+}
+
+Control_Loop::Control_Mode
+Control_Loop::get_control_mode() const
+{
+    return m_current_mode;
+}
 
 void
 Control_Loop::reset()

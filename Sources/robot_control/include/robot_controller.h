@@ -20,6 +20,9 @@ class Robot_Controller
     static constexpr float balance_setpoint     = -14.5f * (PI / RADIAN_IN_DEGREES);  // [rad]
     static constexpr float rotate_setpoint_rate = 180.0f * (PI / RADIAN_IN_DEGREES);  // [rad/s]
 
+    static constexpr float angular_speed_setpoint_ramp_rate = 1080.0f * (PI / RADIAN_IN_DEGREES);  // [rad/s^2]
+    static constexpr float linear_speed_setpoint_ramp_rate  = 0.5f;                                // [m/s^2]
+
 public:
     static Robot_Controller&
     instance()
@@ -43,6 +46,9 @@ public:
     reset();
 
     BLE_Protocol::Command_Status
+    set_drive_command(BLE_Protocol::Payload_Reader& reader);
+
+    BLE_Protocol::Command_Status
     set_setpoints(BLE_Protocol::Payload_Reader& reader);
 
     BLE_Protocol::Command_Status
@@ -59,10 +65,10 @@ private:
     float m_distance_setpoint;
     float m_balance_setpoint;
     Ramp m_rotate_setpoint_ramp;
+    Ramp m_angular_speed_setpoint_ramp;
+    Ramp m_linear_speed_setpoint_ramp;
 
     Trajectory_Manager m_trajectory_manager;
-
-    bool m_regulator_message_sending_in_progress;
 
     float m_pwm0 {};
     float m_pwm1 {};

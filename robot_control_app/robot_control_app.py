@@ -1,12 +1,10 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-# Robot Control application utilizing BLE NUS for communication with the self-balancing robot.
-
 import logging
 import time
 
-from PyQt6.QtCore import QThread
-
+from PyQt6.QtCore import QThread, pyqtSignal, QUrl, QTimer, Qt
+from PyQt6.QtGui import QImage
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QMainWindow,
@@ -37,6 +35,15 @@ class RobotControlApp(QMainWindow):
         self.dfu_thread = None
         self._pending_dfu_action = None
         self._pending_dfu_target = None
+
+        self.pressed_keys = set()
+        self.keyboard_control_enabled = False
+        self.configured_linear_speed = 2.0  # m/s
+        self.configured_angular_speed = 19.0  # rad/s
+
+        self.drive_timer = QTimer(self)
+        self.drive_timer.timeout.connect(self._send_current_drive_command)
+        self.drive_timer.start(100)
 
         # Start BLE Background Thread
         self.ble_worker = BLEWorker()
@@ -74,6 +81,7 @@ class RobotControlApp(QMainWindow):
 
         # Right panel signals connections
         self.right_panel.send_command_requested.connect(self.send_command)
+        self.right_panel.keyboard_control_toggled.connect(self.set_keyboard_control)
 
         # BLE worker signals connections
         self.ble_worker.connected_signal.connect(self.update_connection_status)
@@ -92,9 +100,6 @@ class RobotControlApp(QMainWindow):
             self.right_panel.update_lqr_parameters
         )
         self.ble_worker.command_result_signal.connect(self.handle_command_result)
-        self.ble_worker.trajectory_complete_signal.connect(
-            lambda: self.left_panel.log_message("Trajectory completed.")
-        )
         self.ble_worker.app_version_signal.connect(
             lambda version: self.left_panel.log_message(
                 "App version: "
@@ -223,3 +228,84 @@ class RobotControlApp(QMainWindow):
         self.ble_worker.quit()
         self.ble_worker.wait(1000)
         event.accept()
+
+    def set_keyboard_control(self, enabled: bool):
+        self.keyboard_control_enabled = enabled
+        if enabled:
+            self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            self.setFocus()
+        else:
+            self.pressed_keys.clear()
+            self._send_current_drive_command()
+
+    def _send_current_drive_command(self):
+        if not self.is_connected or not self.keyboard_control_enabled:
+            return
+
+        linear = 0.0
+        angular = 0.0
+
+        keys = self.pressed_keys
+
+        is_up = Qt.Key.Key_Up in keys or Qt.Key.Key_Up.value in keys
+        is_down = Qt.Key.Key_Down in keys or Qt.Key.Key_Down.value in keys
+        is_left = Qt.Key.Key_Left in keys or Qt.Key.Key_Left.value in keys
+        is_right = Qt.Key.Key_Right in keys or Qt.Key.Key_Right.value in keys
+
+        if is_up:
+            linear += self.configured_linear_speed
+        if is_down:
+            linear -= self.configured_linear_speed
+
+        if is_up:
+            if is_left:
+                angular -= self.configured_angular_speed
+            elif is_right:
+                angular += self.configured_angular_speed
+
+        elif is_down:
+            if is_left:
+                angular += self.configured_angular_speed
+            elif is_right:
+                angular -= self.configured_angular_speed
+
+        else:
+            if is_left:
+                angular -= self.configured_angular_speed
+            elif is_right:
+                angular += self.configured_angular_speed
+
+        cmd = ble_protocol.drive_command(angular, linear)
+        self.send_command(cmd)
+
+    def keyPressEvent(self, event):
+        if not self.keyboard_control_enabled or event.isAutoRepeat():
+            super().keyPressEvent(event)
+            return
+
+        if event.key() in (
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+        ):
+            self.pressed_keys.add(event.key())
+            self._send_current_drive_command()
+        else:
+            super().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        if not self.keyboard_control_enabled or event.isAutoRepeat():
+            super().keyReleaseEvent(event)
+            return
+
+        if event.key() in (
+            Qt.Key.Key_Up,
+            Qt.Key.Key_Down,
+            Qt.Key.Key_Left,
+            Qt.Key.Key_Right,
+        ):
+            self.pressed_keys.discard(event.key())
+            self._send_current_drive_command()
+        else:
+            super().keyReleaseEvent(event)

@@ -80,7 +80,6 @@ class ParsedData:
     lqr_params: dict | None = None
     trajectory_complete: bool = False
     command_result: CommandResult | None = None
-    identification_complete: bool = False
 
 
 class DataProcessor:
@@ -106,10 +105,9 @@ class DataProcessor:
             ble_protocol.MessageType.BATTERY_STATUS: self._parse_battery,
             ble_protocol.MessageType.APP_VERSION: self._parse_app_version,
             ble_protocol.MessageType.PID_STATE: self._parse_pid_state,
-            ble_protocol.MessageType.LQR_STATE: self._parse_lqr_state,
             ble_protocol.MessageType.TRAJECTORY_COMPLETE: self._parse_trajectory_complete,
+            ble_protocol.MessageType.LQR_STATE: self._parse_lqr_state,
             ble_protocol.MessageType.COMMAND_RESULT: self._parse_command_result,
-            ble_protocol.MessageType.IDENTIFICATION_COMPLETE: self._parse_identification_complete,
         }
         handler = handlers.get(packet.message_type)
         if handler is None:
@@ -230,7 +228,8 @@ class DataProcessor:
         return ParsedData(lqr_params={"kx": kx, "ky": ky})
 
     def _parse_trajectory_complete(self, packet: ble_protocol.Packet) -> ParsedData:
-        self._require_empty(packet.payload, "trajectory complete")
+        if packet.payload:
+            raise ValueError(f"Invalid trajectory complete payload size: expected 0")
         return ParsedData(trajectory_complete=True)
 
     def _parse_command_result(self, packet: ble_protocol.Packet) -> ParsedData:
@@ -254,15 +253,6 @@ class DataProcessor:
                 request_packet_number, typed_request, typed_status
             )
         )
-
-    def _parse_identification_complete(self, packet: ble_protocol.Packet) -> ParsedData:
-        self._require_empty(packet.payload, "identification complete")
-        return ParsedData(identification_complete=True)
-
-    @staticmethod
-    def _require_empty(payload: bytes, name: str):
-        if payload:
-            raise ValueError(f"Invalid {name} payload size: expected 0")
 
     def close_recording(self):
         if self.csv_file:

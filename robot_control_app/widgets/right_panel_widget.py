@@ -1,10 +1,4 @@
-# Copyright 2026 Filip Dymczyk and Konrad Grucel
-
-# Right panel widget handling robot control, control loop parameters and telemetry data plotting.
-
-
 from robot_control_app import ble_protocol
-
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -15,6 +9,8 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QGridLayout,
     QMessageBox,
+    QComboBox,
+    QCheckBox,
 )
 from PyQt6.QtCore import pyqtSignal, QRegularExpression
 from collections import deque
@@ -23,7 +19,7 @@ from PyQt6.QtGui import QRegularExpressionValidator
 
 MAX_PLOT_POINTS = 200
 
-PID_SET_COMMAND_MAP = {
+CONTROLLER_MAP = {
     "distance": ble_protocol.ControllerId.DISTANCE,
     "linear_speed": ble_protocol.ControllerId.LINEAR_SPEED,
     "balance": ble_protocol.ControllerId.BALANCE,
@@ -33,16 +29,16 @@ PID_SET_COMMAND_MAP = {
 
 
 class RightPanelWidget(QWidget):
-    """Handles Robot Control Actions, PID Parameter Tuning, and Real-time Telemetry Plots."""
-
     send_command_requested = pyqtSignal(bytes)
+    keyboard_control_toggled = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.pid_inputs = {}
         self.balance_uses_lqr = False
+        self.robot_running = False
+        self.current_mode = ble_protocol.ControlMode.STANDARD
 
-        # Telemetry plot buffers
         self.plot_time = deque(maxlen=MAX_PLOT_POINTS)
         self.ds_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.dm_buf = deque(maxlen=MAX_PLOT_POINTS)
@@ -55,29 +51,30 @@ class RightPanelWidget(QWidget):
         self.sample_idx = 0
 
         self.__init_ui()
+        self._update_mode_visibility()
 
     def __init_ui(self):
         self.main_group = QGroupBox("Robot Control Panel")
         right_layout = QVBoxLayout(self)
-
         panel_layout = QVBoxLayout(self.main_group)
 
         ctrl_actions_group = QGroupBox("Control Actions")
         ctrl_actions_layout = QVBoxLayout(ctrl_actions_group)
 
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel("<b>Control Mode:</b>"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItem("Standard", ble_protocol.ControlMode.STANDARD)
+        self.mode_combo.addItem("Free Drive", ble_protocol.ControlMode.FREE_DRIVE)
+        self.mode_combo.currentIndexChanged.connect(self._on_mode_changed)
+        mode_layout.addWidget(self.mode_combo)
+        ctrl_actions_layout.addLayout(mode_layout)
+
         btn_layout = QHBoxLayout()
         self.start_control_btn = QPushButton("Start Control")
-        self.start_control_btn.clicked.connect(
-            lambda: self.send_command_requested.emit(
-                ble_protocol.state_command(ble_protocol.StateAction.START)
-            )
-        )
+        self.start_control_btn.clicked.connect(self._on_start_clicked)
         self.stop_control_btn = QPushButton("Stop Control")
-        self.stop_control_btn.clicked.connect(
-            lambda: self.send_command_requested.emit(
-                ble_protocol.state_command(ble_protocol.StateAction.STOP)
-            )
-        )
+        self.stop_control_btn.clicked.connect(self._on_stop_clicked)
         btn_layout.addWidget(self.start_control_btn)
         btn_layout.addWidget(self.stop_control_btn)
         ctrl_actions_layout.addLayout(btn_layout)
@@ -86,30 +83,31 @@ class RightPanelWidget(QWidget):
         float_regex = QRegularExpression(r"^-?\d*\.?\d*$")
         num_validator = QRegularExpressionValidator(float_regex)
 
-        # Distance setpoint
+        self.standard_widget = QWidget()
+        std_layout = QVBoxLayout(self.standard_widget)
+        std_layout.setContentsMargins(0, 0, 0, 0)
+
         dist_layout = QHBoxLayout()
         dist_layout.addWidget(QLabel("Distance Reference [m]:"))
         self.dist_ref_input = QLineEdit("0.0")
         self.dist_ref_input.setValidator(num_validator)
         dist_layout.addWidget(self.dist_ref_input)
-
         self.send_dist_btn = QPushButton("Set distance setpoint")
         self.send_dist_btn.clicked.connect(self._send_dist_setpoint)
         dist_layout.addWidget(self.send_dist_btn)
-        ctrl_actions_layout.addLayout(dist_layout)
+        std_layout.addLayout(dist_layout)
 
-        # Rotation setpoint
         rot_layout = QHBoxLayout()
         rot_layout.addWidget(QLabel("Rotation Angle Reference [deg]:"))
         self.rot_ref_input = QLineEdit("0.0")
         self.rot_ref_input.setValidator(num_validator)
         rot_layout.addWidget(self.rot_ref_input)
-
         self.send_rot_btn = QPushButton("Set rotation angle setpoint")
         self.send_rot_btn.clicked.connect(self._send_rot_setpoint)
         rot_layout.addWidget(self.send_rot_btn)
+        std_layout.addLayout(rot_layout)
 
-        ctrl_actions_layout.addLayout(rot_layout)
+        ctrl_actions_layout.addWidget(self.standard_widget)
 
         trajectory_layout = QHBoxLayout()
         trajectory_layout.addWidget(QLabel("Trajectory rotation [deg]:"))
@@ -124,6 +122,14 @@ class RightPanelWidget(QWidget):
         self.send_trajectory_btn.clicked.connect(self._send_trajectory)
         trajectory_layout.addWidget(self.send_trajectory_btn)
         ctrl_actions_layout.addLayout(trajectory_layout)
+
+        self.drive_widget = QWidget()
+        drive_layout = QVBoxLayout(self.drive_widget)
+        drive_layout.setContentsMargins(0, 0, 0, 0)
+        self.kb_control_cb = QCheckBox("Enable Keyboard Control (Arrows)")
+        self.kb_control_cb.toggled.connect(self.keyboard_control_toggled.emit)
+        drive_layout.addWidget(self.kb_control_cb)
+        ctrl_actions_layout.addWidget(self.drive_widget)
 
         panel_layout.addWidget(ctrl_actions_group)
 
@@ -194,7 +200,6 @@ class RightPanelWidget(QWidget):
 
         for row, (key, label_text) in enumerate(controllers, start=1):
             grid.addWidget(QLabel(label_text), row, 0)
-
             kp_input = QLineEdit("0.0")
             kp_input.setValidator(validator)
             ki_input = QLineEdit("0.0")
@@ -214,6 +219,55 @@ class RightPanelWidget(QWidget):
 
         pid_layout.addLayout(grid)
         return pid_group
+
+    def _on_mode_changed(self, index):
+        new_mode = self.mode_combo.itemData(index)
+        if new_mode == self.current_mode:
+            return
+
+        if self.robot_running:
+            QMessageBox.warning(
+                self,
+                "Cannot change mode",
+                "Stop the robot before changing control mode.",
+                QMessageBox.StandardButton.Ok,
+            )
+            self.mode_combo.blockSignals(True)
+            self.mode_combo.setCurrentIndex(self.mode_combo.findData(self.current_mode))
+            self.mode_combo.blockSignals(False)
+            return
+
+        self.current_mode = new_mode
+        self._update_mode_visibility()
+
+        if new_mode == ble_protocol.ControlMode.STANDARD:
+            self.send_command_requested.emit(
+                ble_protocol.set_mode_command(ble_protocol.ControlMode.STANDARD)
+            )
+        elif new_mode == ble_protocol.ControlMode.FREE_DRIVE:
+            self.send_command_requested.emit(
+                ble_protocol.set_mode_command(ble_protocol.ControlMode.FREE_DRIVE)
+            )
+
+    def _update_mode_visibility(self):
+        is_standard = self.current_mode == ble_protocol.ControlMode.STANDARD
+        self.standard_widget.setVisible(is_standard)
+        self.drive_widget.setVisible(not is_standard)
+        self.rot_plot.setVisible(is_standard)
+
+    def _on_start_clicked(self):
+        self.robot_running = True
+        self.mode_combo.setEnabled(False)
+        self.send_command_requested.emit(
+            ble_protocol.state_command(ble_protocol.StateAction.START)
+        )
+
+    def _on_stop_clicked(self):
+        self.robot_running = False
+        self.mode_combo.setEnabled(True)
+        self.send_command_requested.emit(
+            ble_protocol.state_command(ble_protocol.StateAction.STOP)
+        )
 
     def _send_dist_setpoint(self):
         dist_str = self.dist_ref_input.text().strip().replace(",", ".")
@@ -273,11 +327,10 @@ class RightPanelWidget(QWidget):
             ble_protocol.trajectory_command(rotation, distance)
         )
 
-    def _send_pid_parameters(self, controller_key: str):
+    def _send_pid_parameters(self, controller_key):
         inputs = self.pid_inputs.get(controller_key)
         if not inputs:
             return
-
         try:
             kp = float(inputs["kp"].text().strip().replace(",", "."))
             ki = float(inputs["ki"].text().strip().replace(",", "."))
@@ -291,26 +344,24 @@ class RightPanelWidget(QWidget):
             )
             return
 
-        self.send_command_requested.emit(
-            ble_protocol.set_lqr_command(kp, ki)
-            if controller_key == "balance" and self.balance_uses_lqr
-            else ble_protocol.set_pid_command(
-                PID_SET_COMMAND_MAP[controller_key], kp, ki, kd
+        if controller_key == "balance" and self.balance_uses_lqr:
+            self.send_command_requested.emit(ble_protocol.set_lqr_command(kp, ki))
+        else:
+            controller_id = CONTROLLER_MAP[controller_key]
+            self.send_command_requested.emit(
+                ble_protocol.set_pid_command(controller_id, kp, ki, kd)
             )
-        )
 
-    def update_pid_parameters(self, pid_data: dict):
-
+    def update_pid_parameters(self, pid_data):
         if not self.isEnabled():
             return
-
         for ctrl_key, params in pid_data.items():
             if ctrl_key in self.pid_inputs:
                 self.pid_inputs[ctrl_key]["kp"].setText(f"{params['kp']:.4f}")
                 self.pid_inputs[ctrl_key]["ki"].setText(f"{params['ki']:.4f}")
                 self.pid_inputs[ctrl_key]["kd"].setText(f"{params['kd']:.4f}")
 
-    def update_lqr_parameters(self, lqr_data: dict):
+    def update_lqr_parameters(self, lqr_data):
         self.balance_uses_lqr = True
         inputs = self.pid_inputs["balance"]
         inputs["kp"].setText(f"{lqr_data['kx']:.4f}")
@@ -318,8 +369,7 @@ class RightPanelWidget(QWidget):
         inputs["kd"].setText("0.0000")
         inputs["kd"].setEnabled(False)
 
-    def update_telemetry_plots(self, data: dict):
-
+    def update_telemetry_plots(self, data):
         if not self.isEnabled():
             return
 

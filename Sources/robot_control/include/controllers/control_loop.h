@@ -21,20 +21,20 @@ class Control_Loop
     static constexpr float max_linear_speed                  = 0.5f;  // [m/s]
     static constexpr float distance_pid_hysteresis           = 0.01f;
 
-    static constexpr PID::Parameters linear_speed_pid_parameters = {.Kp = 0.175, .Ki = 0.0f, .Kd = 0.0f};
+    static constexpr PID::Parameters linear_speed_pid_parameters = {.Kp = 0.2350, .Ki = 0.0f, .Kd = 0.0f};
     static constexpr float linear_speed_pid_filter_alpha         = 0.1f;
-    static constexpr float angle_backward_max_deviation          = -3.0f * (PI / RADIAN_IN_DEGREES);
-    static constexpr float angle_forward_max_deviation           = 3.0f * (PI / RADIAN_IN_DEGREES);
-    static constexpr float max_speed_rad_s                       = 90.0f;
+    static constexpr float angle_backward_max_deviation          = -5.0f * (PI / RADIAN_IN_DEGREES);
+    static constexpr float angle_forward_max_deviation           = 5.0f * (PI / RADIAN_IN_DEGREES);
+    static constexpr float max_speed_rad_s                       = 180.0f;
 
 #ifdef CONFIG_PID_ENABLED
-    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 60.0, .Ki = 900.0f, .Kd = 3.9f};
+    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 80.0, .Ki = 900.0f, .Kd = 3.9f};
     static constexpr float balance_pid_filter_alpha         = 0.9f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};
 #endif  // CONFIG_PID_ENABLED
 
-    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 50.0f, .Ki = 25.0f, .Kd = 0.0f};
+    static constexpr PID::Parameters rotate_pid_parameters = {.Kp = 80.0f, .Ki = 25.0f, .Kd = 0.0f};
     static constexpr float rotate_pid_filter_alpha         = 1.0f;  // No filtering.
     static constexpr float rotate_pid_hysteresis           = 0.5f * (PI / RADIAN_IN_DEGREES);
 
@@ -62,12 +62,24 @@ public:
         float angular_velocity1_rad_s;
     };
 
+    struct Targets
+    {
+        float target_linear_speed;
+        float target_speed_rotate;
+    };
+
     struct Output
     {
         float target_speed0;
         float target_speed1;
         float pwm0;
         float pwm1;
+    };
+
+    enum class Control_Mode : uint8_t
+    {
+        STANDARD   = 0,
+        FREE_DRIVE = 1
     };
 
     static Control_Loop&
@@ -78,10 +90,13 @@ public:
     }
 
     Output
-    update(Setpoints const& setpoints, Feedback const& feedback, float time_dt);
+    update(Setpoints const& setpoints, Feedback const& feedback, Targets const& targets, float time_dt);
 
     void
     send_PID_controllers_parameters();
+
+    BLE_Protocol::Command_Status
+    set_control_mode(BLE_Protocol::Payload_Reader& reader);
 
     BLE_Protocol::Command_Status
     set_PID_parameters(BLE_Protocol::Payload_Reader& reader);
@@ -90,6 +105,12 @@ public:
     BLE_Protocol::Command_Status
     set_LQR_parameters(BLE_Protocol::Payload_Reader& reader);
 #endif  // not CONFIG_PID_ENABLED
+
+    void
+    set_control_mode(Control_Mode mode);
+
+    Control_Mode
+    get_control_mode() const;
 
     void
     reset();
@@ -116,6 +137,8 @@ private:
 
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
+
+    Control_Mode m_current_mode {Control_Mode::STANDARD};
 };
 
 }  // namespace Robot_Control

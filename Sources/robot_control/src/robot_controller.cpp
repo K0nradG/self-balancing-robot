@@ -28,8 +28,9 @@ Robot_Controller::Robot_Controller()
     : m_distance_setpoint(0.0f),
       m_balance_setpoint(balance_setpoint),
       m_rotate_setpoint_ramp(rotate_setpoint_rate),
-      m_trajectory_manager(m_distance_setpoint, m_rotate_setpoint_ramp),
-      m_regulator_message_sending_in_progress(false)
+      m_angular_speed_setpoint_ramp(angular_speed_setpoint_ramp_rate),
+      m_linear_speed_setpoint_ramp(linear_speed_setpoint_ramp_rate),
+      m_trajectory_manager(m_distance_setpoint, m_rotate_setpoint_ramp)
 {}
 
 #ifndef CONFIG_MODEL_IDENTIFICATION_DRV
@@ -46,8 +47,16 @@ Robot_Controller::normal_motors_control()
         encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
         float const rotation_angle         = DataManager::instance().get_rotation_angle();
 
-        m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
-        m_rotate_setpoint_ramp.update(imu_data.time_dt);
+        if(Control_Loop::instance().get_control_mode() == Control_Loop::Control_Mode::FREE_DRIVE)
+        {
+            m_angular_speed_setpoint_ramp.update(imu_data.time_dt);
+            m_linear_speed_setpoint_ramp.update(imu_data.time_dt);
+        }
+        else  // Control_Mode::STANDARD
+        {
+            m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
+            m_rotate_setpoint_ramp.update(imu_data.time_dt);
+        }
 
         Control_Loop::Setpoints const setpoints = {
             .distance = m_distance_setpoint,
@@ -65,8 +74,12 @@ Robot_Controller::normal_motors_control()
             .angular_velocity0_rad_s = encoders_data.encoder_0.angular_velocity_rad_s,
             .angular_velocity1_rad_s = encoders_data.encoder_1.angular_velocity_rad_s};
 
+        Control_Loop::Targets const targets = {
+            .target_linear_speed = m_linear_speed_setpoint_ramp.get_current_value(),
+            .target_speed_rotate = m_angular_speed_setpoint_ramp.get_current_value()};
+
         Control_Loop::Output const control_loop_output =
-            Control_Loop::instance().update(setpoints, feedback, imu_data.time_dt);
+            Control_Loop::instance().update(setpoints, feedback, targets, imu_data.time_dt);
 
         m_pwm0 = control_loop_output.pwm0;
         m_pwm1 = control_loop_output.pwm1;
@@ -144,9 +157,29 @@ Robot_Controller::reset()
 {
     m_distance_setpoint = 0.0f;
     m_rotate_setpoint_ramp.reset();
+    m_angular_speed_setpoint_ramp.reset();
+    m_linear_speed_setpoint_ramp.reset();
     DataManager::instance().reset();
     m_trajectory_manager.reset();
     Control_Loop::instance().reset();
+}
+
+BLE_Protocol::Command_Status
+Robot_Controller::set_drive_command(BLE_Protocol::Payload_Reader& reader)
+{
+    float angular_speed_setpoint_value {};
+    float linear_speed_setpoint_value {};
+
+    auto status = BLE_Protocol::Command_Status::OK;
+    if(!reader.get_float(angular_speed_setpoint_value) || !reader.get_float(linear_speed_setpoint_value) ||
+       !reader.done())
+    {
+        status = BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+
+    m_angular_speed_setpoint_ramp.set_target(angular_speed_setpoint_value);
+    m_linear_speed_setpoint_ramp.set_target(linear_speed_setpoint_value);
+    return status;
 }
 
 void

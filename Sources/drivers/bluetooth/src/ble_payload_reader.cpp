@@ -13,8 +13,7 @@ Payload_Reader::Payload_Reader(uint8_t const* data, size_t length)
       m_length(length),
       m_offset(0u),
       m_valid(((data != nullptr) || (length == 0u)) && (length <= MAX_PAYLOAD_SIZE))
-{
-}
+{}
 
 bool
 Payload_Reader::get_u8(uint8_t& value)

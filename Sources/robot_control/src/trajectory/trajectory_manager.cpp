@@ -19,8 +19,7 @@ Trajectory_Manager::Trajectory_Manager(float& distance_setpoint, Ramp& rotation_
       m_new_rotation_angle_setpoint(0.0f),
       m_new_distance_setpoint(0.0f),
       m_stop_logs(false)
-{
-}
+{}
 
 bool
 Trajectory_Manager::set_trajectory_point(float rotation_degrees, float distance_m)

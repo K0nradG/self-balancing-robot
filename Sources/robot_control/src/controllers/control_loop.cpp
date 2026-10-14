@@ -33,8 +33,7 @@ Control_Loop::Control_Loop()
           wheel_speed_pid_parameters,
           Saturation(-static_cast<float>(CONFIG_PWM_LIMIT), static_cast<float>(CONFIG_PWM_LIMIT)),
           wheel_speed_pid_filter_alpha)
-{
-}
+{}
 
 Control_Loop::Output
 Control_Loop::update(Setpoints const& setpoints, Feedback const& feedback, float time_dt)

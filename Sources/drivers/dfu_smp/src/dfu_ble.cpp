@@ -41,17 +41,18 @@ static const bt_data sd[] = {
     BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1),
 };
 
-typedef enum
+enum class DFU_STATE : uint8_t
 {
-    DFU_STATE_WAITING,
-    DFU_STATE_SKIP,
-    DFU_STATE_START,
-} dfu_state_t;
+    WAITING,
+    SKIP,
+    START,
+    ALREADY_SKIPPED,
+};
 
-static dfu_state_t g_dfu_state = DFU_STATE_WAITING;
-static uint32_t g_dfu_request_packet_number;
+static DFU_STATE s_dfu_state = DFU_STATE::WAITING;
+static uint32_t s_dfu_request_packet_number {};
 
-static dfu_action_cb_t dfu_action_cb;
+static dfu_action_cb_t s_dfu_action_cb;
 
 K_SEM_DEFINE(dfu_sem, 0, 1);
 
@@ -97,38 +98,57 @@ send_dfu_command_result(uint32_t request_packet_number, BLE_Protocol::Command_St
 void
 dfu_packet_received(BLE_Protocol::Received_Packet const& received_packet)
 {
-    BLE_Protocol::Command_Status status = BLE_Protocol::Command_Status::OK;
     BLE_Protocol::Payload_Reader reader(received_packet.payload, received_packet.payload_length);
-    uint8_t action;
+    uint8_t action {};
+
     if(!reader.get_u8(action) || !reader.done())
     {
-        status = BLE_Protocol::Command_Status::INVALID_LENGTH;
+        send_dfu_command_result(received_packet.packet_number, BLE_Protocol::Command_Status::INVALID_LENGTH);
+        return;
     }
-    else
+
+    if(s_dfu_state == DFU_STATE::ALREADY_SKIPPED)
     {
+        auto status = BLE_Protocol::Command_Status::INVALID_STATE;
         switch(static_cast<BLE_Protocol::Dfu_Action>(action))
         {
             case BLE_Protocol::Dfu_Action::START:
-                g_dfu_state = DFU_STATE_START;
+                // To reject the DFU after it has already been skipped
+                status = BLE_Protocol::Command_Status::INVALID_STATE;
                 break;
 
             case BLE_Protocol::Dfu_Action::SKIP:
-                g_dfu_state                 = DFU_STATE_SKIP;
-                g_dfu_request_packet_number = received_packet.packet_number;
+                status = BLE_Protocol::Command_Status::OK;
                 break;
 
             default:
                 status = BLE_Protocol::Command_Status::INVALID_VALUE;
                 break;
         }
+        send_dfu_command_result(received_packet.packet_number, status);
+        return;
+    }
+
+    s_dfu_request_packet_number = received_packet.packet_number;
+
+    auto status = BLE_Protocol::Command_Status::OK;
+    switch(static_cast<BLE_Protocol::Dfu_Action>(action))
+    {
+        case BLE_Protocol::Dfu_Action::START:
+            s_dfu_state = DFU_STATE::START;
+            break;
+
+        case BLE_Protocol::Dfu_Action::SKIP:
+            s_dfu_state = DFU_STATE::SKIP;
+            break;
+
+        default:
+            status = BLE_Protocol::Command_Status::INVALID_VALUE;
+            break;
     }
 
     if(status == BLE_Protocol::Command_Status::OK)
     {
-        if(g_dfu_state == DFU_STATE_START)
-        {
-            send_dfu_command_result(received_packet.packet_number, status);
-        }
         k_sem_give(&dfu_sem);
     }
     else
@@ -149,19 +169,21 @@ dfu_wait_thread(void* arg1, void* arg2, void* arg3)
 
     k_sem_take(&dfu_sem, K_FOREVER);
 
-    if(g_dfu_state == DFU_STATE_SKIP)
+    if(s_dfu_state == DFU_STATE::SKIP)
     {
+        s_dfu_state = DFU_STATE::ALREADY_SKIPPED;
         Robot_Control::control_loop_init();
-        send_dfu_command_result(g_dfu_request_packet_number, BLE_Protocol::Command_Status::OK);
-        if(dfu_action_cb)
+        send_dfu_command_result(s_dfu_request_packet_number, BLE_Protocol::Command_Status::OK);
+        if(s_dfu_action_cb)
         {
-            dfu_action_cb();
+            s_dfu_action_cb();
         }
         return;
     }
 
-    if(g_dfu_state == DFU_STATE_START)
+    if(s_dfu_state == DFU_STATE::START)
     {
+        send_dfu_command_result(s_dfu_request_packet_number, BLE_Protocol::Command_Status::OK);
         get_app_version();
 
         // Keep thread alive but not blocking system
@@ -246,6 +268,6 @@ dfu_action_cb_register(dfu_action_cb_t _dfu_action_cb)
 {
     if(_dfu_action_cb)
     {
-        dfu_action_cb = _dfu_action_cb;
+        s_dfu_action_cb = _dfu_action_cb;
     }
 }

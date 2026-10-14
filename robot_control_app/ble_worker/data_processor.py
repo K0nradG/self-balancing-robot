@@ -9,17 +9,10 @@ from dataclasses import dataclass, field
 
 from robot_control_app import ble_protocol
 
-TELEMETRY_HEADER = struct.Struct("<IB3s")
-TELEMETRY_SAMPLE = struct.Struct("<I10f")
-TELEMETRY_SAMPLES_PER_FRAME = 5
-LOG_HEADER = struct.Struct("<BBH")
-BATTERY_STATUS = struct.Struct("<HBB")
-APP_VERSION = struct.Struct("<BBBBI")
-PID_STATE = struct.Struct("<15f")
-LQR_STATE = struct.Struct("<ff")
-COMMAND_RESULT = struct.Struct("<IBB")
 TELEMETRY_KEYS = (
     "timestamp_us",
+    "ds",
+    "dm",
     "bs",
     "ab",
     "rs",
@@ -31,6 +24,19 @@ TELEMETRY_KEYS = (
     "pwm0",
     "pwm1",
 )
+
+NUM_FLOATS_TELEMETRY = len(TELEMETRY_KEYS) - 1
+
+TELEMETRY_SAMPLES_PER_FRAME = 4
+TELEMETRY_HEADER = struct.Struct("<IB3s")
+TELEMETRY_SAMPLE = struct.Struct(f"<I{NUM_FLOATS_TELEMETRY}f")
+
+LOG_HEADER = struct.Struct("<BBH")
+BATTERY_STATUS = struct.Struct("<HBB")
+APP_VERSION = struct.Struct("<BBBBI")
+PID_STATE = struct.Struct("<15f")
+LQR_STATE = struct.Struct("<ff")
+COMMAND_RESULT = struct.Struct("<IBB")
 
 logger = logging.getLogger("DataProcessor")
 
@@ -142,7 +148,7 @@ class DataProcessor:
         samples = []
         for _ in range(sample_count):
             values = [reader.get_u32()]
-            values.extend(reader.get_float() for _ in range(10))
+            values.extend(reader.get_float() for _ in range(NUM_FLOATS_TELEMETRY))
             sample = dict(zip(TELEMETRY_KEYS, values))
             sample["packet_number"] = packet.packet_number
             sample["dropped_samples"] = dropped_samples

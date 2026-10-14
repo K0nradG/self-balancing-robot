@@ -220,11 +220,6 @@ class BLEWorker(QThread):
             parsed: ParsedData = self.data_processor.process_packet(packet)
 
             if parsed.telemetry_samples:
-                if self.enable_logs:
-                    self.data_received_signal.emit(
-                        f"TELEMETRY packet {packet.packet_number}: "
-                        f"{len(parsed.telemetry_samples)} samples"
-                    )
                 now = time.monotonic()
                 if (
                     parsed.telemetry is not None

@@ -129,6 +129,8 @@ Robot_Controller::normal_motors_control()
         {
             Telemetry_Sample const telemetry_sample = {
                 .timestamp_us      = k_uptime_get_32() * 1000u,
+                .distance_setpoint = m_distance_setpoint,
+                .distance_m        = encoders_data.robot_distance_m,
                 .balance_setpoint  = m_balance_setpoint * radian_degrees / pi,
                 .balance_angle     = imu_data.angle_balance * radian_degrees / pi,
                 .rotation_setpoint = m_rotate_setpoint_ramp.get_current_value() * radian_degrees / pi,
@@ -315,7 +317,7 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
                     }
                     else
                     {
-                        m_distance_setpoint = value;
+                        m_distance_setpoint += value;
                     }
                     break;
                 case Controller_Id::BALANCE:
@@ -328,7 +330,8 @@ Robot_Controller::handle_ble_packet(BLE_Protocol::Received_Packet const& receive
                     }
                     else
                     {
-                        m_rotate_setpoint_ramp.set_target(value * (pi / radian_degrees));
+                        m_rotate_setpoint_ramp.set_target(
+                            m_rotate_setpoint_ramp.get_target() + value * (pi / radian_degrees));
                     }
                     break;
                 default:

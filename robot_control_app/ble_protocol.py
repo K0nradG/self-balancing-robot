@@ -242,6 +242,7 @@ def set_setpoint_command(
         packet_number=packet_number,
     )
 
+
 def trajectory_command(
     rotation_degrees: float, distance_m: float, packet_number: int = 0
 ) -> bytes:
@@ -250,6 +251,7 @@ def trajectory_command(
         PayloadWriter().put_float(rotation_degrees).put_float(distance_m).to_bytes(),
         packet_number=packet_number,
     )
+
 
 def set_lqr_command(kx: float, ky: float, packet_number: int = 0) -> bytes:
     return pack_packet(

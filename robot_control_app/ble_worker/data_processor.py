@@ -226,7 +226,7 @@ class DataProcessor:
         ky = reader.get_float()
         reader.finish()
         return ParsedData(lqr_params={"kx": kx, "ky": ky})
-    
+
     def _parse_trajectory_complete(self, packet: ble_protocol.Packet) -> ParsedData:
         if packet.payload:
             raise ValueError(f"Invalid trajectory complete payload size: expected 0")
@@ -253,7 +253,7 @@ class DataProcessor:
                 request_packet_number, typed_request, typed_status
             )
         )
-        
+
     def close_recording(self):
         if self.csv_file:
             self.csv_file.flush()

@@ -108,7 +108,7 @@ class RightPanelWidget(QWidget):
         std_layout.addLayout(rot_layout)
 
         ctrl_actions_layout.addWidget(self.standard_widget)
-        
+
         trajectory_layout = QHBoxLayout()
         trajectory_layout.addWidget(QLabel("Trajectory rotation [deg]:"))
         self.trajectory_rotation_input = QLineEdit("0.0")

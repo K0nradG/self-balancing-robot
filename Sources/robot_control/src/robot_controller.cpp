@@ -79,6 +79,8 @@ Robot_Controller::normal_motors_control()
         {
             Telemetry_Sample const telemetry_sample = {
                 .timestamp_us      = k_uptime_get_32() * static_cast<uint32_t>(MICRO_TO_MILLI),
+                .distance_setpoint = m_distance_setpoint,
+                .distance_m        = encoders_data.robot_distance_m,
                 .balance_setpoint  = m_balance_setpoint * RADIANS_TO_DEGREES,
                 .balance_angle     = imu_data.angle_balance * RADIANS_TO_DEGREES,
                 .rotation_setpoint = m_rotate_setpoint_ramp.get_current_value() * RADIANS_TO_DEGREES,

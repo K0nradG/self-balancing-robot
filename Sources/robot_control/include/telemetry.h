@@ -10,6 +10,8 @@ namespace Robot_Control
 struct Telemetry_Sample
 {
     uint32_t timestamp_us;
+    float distance_setpoint;
+    float distance_m;
     float balance_setpoint;
     float balance_angle;
     float rotation_setpoint;
@@ -22,8 +24,7 @@ struct Telemetry_Sample
     float pwm_1;
 };
 
-// One 4-byte timestamp and ten 4-byte floats use 44 bytes in total.
-static_assert(sizeof(Telemetry_Sample) == 44u);
+static_assert(sizeof(Telemetry_Sample) == (sizeof(uint32_t) + (12 * sizeof(float))));
 
 void
 telemetry_submit(Telemetry_Sample const& sample);

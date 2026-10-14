@@ -14,11 +14,11 @@ namespace Robot_Control
 namespace
 {
 
-constexpr size_t MAX_SAMPLES_PER_FRAME      = 5u;
+constexpr size_t MAX_SAMPLES_PER_FRAME      = 4u;
 constexpr size_t TELEMETRY_METADATA_SIZE    = 8u;
-constexpr size_t TELEMETRY_SAMPLE_SIZE      = 44u;
+constexpr size_t TELEMETRY_SAMPLE_SIZE      = sizeof(Telemetry_Sample);
 constexpr size_t TELEMETRY_PAYLOAD_CAPACITY = TELEMETRY_METADATA_SIZE + (MAX_SAMPLES_PER_FRAME * TELEMETRY_SAMPLE_SIZE);
-static_assert(TELEMETRY_PAYLOAD_CAPACITY == 228u);
+static_assert(TELEMETRY_PAYLOAD_CAPACITY == 216);
 
 constexpr size_t TELEMETRY_THREAD_STACK_SIZE      = 2048u;
 constexpr int TELEMETRY_THREAD_PRIORITY           = 5;
@@ -40,7 +40,7 @@ atomic_t dropped_samples;
 size_t
 get_samples_per_frame(uint16_t att_payload_size)
 {
-    size_t const fixed_size = BLE_Protocol::HEADER_SIZE + TELEMETRY_METADATA_SIZE;
+    static size_t constexpr fixed_size = BLE_Protocol::HEADER_SIZE + TELEMETRY_METADATA_SIZE;
     if(att_payload_size < (fixed_size + TELEMETRY_SAMPLE_SIZE))
     {
         return 0u;
@@ -59,6 +59,8 @@ void
 write_sample(BLE_Protocol::Payload_Writer& payload_writer, Telemetry_Sample const& sample)
 {
     payload_writer.put_u32(sample.timestamp_us);
+    payload_writer.put_float(sample.distance_setpoint);
+    payload_writer.put_float(sample.distance_m);
     payload_writer.put_float(sample.balance_setpoint);
     payload_writer.put_float(sample.balance_angle);
     payload_writer.put_float(sample.rotation_setpoint);

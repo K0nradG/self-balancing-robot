@@ -16,10 +16,10 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QMessageBox,
 )
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import pyqtSignal, QRegularExpression
 from collections import deque
 import pyqtgraph as pg
-from PyQt6.QtGui import QDoubleValidator
+from PyQt6.QtGui import QRegularExpressionValidator
 
 MAX_PLOT_POINTS = 200
 
@@ -44,6 +44,8 @@ class RightPanelWidget(QWidget):
 
         # Telemetry plot buffers
         self.plot_time = deque(maxlen=MAX_PLOT_POINTS)
+        self.ds_buf = deque(maxlen=MAX_PLOT_POINTS)
+        self.dm_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.bs_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.ab_buf = deque(maxlen=MAX_PLOT_POINTS)
         self.rs_buf = deque(maxlen=MAX_PLOT_POINTS)
@@ -80,8 +82,9 @@ class RightPanelWidget(QWidget):
         btn_layout.addWidget(self.stop_control_btn)
         ctrl_actions_layout.addLayout(btn_layout)
 
-        num_validator = QDoubleValidator(-180.0, 180.0, 4)
-        num_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        # Regex validator accepting digits with '.' decimal point and optional leading '-'
+        float_regex = QRegularExpression(r"^-?\d*\.?\d*$")
+        num_validator = QRegularExpressionValidator(float_regex)
 
         # Distance setpoint
         dist_layout = QHBoxLayout()
@@ -124,18 +127,20 @@ class RightPanelWidget(QWidget):
 
         panel_layout.addWidget(ctrl_actions_group)
 
-        pid_group = self.__create_pid_tuning_group()
+        pid_group = self.__create_pid_tuning_group(num_validator)
         panel_layout.addWidget(pid_group)
 
         pg.setConfigOption("background", "#1e1e1e")
         pg.setConfigOption("foreground", "#dcdcdc")
 
-        self.bal_plot = pg.PlotWidget(title="Balance Angle")
-        self.bal_plot.setLabel("left", "Angle [deg]")
-        self.bal_plot.addLegend()
-        self.curve_bs = self.bal_plot.plot(pen=pg.mkPen("c", width=2), name="Reference")
-        self.curve_ab = self.bal_plot.plot(pen=pg.mkPen("m", width=2), name="Actual")
-        panel_layout.addWidget(self.bal_plot)
+        self.dist_plot = pg.PlotWidget(title="Distance")
+        self.dist_plot.setLabel("left", "Distance [m]")
+        self.dist_plot.addLegend()
+        self.curve_ds = self.dist_plot.plot(
+            pen=pg.mkPen("c", width=2), name="Reference"
+        )
+        self.curve_dm = self.dist_plot.plot(pen=pg.mkPen("m", width=2), name="Actual")
+        panel_layout.addWidget(self.dist_plot)
 
         self.rot_plot = pg.PlotWidget(title="Rotation Angle")
         self.rot_plot.setLabel("left", "Angle [deg]")
@@ -143,6 +148,13 @@ class RightPanelWidget(QWidget):
         self.curve_rs = self.rot_plot.plot(pen=pg.mkPen("g", width=2), name="Reference")
         self.curve_ar = self.rot_plot.plot(pen=pg.mkPen("y", width=2), name="Actual")
         panel_layout.addWidget(self.rot_plot)
+
+        self.bal_plot = pg.PlotWidget(title="Balance Angle")
+        self.bal_plot.setLabel("left", "Angle [deg]")
+        self.bal_plot.addLegend()
+        self.curve_bs = self.bal_plot.plot(pen=pg.mkPen("c", width=2), name="Reference")
+        self.curve_ab = self.bal_plot.plot(pen=pg.mkPen("m", width=2), name="Actual")
+        panel_layout.addWidget(self.bal_plot)
 
         self.pwm_plot = pg.PlotWidget(title="Wheel PWMs")
         self.pwm_plot.setLabel("left", "PWM")
@@ -154,7 +166,7 @@ class RightPanelWidget(QWidget):
 
         right_layout.addWidget(self.main_group)
 
-    def __create_pid_tuning_group(self) -> QGroupBox:
+    def __create_pid_tuning_group(self, validator) -> QGroupBox:
         pid_group = QGroupBox("Control loop parameters")
         pid_layout = QVBoxLayout(pid_group)
 
@@ -180,18 +192,15 @@ class RightPanelWidget(QWidget):
             ("wheel_speed", "Wheel Speed PID"),
         ]
 
-        pid_validator = QDoubleValidator(-10000.0, 10000.0, 6)
-        pid_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
-
         for row, (key, label_text) in enumerate(controllers, start=1):
             grid.addWidget(QLabel(label_text), row, 0)
 
             kp_input = QLineEdit("0.0")
-            kp_input.setValidator(pid_validator)
+            kp_input.setValidator(validator)
             ki_input = QLineEdit("0.0")
-            ki_input.setValidator(pid_validator)
+            ki_input.setValidator(validator)
             kd_input = QLineEdit("0.0")
-            kd_input.setValidator(pid_validator)
+            kd_input.setValidator(validator)
 
             set_btn = QPushButton(f"Set {label_text}")
             set_btn.clicked.connect(lambda _, k=key: self._send_pid_parameters(k))
@@ -317,6 +326,10 @@ class RightPanelWidget(QWidget):
         self.sample_idx += 1
         self.plot_time.append(self.sample_idx)
 
+        if "ds" in data:
+            self.ds_buf.append(data["ds"])
+        if "dm" in data:
+            self.dm_buf.append(data["dm"])
         if "bs" in data:
             self.bs_buf.append(data["bs"])
         if "ab" in data:
@@ -331,6 +344,10 @@ class RightPanelWidget(QWidget):
             self.pwm1_buf.append(data["pwm1"])
 
         t_data = list(self.plot_time)
+        if self.ds_buf:
+            self.curve_ds.setData(t_data, list(self.ds_buf))
+        if self.dm_buf:
+            self.curve_dm.setData(t_data, list(self.dm_buf))
         if self.bs_buf:
             self.curve_bs.setData(t_data, list(self.bs_buf))
         if self.ab_buf:

@@ -18,11 +18,8 @@ if(CONFIG_ROBOT_CONTROL)
                             ${ROBOT_CONTROL_SRC_DIR}/main_state_machine.cpp
                             ${ROBOT_CONTROL_SRC_DIR}/robot_controller.cpp
                             ${ROBOT_CONTROL_SRC_DIR}/ble_handler.cpp
-                            ${ROBOT_CONTROL_SRC_DIR}/protection_manager.cpp)
-                        
-    if(CONFIG_ROBOT_CONTROL_LOG AND CONFIG_BLUETOOTH_DRV)
-        list(APPEND ROBOT_CONTROL_SRC ${ROBOT_CONTROL_SRC_DIR}/telemetry.cpp)
-    endif()
+                            ${ROBOT_CONTROL_SRC_DIR}/protection_manager.cpp
+                            ${ROBOT_CONTROL_SRC_DIR}/telemetry.cpp)
     
     set(CONTROLLERS_SRC ${CONTROLLERS_SRC_DIR}/control_loop.cpp
                         ${CONTROLLERS_SRC_DIR}/pid.cpp)

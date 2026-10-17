@@ -10,10 +10,7 @@
 #include "logger.h"
 #include "motor_controller.h"
 #include "protection_manager.h"
-
-#if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
 #include "telemetry.h"
-#endif
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
@@ -87,7 +84,6 @@ Robot_Controller::normal_motors_control()
         m_pwm0 = control_loop_output.pwm0;
         m_pwm1 = control_loop_output.pwm1;
 
-#if defined(CONFIG_BLUETOOTH_DRV)
         Telemetry_Sample const telemetry_sample = {
             .timestamp_us      = k_uptime_get_32() * static_cast<uint32_t>(MICRO_TO_MILLI),
             .distance_setpoint = m_distance_setpoint,
@@ -104,7 +100,6 @@ Robot_Controller::normal_motors_control()
             .pwm_1             = m_pwm1,
         };
         telemetry_submit(telemetry_sample);
-#endif
     }
 
     send_motors_data(m_pwm0, m_pwm1);

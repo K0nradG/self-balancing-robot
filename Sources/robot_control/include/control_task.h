@@ -14,9 +14,4 @@ trigger_control_task();
 void
 stop_control_task();
 
-#ifdef CONFIG_BLUETOOTH_DRV
-void
-nus_data_parse_callback(char const* data);
-#endif  // CONFIG_BLUETOOTH_DRV
-
 }  // namespace Robot_Control

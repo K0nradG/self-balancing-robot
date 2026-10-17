@@ -82,9 +82,7 @@ Trajectory_Manager::update(float current_rotation_angle, float current_distance)
 void
 Trajectory_Manager::acknowledge_trajectory_completed()
 {
-#ifdef CONFIG_BLUETOOTH_DRV
     ble_send_packet(BLE_Protocol::Message_Type::TRAJECTORY_COMPLETE, nullptr, 0u);
-#endif
     trajectory_manager_logger.platform_log(LOG_LEVEL::INF, "Trajectory completed");
     reset();
     m_state_machine.set_trajectory_acknowledged();

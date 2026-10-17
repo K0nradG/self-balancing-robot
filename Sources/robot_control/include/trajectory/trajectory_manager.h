@@ -32,9 +32,6 @@ public:
     void
     update(float current_rotation_angle, float current_distance);
 
-    bool
-    stop_logs() const;
-
     void
     reset();
 
@@ -47,7 +44,6 @@ private:
     uint16_t m_stage_skip_cycles_counter;
     float m_new_rotation_angle_setpoint;
     float m_new_distance_setpoint;
-    bool m_stop_logs;
 
     void
     control_rotation_angle(float current_rotation_angle);

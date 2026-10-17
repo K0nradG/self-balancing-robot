@@ -17,8 +17,7 @@ Trajectory_Manager::Trajectory_Manager(float& distance_setpoint, Ramp& rotation_
       m_stage_completion_cycles_counter(0u),
       m_stage_skip_cycles_counter(0u),
       m_new_rotation_angle_setpoint(0.0f),
-      m_new_distance_setpoint(0.0f),
-      m_stop_logs(false)
+      m_new_distance_setpoint(0.0f)
 {}
 
 bool
@@ -91,12 +90,6 @@ Trajectory_Manager::acknowledge_trajectory_completed()
     m_state_machine.set_trajectory_acknowledged();
 }
 
-bool
-Trajectory_Manager::stop_logs() const
-{
-    return m_stop_logs;
-}
-
 void
 Trajectory_Manager::reset()
 {
@@ -105,7 +98,6 @@ Trajectory_Manager::reset()
     m_stage_skip_cycles_counter       = 0u;
     m_new_rotation_angle_setpoint     = 0.0f;
     m_new_distance_setpoint           = 0.0f;
-    m_stop_logs                       = false;
 }
 
 void
@@ -151,7 +143,6 @@ Trajectory_Manager::control_distance(float current_distance)
     {
         m_state_machine.set_distance_target_reached();
         m_stage_completion_cycles_counter = 0u;
-        m_stop_logs                       = true;
         return;
     }
 

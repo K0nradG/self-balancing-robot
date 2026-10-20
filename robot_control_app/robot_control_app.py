@@ -45,6 +45,10 @@ class RobotControlApp(QMainWindow):
         self.camera_worker = None
         self.self_drive_controller = SelfDriveController()
 
+        # Parking mode state variables
+        self.parking_search_active = False
+        self.qr_code_found = False
+
         self.configured_linear_speed = 2.0
         self.configured_angular_speed = 19.0
 
@@ -85,6 +89,8 @@ class RobotControlApp(QMainWindow):
         self.right_panel.send_command_requested.connect(self.send_command)
         self.right_panel.keyboard_control_toggled.connect(self.set_keyboard_control)
         self.right_panel.ai_control_toggled.connect(self.set_self_drive_control)
+        self.right_panel.camera_toggled.connect(self.toggle_camera)
+        self.right_panel.park_requested.connect(self.start_parking_search)
 
         self.ble_worker.connected_signal.connect(self.update_connection_status)
         self.ble_worker.data_received_signal.connect(
@@ -214,33 +220,64 @@ class RobotControlApp(QMainWindow):
         status = "Enabled" if checked else "Disabled"
         self.left_panel.log_message(f">> BLE Logs {status}")
 
+    def toggle_camera(self, enabled: bool):
+        if enabled:
+            if not self.camera_worker:
+                self.camera_worker = CameraWorker()
+                self.camera_worker.frame_signal.connect(self.right_panel.update_camera_feed)
+                self.camera_worker.line_tracking_signal.connect(self._process_self_drive_perception)
+                self.camera_worker.qr_detected_signal.connect(self._process_qr_detection)
+                self.camera_worker.start()
+                self.left_panel.log_message(">> Camera started.")
+        else:
+            if self.self_drive_enabled:
+                self.right_panel.ai_control_cb.setChecked(False)
+
+            if self.parking_search_active:
+                self.parking_search_active = False
+
+            if self.camera_worker:
+                self.camera_worker.stop()
+                self.camera_worker = None
+                self.right_panel.video_label.setText("Camera feed disabled")
+                self.self_drive_angular = 0.0
+                self.self_drive_linear = 0.0
+                self.left_panel.log_message(">> Camera stopped.")
+
     def set_self_drive_control(self, enabled: bool):
         self.self_drive_enabled = enabled
         if enabled:
             if self.keyboard_control_enabled:
                 self.right_panel.kb_control_cb.setChecked(False)
 
+            if not self.camera_worker:
+                self.right_panel.camera_btn.setChecked(True)
+                self.right_panel.camera_btn.setText("Camera Off")
+                self.toggle_camera(True)
+
             self.self_drive_controller.reset()
-            self.camera_worker = CameraWorker()
-            self.camera_worker.frame_signal.connect(self.right_panel.update_camera_feed)
-            self.camera_worker.line_tracking_signal.connect(
-                self._process_self_drive_perception
-            )
-            self.camera_worker.start()
-            self.left_panel.log_message(">> Autonomous self drive mode started.")
+            self.left_panel.log_message(">> Autonomous line following mode started.")
         else:
-            if self.camera_worker:
-                self.camera_worker.stop()
-                self.camera_worker = None
-                self.right_panel.video_label.setText("Camera feed stopped")
-                self.self_drive_angular = 0.0
-                self.self_drive_linear = 0.0
-            self.left_panel.log_message(">> Autonomous self drive mode stopped.")
+            self.left_panel.log_message(">> Autonomous line following mode stopped.")
+
+    def start_parking_search(self):
+        if not self.camera_worker:
+            self.right_panel.camera_btn.setChecked(True)
+            self.right_panel.camera_btn.setText("Camera Off")
+            self.toggle_camera(True)
+
+        self.parking_search_active = True
+        self.qr_code_found = False
+        self.left_panel.log_message(">> Parking search started: rotating to find QR code...")
 
     def _process_self_drive_perception(self, error: float, line_found: bool):
-        angular, linear = self.self_drive_controller.calculate_speeds(error, line_found)
-        self.self_drive_angular = angular
-        self.self_drive_linear = linear
+        if self.self_drive_enabled and not self.parking_search_active:
+            angular, linear = self.self_drive_controller.calculate_speeds(error, line_found)
+            self.self_drive_angular = angular
+            self.self_drive_linear = linear
+
+    def _process_qr_detection(self, qr_found: bool):
+        self.qr_code_found = qr_found
 
     def set_keyboard_control(self, enabled: bool):
         self.keyboard_control_enabled = enabled
@@ -258,6 +295,19 @@ class RobotControlApp(QMainWindow):
         if not self.is_connected:
             return
 
+        # 1. Parking search routine
+        if self.parking_search_active:
+            if self.qr_code_found:
+                self.parking_search_active = False
+                self.left_panel.log_message(">> QR Code found! Setting PARKING mode command.")
+                self.send_command(ble_protocol.set_mode_command(ble_protocol.ControlMode.PARKING))
+            else:
+                search_angular_speed = 3.0
+                cmd = ble_protocol.drive_command(search_angular_speed, 0.0)
+                self.send_command(cmd)
+            return
+
+        # 2. Autonomous line following mode
         if self.self_drive_enabled:
             cmd = ble_protocol.drive_command(
                 self.self_drive_angular, self.self_drive_linear
@@ -265,6 +315,7 @@ class RobotControlApp(QMainWindow):
             self.send_command(cmd)
             return
 
+        # 3. Keyboard control mode
         if not self.keyboard_control_enabled:
             return
 

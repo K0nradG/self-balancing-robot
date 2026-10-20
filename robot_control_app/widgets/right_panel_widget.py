@@ -1,7 +1,5 @@
 # Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-# Right panel widget handling robot control, control loop parameters and telemetry data plotting
-
 from robot_control_app import ble_protocol
 from PyQt6.QtWidgets import (
     QWidget,
@@ -36,6 +34,8 @@ class RightPanelWidget(QWidget):
     send_command_requested = pyqtSignal(bytes)
     keyboard_control_toggled = pyqtSignal(bool)
     ai_control_toggled = pyqtSignal(bool)
+    camera_toggled = pyqtSignal(bool)
+    park_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -80,11 +80,15 @@ class RightPanelWidget(QWidget):
         self.start_control_btn.clicked.connect(self._on_start_clicked)
         self.stop_control_btn = QPushButton("Stop Control")
         self.stop_control_btn.clicked.connect(self._on_stop_clicked)
+
+        self.park_btn = QPushButton("Park")
+        self.park_btn.clicked.connect(self._on_park_clicked)
+
         btn_layout.addWidget(self.start_control_btn)
         btn_layout.addWidget(self.stop_control_btn)
+        btn_layout.addWidget(self.park_btn)
         ctrl_actions_layout.addLayout(btn_layout)
 
-        # Regex validator accepting digits with '.' decimal point and optional leading '-'
         float_regex = QRegularExpression(r"^-?\d*\.?\d*$")
         num_validator = QRegularExpressionValidator(float_regex)
 
@@ -132,6 +136,14 @@ class RightPanelWidget(QWidget):
         drive_layout = QVBoxLayout(self.drive_widget)
         drive_layout.setContentsMargins(0, 0, 0, 0)
 
+        # Independent Camera On/Off Button
+        cam_control_layout = QHBoxLayout()
+        self.camera_btn = QPushButton("Camera On")
+        self.camera_btn.setCheckable(True)
+        self.camera_btn.clicked.connect(self._on_camera_btn_clicked)
+        cam_control_layout.addWidget(self.camera_btn)
+        drive_layout.addLayout(cam_control_layout)
+
         controls_layout = QHBoxLayout()
 
         self.kb_control_cb = QCheckBox("Enable Keyboard Control (Arrows)")
@@ -153,7 +165,6 @@ class RightPanelWidget(QWidget):
         drive_layout.addWidget(self.video_label)
 
         ctrl_actions_layout.addWidget(self.drive_widget)
-
         panel_layout.addWidget(ctrl_actions_group)
 
         pid_group = self.__create_pid_tuning_group(num_validator)
@@ -244,7 +255,6 @@ class RightPanelWidget(QWidget):
         return pid_group
 
     def update_camera_feed(self, image: QImage):
-        """Aktualizuje podgląd wideo w interfejsie."""
         if self.isVisible() and self.drive_widget.isVisible():
             pixmap = QPixmap.fromImage(image).scaled(
                 400,
@@ -253,6 +263,13 @@ class RightPanelWidget(QWidget):
                 Qt.TransformationMode.SmoothTransformation,
             )
             self.video_label.setPixmap(pixmap)
+
+    def _on_camera_btn_clicked(self, checked: bool):
+        if checked:
+            self.camera_btn.setText("Camera Off")
+        else:
+            self.camera_btn.setText("Camera On")
+        self.camera_toggled.emit(checked)
 
     def _on_mode_changed(self, index):
         new_mode = self.mode_combo.itemData(index)
@@ -302,6 +319,9 @@ class RightPanelWidget(QWidget):
         self.send_command_requested.emit(
             ble_protocol.state_command(ble_protocol.StateAction.STOP)
         )
+
+    def _on_park_clicked(self):
+        self.park_requested.emit()
 
     def _send_dist_setpoint(self):
         dist_str = self.dist_ref_input.text().strip().replace(",", ".")

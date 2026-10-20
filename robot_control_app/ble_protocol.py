@@ -35,6 +35,7 @@ class MessageType(IntEnum):
 class ControlMode(IntEnum):
     STANDARD = 0
     FREE_DRIVE = 1
+    PARKING = 2
 
 
 class ControllerId(IntEnum):

@@ -8,11 +8,13 @@ import os
 class CameraWorker(QThread):
     frame_signal = pyqtSignal(QImage)
     line_tracking_signal = pyqtSignal(float, bool)
+    qr_detected_signal = pyqtSignal(bool)
 
     def __init__(self, rtsp_url="tcp://192.168.4.1:8555"):
         super().__init__()
         self.rtsp_url = rtsp_url
         self.running = True
+        self.detector = cv2.QRCodeDetector()
 
     def run(self):
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "fflags;nobuffer|flags;low_delay"
@@ -59,6 +61,20 @@ class CameraWorker(QThread):
                         line_found = True
 
             self.line_tracking_signal.emit(error, line_found)
+
+            # QR Code Detection
+            data, bbox, _ = self.detector.detectAndDecode(frame)
+            qr_found = False
+            if data and bbox is not None:
+                qr_found = True
+                points = bbox[0].astype(np.int32)
+                n = len(points)
+                for i in range(n):
+                    pt1 = tuple(points[i])
+                    pt2 = tuple(points[(i + 1) % n])
+                    cv2.line(frame, pt1, pt2, (0, 255, 0), 3)
+
+            self.qr_detected_signal.emit(qr_found)
 
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             bytes_per_line = 3 * w

@@ -15,7 +15,7 @@ bool
 Protection_Manager::validate_robot_angle(float balance_setpoint, float balance_angle) const
 {
     static bool disable_motors_command           = false;
-    static constexpr float safe_angle_margin     = 20.0f * (pi / radian_degrees);
+    static constexpr float safe_angle_margin     = 25.0f * (pi / radian_degrees);
     static constexpr float safe_angle_hysteresis = 0.5f * (pi / radian_degrees);
 
     float const upper_limit = balance_setpoint + safe_angle_margin;

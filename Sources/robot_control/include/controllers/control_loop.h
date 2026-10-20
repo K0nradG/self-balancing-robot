@@ -18,17 +18,17 @@ class Control_Loop
 {
     static constexpr PID::Parameters distance_pid_parameters = {.Kp = 2.0f, .Ki = 0.1f, .Kd = 0.0f};
     static constexpr float distance_pid_filter_alpha         = 0.9f;
-    static constexpr float max_linear_speed                  = 0.5f;  // [m/s]
+    static constexpr float max_linear_speed                  = 10.0f;  // [m/s]
     static constexpr float distance_pid_hysteresis           = 0.01f;
 
     static constexpr PID::Parameters linear_speed_pid_parameters = {.Kp = 0.2350, .Ki = 0.0f, .Kd = 0.0f};
     static constexpr float linear_speed_pid_filter_alpha         = 0.1f;
-    static constexpr float angle_backward_max_deviation          = -5.0f * (PI / RADIAN_IN_DEGREES);
-    static constexpr float angle_forward_max_deviation           = 5.0f * (PI / RADIAN_IN_DEGREES);
+    static constexpr float angle_backward_max_deviation          = -15.0f * (PI / RADIAN_IN_DEGREES);
+    static constexpr float angle_forward_max_deviation           = 15.0f * (PI / RADIAN_IN_DEGREES);
     static constexpr float max_speed_rad_s                       = 180.0f;
 
 #ifdef CONFIG_PID_ENABLED
-    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 80.0, .Ki = 900.0f, .Kd = 3.9f};
+    static constexpr PID::Parameters balance_pid_parameters = {.Kp = 160.0, .Ki = 900.0f, .Kd = 3.9f};
     static constexpr float balance_pid_filter_alpha         = 0.9f;
 #else
     static constexpr LQR::Parameters balance_lqr_parameters = {.Kx = 0.0, .Ky = 0.0f};

@@ -90,6 +90,9 @@ public:
     update_free_drive_mode(
         float balance_angle_setpoint, Feedback const& feedback, Speed_Targets const& targets, float time_dt);
 
+    Output
+    update_parking_mode(float balance_angle_setpoint, Feedback const& feedback, float proximity_m, float time_dt);
+
     void
     send_PID_controllers_parameters();
 
@@ -103,6 +106,26 @@ public:
 
     void
     reset();
+
+    bool
+    is_parking_sequence_initialized() const
+    {
+        return m_parking_sequence_initialized;
+    }
+
+    void
+    initialize_parking_sequence(float initial_parking_proximity_m)
+    {
+        m_parking_sequence_initialized = true;
+        m_parking_finished             = false;
+        m_initial_parking_proximity_m  = initial_parking_proximity_m;
+    }
+
+    bool
+    is_parking_finished() const
+    {
+        return m_parking_finished;
+    }
 
 private:
     Control_Loop();
@@ -126,6 +149,10 @@ private:
 
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
+
+    bool m_parking_sequence_initialized {false};
+    bool m_parking_finished {false};
+    float m_initial_parking_proximity_m {0.0f};
 
     Output
     update_internal(

@@ -56,6 +56,37 @@ Control_Loop::update_free_drive_mode(
 }
 
 Control_Loop::Output
+Control_Loop::update_parking_mode(
+    float balance_angle_setpoint, Feedback const& feedback, float proximity_m, float time_dt)
+{
+    static constexpr float MINIMAL_PROXIMITY_M = 0.05f;
+
+    Speed_Targets speed_targets {};
+    if(m_parking_finished || (fabsf(proximity_m) <= MINIMAL_PROXIMITY_M))
+    {
+        speed_targets.target_linear_speed = 0.0f;
+        m_parking_finished                = true;
+    }
+    else
+    {
+        static constexpr float INITIAL_PARKING_SPEED = 0.25f;
+        static constexpr float MIN_PARKING_SPEED     = 0.1f;
+
+        float target_linear_speed = INITIAL_PARKING_SPEED * ((proximity_m - MINIMAL_PROXIMITY_M) /
+                                                             (m_initial_parking_proximity_m - MINIMAL_PROXIMITY_M));
+
+        if(target_linear_speed < MIN_PARKING_SPEED)
+        {
+            target_linear_speed = MIN_PARKING_SPEED;
+        }
+
+        speed_targets.target_linear_speed = target_linear_speed;
+    }
+
+    return update_internal(balance_angle_setpoint, feedback, speed_targets, time_dt);
+}
+
+Control_Loop::Output
 Control_Loop::update_internal(
     float balance_angle_setpoint, Feedback const& feedback, Speed_Targets const& speed_targets, float time_dt)
 {
@@ -206,5 +237,9 @@ Control_Loop::reset()
 #ifdef CONFIG_PID_ENABLED
     m_balance_pid.reset();
 #endif  // CONFIG_PID_ENABLED
+
+    m_parking_sequence_initialized = false;
+    m_parking_finished             = false;
+    m_initial_parking_proximity_m  = 0.0f;
 }
 }  // namespace Robot_Control

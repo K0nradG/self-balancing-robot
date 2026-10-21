@@ -37,7 +37,7 @@ Robot_Controller::normal_motors_control()
     DataManager::instance().update();
     imu_data const imu_data = DataManager::instance().get_imu_data();
 
-    bool const disable_motors_command =
+    bool disable_motors_command =
         Protection_Manager::instance().validate_robot_angle(m_balance_setpoint, imu_data.angle_balance);
     if(!disable_motors_command)
     {
@@ -67,6 +67,22 @@ Robot_Controller::normal_motors_control()
 
             control_loop_output = Control_Loop::instance().update_free_drive_mode(
                 m_balance_setpoint, feedback, speed_targets, imu_data.time_dt);
+        }
+        else if(m_control_mode == Control_Mode::PARKING)
+        {
+            float const proximity_m = DataManager::instance().get_proximity_m();
+            if(!Control_Loop::instance().is_parking_sequence_initialized())
+            {
+                Control_Loop::instance().initialize_parking_sequence(proximity_m);
+            }
+
+            control_loop_output = Control_Loop::instance().update_parking_mode(
+                m_balance_setpoint, feedback, proximity_m, imu_data.time_dt);
+
+            if(Control_Loop::instance().is_parking_finished() && (imu_data.angle_balance < m_balance_setpoint))
+            {
+                disable_motors_command = true;
+            }
         }
         else  // Control_Mode::STANDARD
         {
@@ -150,6 +166,7 @@ Robot_Controller::soft_stop_motors()
 void
 Robot_Controller::reset()
 {
+    m_control_mode      = Control_Mode::STANDARD;
     m_distance_setpoint = 0.0f;
     m_rotate_setpoint_ramp.reset();
     m_angular_speed_setpoint_ramp.reset();
@@ -285,6 +302,11 @@ Robot_Controller::set_control_mode(BLE_Protocol::Payload_Reader& reader)
         case Control_Mode::FREE_DRIVE:
         {
             m_control_mode = Control_Mode::FREE_DRIVE;
+            break;
+        }
+        case Control_Mode::PARKING:
+        {
+            m_control_mode = Control_Mode::PARKING;
             break;
         }
         default:

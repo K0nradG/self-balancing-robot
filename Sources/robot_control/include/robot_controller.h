@@ -68,7 +68,8 @@ private:
     enum class Control_Mode : uint8_t
     {
         STANDARD   = 0,
-        FREE_DRIVE = 1
+        FREE_DRIVE = 1,
+        PARKING    = 2,
     };
 
     float m_distance_setpoint;

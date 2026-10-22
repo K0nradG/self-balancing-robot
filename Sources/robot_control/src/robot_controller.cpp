@@ -10,10 +10,7 @@
 #include "logger.h"
 #include "motor_controller.h"
 #include "protection_manager.h"
-
-#if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
 #include "telemetry.h"
-#endif
 
 #ifdef CONFIG_MODEL_IDENTIFICATION_DRV
 #include "model_identification.h"
@@ -47,22 +44,7 @@ Robot_Controller::normal_motors_control()
         encoders_data const& encoders_data = DataManager::instance().get_encoders_data();
         float const rotation_angle         = DataManager::instance().get_rotation_angle();
 
-        if(Control_Loop::instance().get_control_mode() == Control_Loop::Control_Mode::FREE_DRIVE)
-        {
-            m_angular_speed_setpoint_ramp.update(imu_data.time_dt);
-            m_linear_speed_setpoint_ramp.update(imu_data.time_dt);
-        }
-        else  // Control_Mode::STANDARD
-        {
-            m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
-            m_rotate_setpoint_ramp.update(imu_data.time_dt);
-        }
-
-        Control_Loop::Setpoints const setpoints = {
-            .distance = m_distance_setpoint,
-            .balance  = m_balance_setpoint,
-            .rotate   = m_rotate_setpoint_ramp.get_current_value()};
-
+        Control_Loop::Output control_loop_output {};
         Control_Loop::Feedback const feedback = {
             .robot_distance_m   = encoders_data.robot_distance_m,
             .robot_linear_speed = encoders_data.robot_linear_speed,
@@ -74,37 +56,50 @@ Robot_Controller::normal_motors_control()
             .angular_velocity0_rad_s = encoders_data.encoder_0.angular_velocity_rad_s,
             .angular_velocity1_rad_s = encoders_data.encoder_1.angular_velocity_rad_s};
 
-        Control_Loop::Targets const targets = {
-            .target_linear_speed = m_linear_speed_setpoint_ramp.get_current_value(),
-            .target_speed_rotate = m_angular_speed_setpoint_ramp.get_current_value()};
+        if(m_control_mode == Control_Mode::FREE_DRIVE)
+        {
+            m_angular_speed_setpoint_ramp.update(imu_data.time_dt);
+            m_linear_speed_setpoint_ramp.update(imu_data.time_dt);
 
-        Control_Loop::Output const control_loop_output =
-            Control_Loop::instance().update(setpoints, feedback, targets, imu_data.time_dt);
+            Control_Loop::Speed_Targets const speed_targets = {
+                .target_linear_speed = m_linear_speed_setpoint_ramp.get_current_value(),
+                .target_speed_rotate = m_angular_speed_setpoint_ramp.get_current_value()};
+
+            control_loop_output = Control_Loop::instance().update_free_drive_mode(
+                m_balance_setpoint, feedback, speed_targets, imu_data.time_dt);
+        }
+        else  // Control_Mode::STANDARD
+        {
+            m_trajectory_manager.update(rotation_angle, encoders_data.robot_distance_m);
+            m_rotate_setpoint_ramp.update(imu_data.time_dt);
+
+            Control_Loop::Setpoints const setpoints = {
+                .distance = m_distance_setpoint,
+                .balance  = m_balance_setpoint,
+                .rotate   = m_rotate_setpoint_ramp.get_current_value()};
+
+            control_loop_output = Control_Loop::instance().update_standard_mode(setpoints, feedback, imu_data.time_dt);
+        }
 
         m_pwm0 = control_loop_output.pwm0;
         m_pwm1 = control_loop_output.pwm1;
 
-#if defined(CONFIG_ROBOT_CONTROL_LOG) && defined(CONFIG_BLUETOOTH_DRV)
-        if(!m_trajectory_manager.stop_logs())
-        {
-            Telemetry_Sample const telemetry_sample = {
-                .timestamp_us      = k_uptime_get_32() * static_cast<uint32_t>(MICRO_TO_MILLI),
-                .distance_setpoint = m_distance_setpoint,
-                .distance_m        = encoders_data.robot_distance_m,
-                .balance_setpoint  = m_balance_setpoint * RADIANS_TO_DEGREES,
-                .balance_angle     = imu_data.angle_balance * RADIANS_TO_DEGREES,
-                .rotation_setpoint = m_rotate_setpoint_ramp.get_current_value() * RADIANS_TO_DEGREES,
-                .rotation_angle    = rotation_angle * RADIANS_TO_DEGREES,
-                .target_speed_0    = control_loop_output.target_speed0,
-                .target_speed_1    = control_loop_output.target_speed1,
-                .measured_speed_0  = encoders_data.encoder_0.angular_velocity_rad_s,
-                .measured_speed_1  = encoders_data.encoder_1.angular_velocity_rad_s,
-                .pwm_0             = m_pwm0,
-                .pwm_1             = m_pwm1,
-            };
-            telemetry_submit(telemetry_sample);
-        }
-#endif
+        Telemetry_Sample const telemetry_sample = {
+            .timestamp_us      = k_uptime_get_32() * static_cast<uint32_t>(MICRO_TO_MILLI),
+            .distance_setpoint = m_distance_setpoint,
+            .distance_m        = encoders_data.robot_distance_m,
+            .balance_setpoint  = m_balance_setpoint * RADIANS_TO_DEGREES,
+            .balance_angle     = imu_data.angle_balance * RADIANS_TO_DEGREES,
+            .rotation_setpoint = m_rotate_setpoint_ramp.get_current_value() * RADIANS_TO_DEGREES,
+            .rotation_angle    = rotation_angle * RADIANS_TO_DEGREES,
+            .target_speed_0    = control_loop_output.target_speed0,
+            .target_speed_1    = control_loop_output.target_speed1,
+            .measured_speed_0  = encoders_data.encoder_0.angular_velocity_rad_s,
+            .measured_speed_1  = encoders_data.encoder_1.angular_velocity_rad_s,
+            .pwm_0             = m_pwm0,
+            .pwm_1             = m_pwm1,
+        };
+        telemetry_submit(telemetry_sample);
     }
 
     send_motors_data(m_pwm0, m_pwm1);
@@ -162,24 +157,6 @@ Robot_Controller::reset()
     DataManager::instance().reset();
     m_trajectory_manager.reset();
     Control_Loop::instance().reset();
-}
-
-BLE_Protocol::Command_Status
-Robot_Controller::set_drive_command(BLE_Protocol::Payload_Reader& reader)
-{
-    float angular_speed_setpoint_value {};
-    float linear_speed_setpoint_value {};
-
-    auto status = BLE_Protocol::Command_Status::OK;
-    if(!reader.get_float(angular_speed_setpoint_value) || !reader.get_float(linear_speed_setpoint_value) ||
-       !reader.done())
-    {
-        status = BLE_Protocol::Command_Status::INVALID_LENGTH;
-    }
-
-    m_angular_speed_setpoint_ramp.set_target(angular_speed_setpoint_value);
-    m_linear_speed_setpoint_ramp.set_target(linear_speed_setpoint_value);
-    return status;
 }
 
 void
@@ -284,6 +261,58 @@ Robot_Controller::set_trajectory_command(BLE_Protocol::Payload_Reader& reader)
 
     bool const accepted = m_trajectory_manager.set_trajectory_point(rotation_degrees, distance_m);
     auto const status   = accepted ? BLE_Protocol::Command_Status::OK : BLE_Protocol::Command_Status::INVALID_STATE;
+    return status;
+}
+
+BLE_Protocol::Command_Status
+Robot_Controller::set_control_mode(BLE_Protocol::Payload_Reader& reader)
+{
+    uint8_t mode_value {};
+
+    if(!reader.get_u8(mode_value) || !reader.done())
+    {
+        return BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+
+    auto status = BLE_Protocol::Command_Status::OK;
+    switch(static_cast<Control_Mode>(mode_value))
+    {
+        case Control_Mode::STANDARD:
+        {
+            m_control_mode = Control_Mode::STANDARD;
+            break;
+        }
+        case Control_Mode::FREE_DRIVE:
+        {
+            m_control_mode = Control_Mode::FREE_DRIVE;
+            break;
+        }
+        default:
+        {
+            m_control_mode = Control_Mode::STANDARD;
+            status         = BLE_Protocol::Command_Status::INVALID_VALUE;
+            break;
+        }
+    }
+
+    return status;
+}
+
+BLE_Protocol::Command_Status
+Robot_Controller::set_drive_command(BLE_Protocol::Payload_Reader& reader)
+{
+    float angular_speed_setpoint_value {};
+    float linear_speed_setpoint_value {};
+
+    auto status = BLE_Protocol::Command_Status::OK;
+    if(!reader.get_float(angular_speed_setpoint_value) || !reader.get_float(linear_speed_setpoint_value) ||
+       !reader.done())
+    {
+        status = BLE_Protocol::Command_Status::INVALID_LENGTH;
+    }
+
+    m_angular_speed_setpoint_ramp.set_target(angular_speed_setpoint_value);
+    m_linear_speed_setpoint_ramp.set_target(linear_speed_setpoint_value);
     return status;
 }
 

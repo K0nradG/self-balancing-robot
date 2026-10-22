@@ -62,7 +62,7 @@ public:
         float angular_velocity1_rad_s;
     };
 
-    struct Targets
+    struct Speed_Targets
     {
         float target_linear_speed;
         float target_speed_rotate;
@@ -76,12 +76,6 @@ public:
         float pwm1;
     };
 
-    enum class Control_Mode : uint8_t
-    {
-        STANDARD   = 0,
-        FREE_DRIVE = 1
-    };
-
     static Control_Loop&
     instance()
     {
@@ -90,13 +84,14 @@ public:
     }
 
     Output
-    update(Setpoints const& setpoints, Feedback const& feedback, Targets const& targets, float time_dt);
+    update_standard_mode(Setpoints const& setpoints, Feedback const& feedback, float time_dt);
+
+    Output
+    update_free_drive_mode(
+        float balance_angle_setpoint, Feedback const& feedback, Speed_Targets const& targets, float time_dt);
 
     void
     send_PID_controllers_parameters();
-
-    BLE_Protocol::Command_Status
-    set_control_mode(BLE_Protocol::Payload_Reader& reader);
 
     BLE_Protocol::Command_Status
     set_PID_parameters(BLE_Protocol::Payload_Reader& reader);
@@ -105,12 +100,6 @@ public:
     BLE_Protocol::Command_Status
     set_LQR_parameters(BLE_Protocol::Payload_Reader& reader);
 #endif  // not CONFIG_PID_ENABLED
-
-    void
-    set_control_mode(Control_Mode mode);
-
-    Control_Mode
-    get_control_mode() const;
 
     void
     reset();
@@ -138,7 +127,9 @@ private:
     PID m_wheel0_speed_pid;
     PID m_wheel1_speed_pid;
 
-    Control_Mode m_current_mode {Control_Mode::STANDARD};
+    Output
+    update_internal(
+        float balance_angle_setpoint, Feedback const& feedback, Speed_Targets const& targets, float time_dt);
 };
 
 }  // namespace Robot_Control

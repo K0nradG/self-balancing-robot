@@ -46,13 +46,16 @@ public:
     reset();
 
     BLE_Protocol::Command_Status
-    set_drive_command(BLE_Protocol::Payload_Reader& reader);
-
-    BLE_Protocol::Command_Status
     set_setpoints(BLE_Protocol::Payload_Reader& reader);
 
     BLE_Protocol::Command_Status
     set_trajectory_command(BLE_Protocol::Payload_Reader& reader);
+
+    BLE_Protocol::Command_Status
+    set_control_mode(BLE_Protocol::Payload_Reader& reader);
+
+    BLE_Protocol::Command_Status
+    set_drive_command(BLE_Protocol::Payload_Reader& reader);
 
 private:
     Robot_Controller();
@@ -61,6 +64,12 @@ private:
 
     Robot_Controller&
     operator=(Robot_Controller const&) = delete;
+
+    enum class Control_Mode : uint8_t
+    {
+        STANDARD   = 0,
+        FREE_DRIVE = 1
+    };
 
     float m_distance_setpoint;
     float m_balance_setpoint;
@@ -72,6 +81,8 @@ private:
 
     float m_pwm0 {};
     float m_pwm1 {};
+
+    Control_Mode m_control_mode {Control_Mode::STANDARD};
 
     void
     send_motors_data(float pwm_motor0, float pwm_motor1);

@@ -29,24 +29,10 @@ namespace Robot_Control
 {
 
 #ifdef CONFIG_BLUETOOTH_DRV
-static void
-command_work_handler(k_work* work)
-{
-    static constexpr size_t MAXIMUM_COMMANDS_PER_RUN = 4u;
-
-    ARG_UNUSED(work);
-    BLE_Handler::instance().process_pending_commands(MAXIMUM_COMMANDS_PER_RUN);
-}
-
-static K_WORK_DEFINE(s_command_work, command_work_handler);
-
 void
 ble_packet_callback(BLE_Protocol::Received_Packet const& received_packet)
 {
-    if(BLE_Handler::instance().enqueue_received_packet(received_packet))
-    {
-        k_work_submit(&s_command_work);
-    }
+    BLE_Handler::instance().handle_received_packet(received_packet);
 }
 #endif  // CONFIG_BLUETOOTH_DRV
 

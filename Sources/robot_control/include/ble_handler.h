@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include <stddef.h>
 #include "ble_protocol_types.h"
 
 namespace Robot_Control
@@ -18,16 +17,10 @@ public:
         return s_ble_handler;
     }
 
-    bool
-    enqueue_received_packet(BLE_Protocol::Received_Packet const& received_packet);
-
-    void
-    process_pending_commands(size_t maximum_commands);
-
-private:
     void
     handle_received_packet(BLE_Protocol::Received_Packet const& received_packet);
 
+private:
     BLE_Handler()                   = default;
     BLE_Handler(BLE_Handler const&) = delete;
     BLE_Handler&
@@ -35,6 +28,8 @@ private:
 
     void
     send_command_result(BLE_Protocol::Received_Packet const& received_packet, BLE_Protocol::Command_Status status);
+
+    bool m_previous_packet_handling_in_progress {false};
 };
 
 }  // namespace Robot_Control

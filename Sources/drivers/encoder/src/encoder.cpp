@@ -4,7 +4,6 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/kernel.h>
-#include <zephyr/sys/atomic.h>
 #include "logger.h"
 
 #define M_PI        3.14159265358979323846f
@@ -28,12 +27,6 @@ static gpio_callback encoder_1_a_data;
 static gpio_callback encoder_1_b_data;
 
 static encoders_data g_encoders_data {};
-static atomic_t encoder_0_impulse_count;
-static atomic_t encoder_1_impulse_count;
-static float prev_angle_rad_encoder_0;
-static float prev_angle_rad_encoder_1;
-static float prev_robot_distance_m;
-static int64_t previous_timestamp_ticks;
 
 // Lookup table: 16 entries for all possible transitions
 // -1 = CCW, +1 = CW, 0 = invalid/bounce
@@ -68,7 +61,7 @@ encoder_0_gpio_callback(const device* dev, gpio_callback* cb, uint32_t pins)
     uint8_t const transition = (prev_state << 2) | curr_state;
 
     int8_t const delta = transition_table[transition];
-    atomic_add(&encoder_0_impulse_count, delta);
+    g_encoders_data.encoder_0.impulse_count += delta;
 
     prev_state = curr_state;
 }
@@ -85,7 +78,7 @@ encoder_1_gpio_callback(const device* dev, gpio_callback* cb, uint32_t pins)
     uint8_t const transition = (prev_state << 2) | curr_state;
 
     int8_t const delta = transition_table[transition];
-    atomic_add(&encoder_1_impulse_count, delta);
+    g_encoders_data.encoder_1.impulse_count += delta;
 
     prev_state = curr_state;
 }
@@ -139,7 +132,6 @@ encoders_init()
         return ret;
     }
 
-    previous_timestamp_ticks = k_uptime_ticks();
     encoder_logger.platform_log(LOG_LEVEL::INF, "encoder init finished");
     return ret;
 }
@@ -159,22 +151,14 @@ update_encoder(encoder_data* encoder, float prev_angle_rad, float dt)
 encoders_data const&
 _get_encoders_data()
 {
-    static constexpr float minimum_dt = 0.0001f;
-    static constexpr float microseconds_to_seconds = 1.0f / 1000000.0f;
+    static float prev_angle_rad_encoder_0 = 0.0f;
+    static float prev_angle_rad_encoder_1 = 0.0f;
+    static float prev_robot_distance_m    = 0.0f;
+    static int64_t last_timestamp_ms      = 0;
 
-    int64_t const current_timestamp_ticks = k_uptime_ticks();
-    int64_t const elapsed_ticks = current_timestamp_ticks - previous_timestamp_ticks;
-    float const elapsed_time = k_ticks_to_us_floor64(elapsed_ticks) * microseconds_to_seconds;
-    float const dt = MAX(elapsed_time, minimum_dt);
-    previous_timestamp_ticks = current_timestamp_ticks;
-
-    unsigned int const key = irq_lock();
-    int32_t const impulse_count_0 = atomic_get(&encoder_0_impulse_count);
-    int32_t const impulse_count_1 = atomic_get(&encoder_1_impulse_count);
-    irq_unlock(key);
-
-    g_encoders_data.encoder_0.impulse_count = impulse_count_0;
-    g_encoders_data.encoder_1.impulse_count = impulse_count_1;
+    int64_t const now_ms = k_uptime_get();
+    float const dt       = (last_timestamp_ms > 0) ? (now_ms - last_timestamp_ms) * MILLI_TO_SI : 0.01f;
+    last_timestamp_ms    = now_ms;
 
     update_encoder(&g_encoders_data.encoder_0, prev_angle_rad_encoder_0, dt);
     prev_angle_rad_encoder_0 = g_encoders_data.encoder_0.shaft_angle_rad;
@@ -196,14 +180,5 @@ _get_encoders_data()
 void
 reset_encoders()
 {
-    unsigned int const key = irq_lock();
-    atomic_set(&encoder_0_impulse_count, 0);
-    atomic_set(&encoder_1_impulse_count, 0);
-    irq_unlock(key);
-
     g_encoders_data = {};
-    prev_angle_rad_encoder_0 = 0.0f;
-    prev_angle_rad_encoder_1 = 0.0f;
-    prev_robot_distance_m    = 0.0f;
-    previous_timestamp_ticks = k_uptime_ticks();
 }

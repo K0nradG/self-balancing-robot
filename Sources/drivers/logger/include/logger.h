@@ -4,10 +4,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#ifdef CONFIG_BLUETOOTH_DRV
 #include "ble_transfer_handler.h"
-#endif
 
 // Used by the including modules
 #include "zephyr/sys/util_macro.h"
@@ -30,7 +27,7 @@ public:
     void
     platform_log([[maybe_unused]] int level, [[maybe_unused]] char const* fmt, ...) const
     {
-#if defined(CONFIG_LOGGER_DRV) && defined(CONFIG_BLUETOOTH_DRV)
+#if defined(CONFIG_LOGGER_DRV)
         if constexpr(module_logging_enabled)
         {
             char log_msg[LOG_MSG_MAX_SIZE] {};
@@ -42,7 +39,7 @@ public:
 
             ble_send_log(static_cast<uint8_t>(level), m_module, log_msg);
         }  // module_logging_enabled
-#endif  // CONFIG_LOGGER_DRV && CONFIG_BLUETOOTH_DRV
+#endif  // CONFIG_LOGGER_DRV
     }
 
 private:

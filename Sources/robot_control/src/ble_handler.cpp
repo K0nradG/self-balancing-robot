@@ -37,7 +37,7 @@ BLE_Handler::handle_received_packet(BLE_Protocol::Received_Packet const& receive
         }
         case BLE_Protocol::Message_Type::SET_CONTROL_MODE:
         {
-            status = Control_Loop::instance().set_control_mode(reader);
+            status = Robot_Controller::instance().set_control_mode(reader);
             break;
         }
         case BLE_Protocol::Message_Type::GET_PID_STATE:

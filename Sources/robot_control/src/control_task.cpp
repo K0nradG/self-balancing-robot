@@ -19,22 +19,18 @@
 #include "watchdog_controller.h"
 #endif  // CONFIG_WATCHDOG_CONTROLLER_DRV
 
-#ifdef CONFIG_BLUETOOTH_DRV
 #include "ble_service.h"
-#endif  // CONFIG_BLUETOOTH_DRV
 
 static Logger<IS_ENABLED(CONFIG_ROBOT_CONTROL_LOG)> robot_control_logger("ROBOT_CONTROL");
 
 namespace Robot_Control
 {
 
-#ifdef CONFIG_BLUETOOTH_DRV
 void
 ble_packet_callback(BLE_Protocol::Received_Packet const& received_packet)
 {
     BLE_Handler::instance().handle_received_packet(received_packet);
 }
-#endif  // CONFIG_BLUETOOTH_DRV
 
 int
 control_task_init()
@@ -45,9 +41,7 @@ control_task_init()
 
     Drivers_Initializer::init();
 
-#ifdef CONFIG_BLUETOOTH_DRV
     ble_packet_received_cb_register(&ble_packet_callback);
-#endif  // CONFIG_BLUETOOTH_DRV
 
     set_enable_controller(true);
 

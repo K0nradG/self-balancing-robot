@@ -1,36 +1,30 @@
 % Copyright 2026 Filip Dymczyk and Konrad Grucel
 
-function [t, x] = rk4(x0, u , time, theta)
-    % Steps:
-    timesteps = length(u);
-    h = time / timesteps;
-    h_2 = h / 2;
-    h_6 = h / 6; 
-    h_26 = 2 * h_6;
+function [t, x] = rk4(x0, u, Ts, params)
 
-    % Variables init:
-    state_variables = length(x0);
-    x = zeros(timesteps + 1, state_variables); 
-    t = zeros(timesteps + 1, 1);
-    xtmp = x0;
-    x(1,:) = x0';
-    tt = 0;
-    
-    % Proper RK4:
-    for i=1:timesteps
-        dx1 = rhs(tt, xtmp, u(i), theta); 
-        tmp = xtmp + h_2 * dx1;
-        tt = tt + h_2;
+    N = length(u);
 
-        dx2 = rhs(tt, tmp, u(i), theta);
-        tmp = xtmp + h_2 * dx2;
+    % N measurements require N-1 integration intervals
+    t = (0:N-1)' * Ts;
 
-        dx3 = rhs(tt, tmp, u(i), theta);
-        tmp = xtmp + h * dx3;
-        tt = tt + h_2;
+    x = zeros(N, length(x0));
+    x(1,:) = x0(:)';
 
-        dx4 = rhs(tt, tmp, u(i), theta);
-        xtmp = xtmp + h_6 * (dx1 + dx4) + h_26 * (dx2 + dx3);
-        x(i + 1, :) = xtmp';
-        t(i + 1) = tt;
+    for i = 1:N-1
+
+        h = Ts;
+        xi = x(i,:)';
+
+        % Zero-order hold input
+        ui = u(i);
+
+        k1 = rhs(t(i), xi, ui, params);
+        k2 = rhs(t(i)+h/2, xi+h*k1/2, ui, params);
+        k3 = rhs(t(i)+h/2, xi+h*k2/2, ui, params);
+        k4 = rhs(t(i)+h, xi+h*k3, ui, params);
+
+        x(i+1,:) = (xi + h/6 * ...
+            (k1 + 2*k2 + 2*k3 + k4))';
+
     end
+end
